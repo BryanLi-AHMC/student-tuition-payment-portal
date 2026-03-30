@@ -5,7 +5,7 @@ import { PortalAppHeader } from './PortalAppHeader'
 import { PortalStudentInfoBar } from './PortalStudentInfoBar'
 
 const AUTH_ROUTE_TITLES: Record<string, string> = {
-  '/overview': 'Overview',
+  '/overview': 'Student Account',
   '/activity': 'Activity Details',
   '/payment': 'Make a Payment',
   '/plan': 'Payment Plan',

@@ -1,31 +1,20 @@
 import { PageLayout } from '../components/PageLayout'
+import { useAccount } from '../context/AccountContext'
 import { INSTITUTION_NAME } from '../branding'
-
-const ACTIVITY_ROWS = [
-  {
-    date: 'Jul 10, 2026',
-    description: 'Tuition — Fall 2026 (MD program)',
-    charges: '$18,200.00',
-    credits: '—',
-    balance: '$18,200.00',
-  },
-  {
-    date: 'Sep 29, 2026',
-    description: 'Late fee — account past due (2 weeks)',
-    charges: '$200.00',
-    credits: '—',
-    balance: '$18,400.00',
-  },
-] as const
+import { activityRowsFromRecent } from '../lib/accountDisplay'
+import { formatMoney } from '../lib/formatMoney'
 
 export function ActivityDetailsPage() {
+  const { account } = useAccount()
+  const rows = activityRowsFromRecent(account.recentActivity)
+
   return (
     <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
-          Recent posted activity for your student tuition account at {INSTITUTION_NAME}. Figures
-          are illustrative for this preview; your official ledger and statements are issued by the
-          bursar.
+          Recent posted activity for your student tuition account at {INSTITUTION_NAME}. Figures are
+          derived from the same MAHM demo ledger as your account overview; official statements are issued
+          by the bursar.
         </p>
 
         <div className="portal-table-wrap">
@@ -43,13 +32,13 @@ export function ActivityDetailsPage() {
               </tr>
             </thead>
             <tbody>
-              {ACTIVITY_ROWS.map((row) => (
-                <tr key={`${row.date}-${row.description}`}>
+              {rows.map((row, i) => (
+                <tr key={`${i}-${row.date}-${row.description}`}>
                   <td>{row.date}</td>
                   <td>{row.description}</td>
-                  <td>{row.charges}</td>
-                  <td>{row.credits}</td>
-                  <td>{row.balance}</td>
+                  <td>{row.charges ? formatMoney(row.charges) : '—'}</td>
+                  <td>{row.credits ? formatMoney(row.credits) : '—'}</td>
+                  <td>{formatMoney(row.balance)}</td>
                 </tr>
               ))}
             </tbody>

@@ -17,7 +17,7 @@ function PortalNavList({ onItemClick }: PortalNavListProps) {
     <ul className="portal-sidebar-nav-list">
       <li>
         <NavLink to="/overview" end className={({ isActive }) => navClassName(isActive)} onClick={handleClick}>
-          Overview
+          Student Account
         </NavLink>
       </li>
       <li>

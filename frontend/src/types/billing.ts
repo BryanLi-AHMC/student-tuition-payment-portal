@@ -1,0 +1,26 @@
+export type BillingCategory = 'tuition' | 'clinical' | 'fees' | 'other'
+
+export type BillingLineItem = {
+  description: string
+  amount: number
+  category: BillingCategory
+}
+
+export type StudentAccountSummary = {
+  tuitionTotal: number
+  clinicalTotal: number
+  feesTotal: number
+  otherTotal: number
+  totalCharges: number
+  payments: number
+  outstandingBalance: number
+}
+
+export type ScheduleRow = {
+  courseCode: string
+  title: string
+  type: string
+  units: number | null
+  hours: number | null
+  charge: number
+}

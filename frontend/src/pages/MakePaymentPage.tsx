@@ -1,19 +1,47 @@
 import { useState } from 'react'
 import { PageLayout } from '../components/PageLayout'
+import { useAccount } from '../context/AccountContext'
+import { CARD_CONVENIENCE_RATE } from '../lib/api'
+import {
+  lateFeeFromLineItems,
+  nextInstallmentRow,
+  portalTermLabel,
+  toInstallmentRows,
+} from '../lib/accountDisplay'
+import { formatMoney } from '../lib/formatMoney'
+
+function roundMoney(n: number) {
+  return Math.round(n * 100) / 100
+}
 
 export function MakePaymentPage() {
+  const { account } = useAccount()
   const [paymentOption, setPaymentOption] = useState<'full-balance' | 'installment'>('full-balance')
   const [paymentMethod, setPaymentMethod] = useState<'ach' | 'credit-card'>('ach')
 
   const isFullBalance = paymentOption === 'full-balance'
   const isCreditCard = paymentMethod === 'credit-card'
 
+  const { summary, lineItems, installmentPlan } = account
+  const installmentRows = toInstallmentRows(installmentPlan.schedule)
+  const lateFee = lateFeeFromLineItems(lineItems)
+  const nextDue = nextInstallmentRow(installmentRows)
+
+  const fullSelected = summary.outstandingBalance
+  const installmentSelected = nextDue?.amount ?? 0
+  const basePayToday = isFullBalance ? fullSelected : installmentSelected
+  const convenienceFee = isCreditCard ? roundMoney(basePayToday * CARD_CONVENIENCE_RATE) : 0
+  const totalDueToday = roundMoney(basePayToday + convenienceFee)
+
+  const termLabel = portalTermLabel(account)
+
   return (
     <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
-          Review the payment amount before you continue. This screen is a static preview only; no
-          payment will be submitted or processed.
+          Review the payment amount before you continue. Amounts come from your {termLabel} MAHM account
+          (catalog rates and posted charges). This screen is a static preview only; no payment will be
+          submitted or processed.
         </p>
 
         <section className="portal-card portal-stack" aria-labelledby="payment-option-heading">
@@ -34,10 +62,17 @@ export function MakePaymentPage() {
               className={`portal-btn ${!isFullBalance ? 'portal-btn--primary' : 'portal-btn--secondary'}`}
               onClick={() => setPaymentOption('installment')}
               aria-pressed={!isFullBalance}
+              disabled={!installmentPlan.enabled}
             >
               Use Installment Plan
             </button>
           </div>
+          {!installmentPlan.enabled ? (
+            <p className="portal-inline-note">
+              You are not on a term installment plan; pay full balance or contact the bursar to change
+              your billing preference.
+            </p>
+          ) : null}
         </section>
 
         <section className="portal-card portal-stack" aria-labelledby="payment-summary-heading">
@@ -48,77 +83,71 @@ export function MakePaymentPage() {
             {isFullBalance ? (
               <>
                 <div className="portal-row">
-                  <dt>Current Term Charges</dt>
-                  <dd>$18,200.00</dd>
+                  <dt>Total charges (term)</dt>
+                  <dd>{formatMoney(summary.totalCharges)}</dd>
                 </div>
                 <div className="portal-row">
-                  <dt>Late Fee</dt>
-                  <dd
-                    style={{
-                      color: 'var(--amu-red)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    $200.00
-                  </dd>
+                  <dt>Payments &amp; credits</dt>
+                  <dd>{formatMoney(summary.payments)}</dd>
+                </div>
+                {lateFee > 0 ? (
+                  <div className="portal-row portal-row--fee-warning">
+                    <dt>Late fee</dt>
+                    <dd>{formatMoney(lateFee)}</dd>
+                  </div>
+                ) : null}
+                <div className="portal-row">
+                  <dt>Current outstanding balance</dt>
+                  <dd>{formatMoney(summary.outstandingBalance)}</dd>
                 </div>
                 <div className="portal-row">
-                  <dt>Current Outstanding Balance</dt>
-                  <dd>$18,400.00</dd>
+                  <dt>Selected payment amount</dt>
+                  <dd>{formatMoney(fullSelected)}</dd>
                 </div>
                 <div className="portal-row">
-                  <dt>Selected Payment Amount</dt>
-                  <dd>$18,400.00</dd>
-                </div>
-                <div className="portal-row">
-                  <dt>Payment Method</dt>
+                  <dt>Payment method</dt>
                   <dd>{isCreditCard ? 'Credit card — Visa ending in 4242' : 'ACH / Bank Transfer'}</dd>
                 </div>
                 {isCreditCard ? (
                   <div className="portal-row">
-                    <dt>Convenience Fee</dt>
-                    <dd>$524.40 (2.85% for credit card payments)</dd>
+                    <dt>Convenience fee</dt>
+                    <dd>
+                      {formatMoney(convenienceFee)} ({(CARD_CONVENIENCE_RATE * 100).toFixed(2)}% for credit
+                      card payments)
+                    </dd>
                   </div>
                 ) : null}
                 <div className="portal-row portal-payment-total">
-                  <dt>Total Due Today</dt>
-                  <dd>{isCreditCard ? '$18,924.40' : '$18,400.00'}</dd>
+                  <dt>Total due today</dt>
+                  <dd>{formatMoney(totalDueToday)}</dd>
                 </div>
               </>
             ) : (
               <>
                 <div className="portal-row">
-                  <dt>Current Installment Due</dt>
-                  <dd>$4,612.50</dd>
+                  <dt>Current installment due</dt>
+                  <dd>{nextDue ? formatMoney(nextDue.amount) : formatMoney(0)}</dd>
                 </div>
                 <div className="portal-row">
-                  <dt>Late Fee</dt>
-                  <dd
-                    style={{
-                      color: 'var(--amu-red)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    $200.00
-                  </dd>
+                  <dt>Selected payment amount</dt>
+                  <dd>{formatMoney(installmentSelected)}</dd>
                 </div>
                 <div className="portal-row">
-                  <dt>Selected Payment Amount</dt>
-                  <dd>$4,812.50</dd>
-                </div>
-                <div className="portal-row">
-                  <dt>Payment Method</dt>
+                  <dt>Payment method</dt>
                   <dd>{isCreditCard ? 'Credit card — Visa ending in 4242' : 'ACH / Bank Transfer'}</dd>
                 </div>
                 {isCreditCard ? (
                   <div className="portal-row">
-                    <dt>Convenience Fee</dt>
-                    <dd>$137.16 (2.85% for credit card payments)</dd>
+                    <dt>Convenience fee</dt>
+                    <dd>
+                      {formatMoney(convenienceFee)} ({(CARD_CONVENIENCE_RATE * 100).toFixed(2)}% for credit
+                      card payments)
+                    </dd>
                   </div>
                 ) : null}
                 <div className="portal-row portal-payment-total">
-                  <dt>Total Due Today</dt>
-                  <dd>{isCreditCard ? '$4,949.66' : '$4,812.50'}</dd>
+                  <dt>Total due today</dt>
+                  <dd>{formatMoney(totalDueToday)}</dd>
                 </div>
               </>
             )}
@@ -150,8 +179,8 @@ export function MakePaymentPage() {
         </section>
 
         <p className="portal-inline-note">
-          ACH (bank transfer) payments may not incur a convenience fee. Card payments may
-          include a fee as shown above, in line with bursar policy.
+          ACH (bank transfer) payments may not incur a convenience fee. Card payments may include a fee
+          as shown above, in line with bursar policy.
         </p>
       </main>
     </PageLayout>

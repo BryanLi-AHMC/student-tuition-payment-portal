@@ -924,6 +924,16 @@
   font-weight: 700;
 }
 
+.portal-account-summary .portal-account-summary__divider {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--portal-border-subtle);
+}
+
+.portal-table-cell-capitalize {
+  text-transform: capitalize;
+}
+
 .portal-row--fee-warning dd {
   color: var(--amu-red);
   font-weight: 500;

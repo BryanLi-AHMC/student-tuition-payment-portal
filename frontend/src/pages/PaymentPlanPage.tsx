@@ -1,36 +1,22 @@
 import { Link } from 'react-router-dom'
 import { PageLayout } from '../components/PageLayout'
-
-const installments = [
-  {
-    n: 1,
-    due: 'Sep 15, 2026',
-    amount: '$4,612.50',
-  },
-  {
-    n: 2,
-    due: 'Oct 15, 2026',
-    amount: '$4,612.50',
-  },
-  {
-    n: 3,
-    due: 'Nov 15, 2026',
-    amount: '$4,612.50',
-  },
-  {
-    n: 4,
-    due: 'Dec 15, 2026',
-    amount: '$4,612.50',
-  },
-] as const
+import { useAccount } from '../context/AccountContext'
+import { installmentPlanDisplayLabel, portalTermLabel } from '../lib/accountDisplay'
+import { formatMoney } from '../lib/formatMoney'
 
 export function PaymentPlanPage() {
+  const { account } = useAccount()
+  const { installmentPlan, installmentPolicy, program } = account
+  const planLabel = installmentPlanDisplayLabel(installmentPlan)
+  const termLabel = portalTermLabel(account)
+
   return (
     <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
-          Fall 2026 installment schedule for your MD program. Amounts and dates reflect your
-          current four-payment plan; confirm details on official bursar communications.
+          {termLabel} installment schedule for {program}. Your plan: {planLabel}. Amounts and dates follow
+          catalog rules (up to three installments per quarter); confirm details on official bursar
+          communications.
         </p>
 
         <div className="portal-table-wrap">
@@ -41,14 +27,16 @@ export function PaymentPlanPage() {
                 <th scope="col">Installment</th>
                 <th scope="col">Due Date</th>
                 <th scope="col">Amount</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
-              {installments.map((row) => (
-                <tr key={row.n}>
-                  <td>{row.n}</td>
-                  <td>{row.due}</td>
-                  <td>{row.amount}</td>
+              {installmentPlan.schedule.map((row, i) => (
+                <tr key={row.dueDate}>
+                  <td>{i + 1}</td>
+                  <td>{row.dueDate}</td>
+                  <td>{formatMoney(row.amount)}</td>
+                  <td>{row.status}</td>
                 </tr>
               ))}
             </tbody>
@@ -57,12 +45,12 @@ export function PaymentPlanPage() {
 
         <section className="portal-plan-terms" aria-labelledby="plan-terms-heading">
           <h2 id="plan-terms-heading" className="portal-section-heading">
-            Plan Terms
+            Plan terms
           </h2>
           <ul className="portal-plan-terms-list">
-            <li>Installments are due monthly on the dates shown.</li>
-            <li>A late fee may apply if payment is not received by the due date.</li>
-            <li>Missed or delinquent payments may affect enrollment standing.</li>
+            {installmentPolicy.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
           </ul>
         </section>
 

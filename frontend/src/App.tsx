@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
-import { StudentDashboardPage } from './pages/StudentDashboardPage'
+import { StudentAccountPage } from './pages/student/StudentAccountPage'
 import { MakePaymentPage } from './pages/MakePaymentPage'
 import { PaymentPlanPage } from './pages/PaymentPlanPage'
 import { ActivityDetailsPage } from './pages/ActivityDetailsPage'
@@ -11,7 +11,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/overview" element={<StudentDashboardPage />} />
+      <Route path="/overview" element={<StudentAccountPage />} />
       <Route path="/payment" element={<MakePaymentPage />} />
       <Route path="/plan" element={<PaymentPlanPage />} />
       <Route path="/activity" element={<ActivityDetailsPage />} />
