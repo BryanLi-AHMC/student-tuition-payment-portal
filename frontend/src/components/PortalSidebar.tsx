@@ -1,5 +1,4 @@
 import { NavLink, Link } from 'react-router-dom'
-import { INSTITUTION_NAME, PORTAL_SYSTEM_NAME } from '../branding'
 
 function navClassName(isActive: boolean) {
   return ['portal-nav-link', isActive ? 'portal-nav-link--active' : ''].filter(Boolean).join(' ')
@@ -56,20 +55,10 @@ function PortalNavList({ onItemClick }: PortalNavListProps) {
   )
 }
 
-function PortalSidebarBrand() {
-  return (
-    <div className="portal-sidebar-brand">
-      <span className="portal-sidebar-brand-name">{INSTITUTION_NAME}</span>
-      <span className="portal-sidebar-brand-tagline">{PORTAL_SYSTEM_NAME}</span>
-    </div>
-  )
-}
-
 /** Fixed left sidebar — visible on desktop only (see `portal.css`). */
 export function PortalSidebar() {
   return (
     <aside className="portal-sidebar portal-sidebar--desktop" aria-label="Main navigation">
-      <PortalSidebarBrand />
       <nav className="portal-sidebar-nav" aria-label="Portal sections">
         <PortalNavList />
       </nav>
@@ -124,7 +113,6 @@ export function PortalMobileNavDrawer({ open, onClose }: PortalMobileNavDrawerPr
             <span aria-hidden="true">×</span>
           </button>
         </div>
-        <PortalSidebarBrand />
         <nav className="portal-sidebar-nav" aria-label="Portal sections">
           <PortalNavList onItemClick={handleNav} />
         </nav>

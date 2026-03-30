@@ -31,7 +31,7 @@ function StatementBadgeLabel({ kind }: { kind: StatementBadge }) {
 
 export function StatementsPage() {
   return (
-    <PageLayout title="Statements">
+    <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
           Recent billing statements for your student tuition account at {INSTITUTION_NAME}.

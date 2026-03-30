@@ -20,7 +20,7 @@ const ACTIVITY_ROWS = [
 
 export function ActivityDetailsPage() {
   return (
-    <PageLayout title="Activity Details">
+    <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
           Recent posted activity for your student tuition account at {INSTITUTION_NAME}. Figures

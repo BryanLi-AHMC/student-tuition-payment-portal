@@ -1,5 +1,4 @@
 import { PageLayout } from '../components/PageLayout'
-import { INSTITUTION_NAME, PORTAL_SYSTEM_NAME } from '../branding'
 
 const courses = [
   { course: 'TCM 601 Foundations of Traditional Chinese Medicine', units: 4, tuition: '$4,800' },
@@ -10,13 +9,59 @@ const courses = [
 
 export function StudentDashboardPage() {
   return (
-    <PageLayout title="Overview">
+    <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
-          Summary of your {INSTITUTION_NAME} student account in the {PORTAL_SYSTEM_NAME}.
-          Amounts shown are illustrative; your official balance and notices are issued by the
-          bursar.
+          Review your current student account summary, outstanding balance, and Fall 2026 tuition
+          details.
         </p>
+
+        <section
+          className="portal-card portal-stack portal-account-summary"
+          aria-labelledby="account-summary-heading"
+        >
+          <h2 id="account-summary-heading" className="portal-section-heading">
+            Student account summary
+          </h2>
+          <dl>
+            <div className="portal-row">
+              <dt>Program</dt>
+              <dd>Doctor of Medicine (MD)</dd>
+            </div>
+            <div className="portal-row">
+              <dt>Term</dt>
+              <dd>Fall 2026</dd>
+            </div>
+            <div className="portal-row">
+              <dt>Billing Status</dt>
+              <dd>Active</dd>
+            </div>
+            <div className="portal-row">
+              <dt>Tuition / Current Charges</dt>
+              <dd>$18,200</dd>
+            </div>
+            <div className="portal-row portal-row--fee-warning">
+              <dt>Late Fees</dt>
+              <dd>$200</dd>
+            </div>
+            <div className="portal-row portal-payment-total portal-account-summary__balance">
+              <dt>Total Outstanding Balance</dt>
+              <dd>$18,400</dd>
+            </div>
+            <div className="portal-row">
+              <dt>Next Due Date</dt>
+              <dd>Sep 15, 2026</dd>
+            </div>
+            <div className="portal-row">
+              <dt>Installment Plan</dt>
+              <dd>4-installment plan active</dd>
+            </div>
+            <div className="portal-row">
+              <dt>Last Account Update</dt>
+              <dd>Aug 28, 2026</dd>
+            </div>
+          </dl>
+        </section>
 
         <section className="portal-stack" aria-labelledby="tuition-summary-heading">
           <h2 id="tuition-summary-heading" className="portal-section-heading">
@@ -52,64 +97,6 @@ export function StudentDashboardPage() {
               </tfoot>
             </table>
           </div>
-        </section>
-
-        <section
-          className="portal-card portal-stack portal-account-summary"
-          aria-labelledby="account-summary-heading"
-        >
-          <h2 id="account-summary-heading" className="portal-section-heading">
-            Student Account Summary
-          </h2>
-          <dl>
-            <div className="portal-row">
-              <dt>Program</dt>
-              <dd>Doctor of Medicine (MD)</dd>
-            </div>
-            <div className="portal-row">
-              <dt>Term</dt>
-              <dd>Fall 2026</dd>
-            </div>
-            <div className="portal-row">
-              <dt>Billing Status</dt>
-              <dd>Active</dd>
-            </div>
-            <div className="portal-row">
-              <dt>Tuition / Current Charges</dt>
-              <dd>$18,200</dd>
-            </div>
-            <div className="portal-row">
-              <dt>Late Fees</dt>
-              <dd
-                style={{
-                  color: '#9a3a3a',
-                  fontWeight: 500,
-                }}
-              >
-                $200
-              </dd>
-            </div>
-            <div className="portal-row">
-              <dt>
-                <strong>Total Outstanding Balance</strong>
-              </dt>
-              <dd>
-                <strong>$18,400</strong>
-              </dd>
-            </div>
-            <div className="portal-row">
-              <dt>Next Due Date</dt>
-              <dd>Sep 15, 2026</dd>
-            </div>
-            <div className="portal-row">
-              <dt>Installment Plan</dt>
-              <dd>4-installment plan active</dd>
-            </div>
-            <div className="portal-row">
-              <dt>Last Account Update</dt>
-              <dd>Aug 28, 2026</dd>
-            </div>
-          </dl>
         </section>
       </main>
     </PageLayout>

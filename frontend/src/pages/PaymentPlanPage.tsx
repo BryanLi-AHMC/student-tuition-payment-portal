@@ -34,7 +34,7 @@ const installments = [
 
 export function PaymentPlanPage() {
   return (
-    <PageLayout title="Payment Plan">
+    <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
           Fall 2026 installment schedule for your MD program. Amounts and dates reflect your

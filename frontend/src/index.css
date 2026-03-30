@@ -2,8 +2,8 @@
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #1a1a1a;
-  background-color: #f4f5f7;
+  color: var(--text-dark, #333333);
+  background-color: var(--page-gray, #f5f7fa);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,7 +18,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #f4f5f7;
+  background-color: var(--page-gray, #f5f7fa);
 }
 
 #root {

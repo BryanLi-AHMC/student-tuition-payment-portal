@@ -1,13 +1,28 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { PORTAL_MOBILE_DRAWER_CLOSE_ID, PortalMobileNavDrawer, PortalSidebar } from './PortalSidebar'
-import { PortalMainHeader } from './PortalMainHeader'
+import { PortalAppHeader } from './PortalAppHeader'
+import { PortalStudentInfoBar } from './PortalStudentInfoBar'
+
+const AUTH_ROUTE_TITLES: Record<string, string> = {
+  '/overview': 'Overview',
+  '/activity': 'Activity Details',
+  '/payment': 'Make a Payment',
+  '/plan': 'Payment Plan',
+  '/statements': 'Statements',
+}
+
+function pageTitleForPath(pathname: string): string {
+  return AUTH_ROUTE_TITLES[pathname] ?? 'Portal'
+}
 
 type PageLayoutProps = {
   children: ReactNode
-  title: string
 }
 
-export function PageLayout({ children, title }: PageLayoutProps) {
+export function PageLayout({ children }: PageLayoutProps) {
+  const { pathname } = useLocation()
+  const pageTitle = pageTitleForPath(pathname)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
   const wasDrawerOpenRef = useRef(false)
@@ -52,15 +67,16 @@ export function PageLayout({ children, title }: PageLayoutProps) {
 
   return (
     <div className="portal-shell portal-shell--authenticated">
+      <PortalAppHeader
+        ref={mobileMenuButtonRef}
+        title={pageTitle}
+        mobileMenuOpen={mobileNavOpen}
+        onMobileMenuToggle={toggleMobileNav}
+      />
       <PortalSidebar />
       <PortalMobileNavDrawer open={mobileNavOpen} onClose={closeMobileNav} />
       <div className="portal-main">
-        <PortalMainHeader
-          ref={mobileMenuButtonRef}
-          title={title}
-          mobileMenuOpen={mobileNavOpen}
-          onMobileMenuToggle={toggleMobileNav}
-        />
+        <PortalStudentInfoBar />
         <div className="portal-main-body">{children}</div>
       </div>
     </div>

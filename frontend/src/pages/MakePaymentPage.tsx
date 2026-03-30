@@ -9,7 +9,7 @@ export function MakePaymentPage() {
   const isCreditCard = paymentMethod === 'credit-card'
 
   return (
-    <PageLayout title="Make a Payment">
+    <PageLayout>
       <main className="portal-page">
         <p className="portal-page-lede">
           Review the payment amount before you continue. This screen is a static preview only; no
@@ -55,7 +55,7 @@ export function MakePaymentPage() {
                   <dt>Late Fee</dt>
                   <dd
                     style={{
-                      color: '#9a3a3a',
+                      color: 'var(--amu-red)',
                       fontWeight: 500,
                     }}
                   >
@@ -95,7 +95,7 @@ export function MakePaymentPage() {
                   <dt>Late Fee</dt>
                   <dd
                     style={{
-                      color: '#9a3a3a',
+                      color: 'var(--amu-red)',
                       fontWeight: 500,
                     }}
                   >
