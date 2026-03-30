@@ -581,6 +581,9 @@
   left: 0;
   top: 0;
   bottom: 0;
+  /* Override .portal-sidebar height (viewport − header); drawer panel is full-screen overlay */
+  height: auto;
+  min-height: 100dvh;
   width: var(--portal-sidebar-width);
   max-width: min(var(--portal-sidebar-width), 92vw);
   box-sizing: border-box;
@@ -634,6 +637,8 @@
 @media (max-width: 768px) {
   .portal-nav-drawer {
     display: block;
+    height: 100dvh;
+    min-height: 100dvh;
   }
 }
 
