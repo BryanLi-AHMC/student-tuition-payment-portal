@@ -1,85 +1,16 @@
-import { NavLink, Link } from 'react-router-dom'
-
-function navClassName(isActive: boolean) {
-  return ['portal-nav-link', isActive ? 'portal-nav-link--active' : ''].filter(Boolean).join(' ')
-}
-
-type PortalNavListProps = {
-  onItemClick?: () => void
-}
-
-function PortalNavList({ onItemClick }: PortalNavListProps) {
-  const handleClick = () => {
-    onItemClick?.()
-  }
-
-  return (
-    <ul className="portal-sidebar-nav-list">
-      <li>
-        <NavLink to="/overview" end className={({ isActive }) => navClassName(isActive)} onClick={handleClick}>
-          Student Account
-        </NavLink>
-      </li>
-      <li>
-        <NavLink to="/activity" className={({ isActive }) => navClassName(isActive)} onClick={handleClick}>
-          Activity Details
-        </NavLink>
-      </li>
-      <li>
-        <NavLink to="/payment" className={({ isActive }) => navClassName(isActive)} onClick={handleClick}>
-          Make a Payment
-        </NavLink>
-      </li>
-      <li>
-        <NavLink to="/plan" className={({ isActive }) => navClassName(isActive)} onClick={handleClick}>
-          Payment Plan
-        </NavLink>
-      </li>
-      <li>
-        <NavLink to="/statements" className={({ isActive }) => navClassName(isActive)} onClick={handleClick}>
-          Statements
-        </NavLink>
-      </li>
-      <li>
-        <span className="portal-nav-link portal-nav-link--disabled" aria-disabled="true">
-          Help
-        </span>
-      </li>
-      <li className="portal-sidebar-nav-divider" role="presentation" aria-hidden="true" />
-      <li className="portal-sidebar-nav-signout">
-        <Link to="/login" className="portal-nav-link portal-nav-link--signout" onClick={handleClick}>
-          Sign Out
-        </Link>
-      </li>
-    </ul>
-  )
-}
-
-/** Fixed left sidebar — visible on desktop only (see `portal.css`). */
-export function PortalSidebar() {
-  return (
-    <aside className="portal-sidebar portal-sidebar--desktop" aria-label="Main navigation">
-      <nav className="portal-sidebar-nav" aria-label="Portal sections">
-        <PortalNavList />
-      </nav>
-    </aside>
-  )
-}
-
-type PortalMobileNavDrawerProps = {
-  open: boolean
-  onClose: () => void
-}
+import type { ReactNode } from 'react'
 
 export const PORTAL_MOBILE_NAV_DRAWER_ID = 'portal-mobile-nav-drawer'
 export const PORTAL_MOBILE_DRAWER_CLOSE_ID = 'portal-mobile-drawer-close'
 
-/** Slide-out navigation for narrow viewports; controlled by `PageLayout`. */
-export function PortalMobileNavDrawer({ open, onClose }: PortalMobileNavDrawerProps) {
-  const handleNav = () => {
-    onClose()
-  }
+type PortalMobileNavDrawerProps = {
+  open: boolean
+  onClose: () => void
+  children: ReactNode
+}
 
+/** Slide-out navigation for narrow viewports; controlled by `PortalShell`. */
+export function PortalMobileNavDrawer({ open, onClose, children }: PortalMobileNavDrawerProps) {
   return (
     <div
       className={['portal-nav-drawer', open ? 'portal-nav-drawer--open' : ''].filter(Boolean).join(' ')}
@@ -113,8 +44,8 @@ export function PortalMobileNavDrawer({ open, onClose }: PortalMobileNavDrawerPr
             <span aria-hidden="true">×</span>
           </button>
         </div>
-        <nav className="portal-sidebar-nav" aria-label="Portal sections">
-          <PortalNavList onItemClick={handleNav} />
+        <nav className="portal-sidebar-nav" aria-label="Portal modules">
+          {children}
         </nav>
       </aside>
     </div>

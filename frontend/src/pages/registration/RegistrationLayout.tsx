@@ -1,0 +1,19 @@
+import { Outlet } from 'react-router-dom'
+import { RegistrationNav } from './RegistrationNav'
+
+export function RegistrationLayout() {
+  return (
+    <div className="portal-registration-module">
+      <header className="portal-module-header">
+        <h1 className="portal-module-title">Registration</h1>
+        <p className="portal-module-subtitle">
+          Manage your course registration, schedule, and enrollment status.
+        </p>
+      </header>
+      <RegistrationNav />
+      <div className="portal-registration-outlet">
+        <Outlet />
+      </div>
+    </div>
+  )
+}

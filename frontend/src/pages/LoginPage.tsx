@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { PORTAL_BRANDING_TITLE, PORTAL_SHELL_SUBTITLE } from '../branding'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -13,9 +14,8 @@ export function LoginPage() {
             alt="Alhambra Medical University"
           />
           <article className="portal-login-card">
-            <h1 className="portal-login-card-title">
-              Student Tuition Payment Portal
-            </h1>
+            <h1 className="portal-login-card-title">{PORTAL_SHELL_SUBTITLE}</h1>
+            <p className="portal-login-card-institution">{PORTAL_BRANDING_TITLE}</p>
             <div className="portal-login-fields">
               <div className="portal-login-field">
                 <label className="portal-login-label" htmlFor="login-student-id">
@@ -45,7 +45,7 @@ export function LoginPage() {
             <button
               type="button"
               className="portal-login-submit"
-              onClick={() => navigate('/overview')}
+              onClick={() => navigate('/dashboard')}
             >
               Sign In
             </button>
