@@ -3,7 +3,7 @@
   line-height: 1.5;
   font-weight: 400;
   color: var(--text-dark, #333333);
-  background-color: var(--page-gray, #f5f7fa);
+  background-color: var(--page-gray, #f2f4f8);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -15,12 +15,8 @@
   box-sizing: border-box;
 }
 
+/* No global min-height: pages that need a full viewport set it on their shell (e.g. login). */
 body {
   margin: 0;
-  min-height: 100vh;
-  background-color: var(--page-gray, #f5f7fa);
-}
-
-#root {
-  min-height: 100vh;
+  background-color: var(--page-gray, #f2f4f8);
 }

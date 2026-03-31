@@ -3,7 +3,6 @@
 export type DashboardService = {
   to: string
   title: string
-  description: string
   icon: 'registration' | 'finances' | 'academics' | 'clinical' | 'documents' | 'account'
 }
 
@@ -11,37 +10,31 @@ export const DASHBOARD_SERVICES: DashboardService[] = [
   {
     to: '/registration',
     title: 'Registration',
-    description: 'Enroll, adjust your schedule, and view registration status for the current term.',
     icon: 'registration',
   },
   {
     to: '/finances',
     title: 'Finances',
-    description: 'Account balance, payments, billing history, statements, and payment plans.',
     icon: 'finances',
   },
   {
     to: '/academics',
     title: 'Academics',
-    description: 'Grades, transcripts, GPA, degree progress, and enrollment verification.',
     icon: 'academics',
   },
   {
     to: '/clinical',
     title: 'Clinical',
-    description: 'Clinical scheduling, compliance, evaluations, and required hours.',
     icon: 'clinical',
   },
   {
     to: '/documents',
     title: 'Documents',
-    description: 'Policies, forms, handbook, and secure uploads for student records.',
     icon: 'documents',
   },
   {
     to: '/profile',
     title: 'My Account',
-    description: 'Profile, contact preferences, and sign-in settings for your portal account.',
     icon: 'account',
   },
 ]
@@ -103,4 +96,22 @@ export const DASHBOARD_COURSES_MOCK: DashboardCourse[] = [
     location: 'Virtual (synchronous)',
   },
 ]
+
+export type DashboardImportantDate = {
+  dayMonth: string
+  label: string
+}
+
+export const DASHBOARD_IMPORTANT_DATES_MOCK: DashboardImportantDate[] = [
+  { dayMonth: 'Apr 4', label: 'Spring holiday' },
+  { dayMonth: 'Apr 8', label: 'Biochemistry Exam I' },
+  { dayMonth: 'Apr 15', label: 'Registration opens' },
+  { dayMonth: 'Apr 22', label: 'Anatomy practical review' },
+]
+
+export const DASHBOARD_ACCOUNT_SUMMARY_MOCK = {
+  currentBalance: '$1,248.50',
+  nextPaymentDue: 'Apr 10 — $450.00',
+  holds: 'None',
+} as const
 

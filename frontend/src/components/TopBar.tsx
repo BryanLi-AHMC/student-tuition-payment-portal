@@ -9,11 +9,12 @@ export const PORTAL_MOBILE_MENU_BUTTON_ID = 'portal-main-menu-button'
 type TopBarProps = {
   mobileMenuOpen?: boolean
   onMobileMenuToggle?: () => void
+  showPortalBanner?: boolean
 }
 
 /** Global two-level portal header: school branding bar + myAMU banner (USC-style structure). */
 export const TopBar = forwardRef<HTMLButtonElement, TopBarProps>(function TopBar(
-  { mobileMenuOpen, onMobileMenuToggle },
+  { mobileMenuOpen, onMobileMenuToggle, showPortalBanner = false },
   ref,
 ) {
   const { account } = useAccount()
@@ -59,14 +60,16 @@ export const TopBar = forwardRef<HTMLButtonElement, TopBarProps>(function TopBar
           </div>
         </div>
       </div>
-      <div className="portal-portal-banner">
-        <div className="portal-portal-banner-inner">
-          <p className="portal-myamu-mark">
-            <span className="portal-myamu-my">my</span>
-            <span className="portal-myamu-amu">AMU</span>
-          </p>
+      {showPortalBanner ? (
+        <div className="portal-portal-banner">
+          <div className="portal-portal-banner-inner">
+            <p className="portal-myamu-mark">
+              <span className="portal-myamu-my">my</span>
+              <span className="portal-myamu-amu">AMU</span>
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
     </header>
   )
 })

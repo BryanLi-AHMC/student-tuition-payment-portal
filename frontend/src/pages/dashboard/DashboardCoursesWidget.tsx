@@ -9,8 +9,8 @@ export function DashboardCoursesWidget({ termLabel }: Props) {
     <section className="portal-dashboard-courses" aria-labelledby="portal-dashboard-courses-heading">
       <header className="portal-dashboard-courses-head">
         <div className="portal-dashboard-courses-head-text">
-          <h2 id="portal-dashboard-courses-heading" className="portal-dashboard-section-title">
-            My Courses
+          <h2 id="portal-dashboard-courses-heading" className="portal-dashboard-card-panel-title">
+            My Calendar
           </h2>
           <p className="portal-dashboard-courses-term">{termLabel}</p>
         </div>
@@ -42,9 +42,6 @@ export function DashboardCoursesWidget({ termLabel }: Props) {
           </tbody>
         </table>
       </div>
-      <p className="portal-dashboard-courses-footnote">
-        Schedule and enrollment are illustrative. Confirm details in Registration or Academics.
-      </p>
     </section>
   )
 }

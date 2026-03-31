@@ -10,9 +10,19 @@ type PortalShellProps = {
   showStudentBar?: boolean
   /** When false, hides the desktop sidebar (e.g. portal homepage at /dashboard). */
   showSidebar?: boolean
+  /** When true, shows the white myAMU banner under the branding bar. */
+  showPortalBanner?: boolean
+  /** Homepage: content-height layout (no viewport filling / excess bottom gap). */
+  dashboardHome?: boolean
 }
 
-export function PortalShell({ children, showStudentBar = false, showSidebar = true }: PortalShellProps) {
+export function PortalShell({
+  children,
+  showStudentBar = false,
+  showSidebar = true,
+  showPortalBanner = false,
+  dashboardHome = false,
+}: PortalShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
   const wasDrawerOpenRef = useRef(false)
@@ -57,6 +67,9 @@ export function PortalShell({ children, showStudentBar = false, showSidebar = tr
 
   const shellClass = ['portal-shell', 'portal-shell--authenticated']
   if (!showSidebar) shellClass.push('portal-shell--no-sidebar')
+  if (showPortalBanner) shellClass.push('portal-shell--with-banner')
+  else shellClass.push('portal-shell--without-banner')
+  if (dashboardHome) shellClass.push('portal-shell--dashboard-home')
 
   return (
     <div className={shellClass.join(' ')}>
@@ -64,6 +77,7 @@ export function PortalShell({ children, showStudentBar = false, showSidebar = tr
         ref={mobileMenuButtonRef}
         mobileMenuOpen={mobileNavOpen}
         onMobileMenuToggle={toggleMobileNav}
+        showPortalBanner={showPortalBanner}
       />
       {showSidebar ? <Sidebar /> : null}
       <PortalMobileNavDrawer open={mobileNavOpen} onClose={closeMobileNav}>

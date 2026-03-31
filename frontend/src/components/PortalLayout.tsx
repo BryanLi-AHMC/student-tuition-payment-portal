@@ -8,11 +8,18 @@ function isDashboardRoute(pathname: string) {
 /** Layout route wrapper for authenticated portal modules. Finances shows the student account strip. */
 export function PortalLayout() {
   const { pathname } = useLocation()
+  const isDashboard = isDashboardRoute(pathname)
   const showStudentBar = pathname.startsWith('/finances')
-  const showSidebar = !isDashboardRoute(pathname)
+  const showSidebar = !isDashboard
+  const showPortalBanner = isDashboard
 
   return (
-    <PortalShell showStudentBar={showStudentBar} showSidebar={showSidebar}>
+    <PortalShell
+      showStudentBar={showStudentBar}
+      showSidebar={showSidebar}
+      showPortalBanner={showPortalBanner}
+      dashboardHome={isDashboard}
+    >
       <Outlet />
     </PortalShell>
   )
