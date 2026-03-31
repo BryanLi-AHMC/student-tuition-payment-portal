@@ -28,12 +28,6 @@ export function AccountSummaryContent() {
 
   return (
     <>
-      <p className="portal-page-lede">
-        {account.program}. Charges follow the MAHM catalog: didactic and lab coursework billed at $200
-        per unit, clinical training at $17 per hour, plus term fees. Amounts are computed from your
-        enrollments and billing preferences, not fixed display values.
-      </p>
-
       <section
         className="portal-card portal-stack portal-account-summary"
         aria-labelledby="account-summary-heading"
