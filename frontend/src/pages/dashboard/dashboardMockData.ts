@@ -49,6 +49,104 @@ export type DashboardCourse = {
   location: string
 }
 
+/** Static weekly blocks for the dashboard timetable view (Mon–Fri). */
+export type WeeklyTimetableBlock = {
+  code: string
+  /** Kept for accessibility (e.g. aria-label); not shown in the week grid. */
+  time: string
+  /** Minutes since midnight (start of session). */
+  startMinutes: number
+  /** Minutes since midnight (end of session). */
+  endMinutes: number
+  /** Short title or room — shown under the course code when set. */
+  subtitle?: string
+}
+
+export const DASHBOARD_WEEKLY_TIMETABLE_MOCK: Record<
+  'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday',
+  WeeklyTimetableBlock[]
+> = {
+  monday: [
+    {
+      code: 'BIOC 510',
+      time: '9:00 AM – 10:50 AM',
+      startMinutes: 9 * 60,
+      endMinutes: 10 * 60 + 50,
+      subtitle: 'Biochemistry I',
+    },
+    {
+      code: 'ICM 501',
+      time: '11:00 AM – 12:15 PM',
+      startMinutes: 11 * 60,
+      endMinutes: 12 * 60 + 15,
+      subtitle: 'HSB 112',
+    },
+    {
+      code: 'ANAT 520L',
+      time: '1:00 PM – 3:50 PM',
+      startMinutes: 13 * 60,
+      endMinutes: 15 * 60 + 50,
+      subtitle: 'Anatomy Lab',
+    },
+    {
+      code: 'ETHM 505',
+      time: '4:30 PM – 5:45 PM',
+      startMinutes: 16 * 60 + 30,
+      endMinutes: 17 * 60 + 45,
+      subtitle: 'Virtual',
+    },
+  ],
+  tuesday: [
+    {
+      code: 'PHYS 515',
+      time: '8:00 AM – 9:50 AM',
+      startMinutes: 8 * 60,
+      endMinutes: 9 * 60 + 50,
+      subtitle: 'BMS 145',
+    },
+    {
+      code: 'ICM 501',
+      time: '11:00 AM – 12:15 PM',
+      startMinutes: 11 * 60,
+      endMinutes: 12 * 60 + 15,
+      subtitle: 'HSB 112',
+    },
+  ],
+  wednesday: [
+    {
+      code: 'BIOC 510',
+      time: '9:00 AM – 10:50 AM',
+      startMinutes: 9 * 60,
+      endMinutes: 10 * 60 + 50,
+      subtitle: 'Biochemistry I',
+    },
+    {
+      code: 'ANAT 520L',
+      time: '1:00 PM – 3:50 PM',
+      startMinutes: 13 * 60,
+      endMinutes: 15 * 60 + 50,
+      subtitle: 'Anatomy Lab',
+    },
+  ],
+  thursday: [
+    {
+      code: 'PHYS 515',
+      time: '8:00 AM – 9:50 AM',
+      startMinutes: 8 * 60,
+      endMinutes: 9 * 60 + 50,
+      subtitle: 'BMS 145',
+    },
+    {
+      code: 'ICM 501',
+      time: '11:00 AM – 12:15 PM',
+      startMinutes: 11 * 60,
+      endMinutes: 12 * 60 + 15,
+      subtitle: 'HSB 112',
+    },
+  ],
+  friday: [],
+}
+
 export const DASHBOARD_COURSES_MOCK: DashboardCourse[] = [
   {
     id: 'c1',
