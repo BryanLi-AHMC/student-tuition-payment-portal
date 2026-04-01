@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { BackToDashboardLink } from '../../components/BackToDashboardLink'
+import { FinancesNav } from './FinancesNav'
 
 export function FinancesLayout() {
   return (
@@ -8,6 +9,7 @@ export function FinancesLayout() {
         <BackToDashboardLink />
         <h1 className="portal-module-title">Finances</h1>
       </header>
+      <FinancesNav />
       <div className="portal-finances-outlet">
         <Outlet />
       </div>

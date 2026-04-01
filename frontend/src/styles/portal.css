@@ -565,33 +565,38 @@
   padding-right: var(--portal-dashboard-padding-x);
 }
 
-/* Registration (sidebar routes): use main column width + tighter gutters — matches dashboard canvas intent */
-.portal-main-body:has(.portal-registration-module) {
+/* Registration + Finances (sidebar routes): main column width + tighter gutters */
+.portal-main-body:has(.portal-registration-module),
+.portal-main-body:has(.portal-finances-module) {
   --portal-registration-main-padding-x: clamp(1rem, 0.45rem + 1vw, 1.5rem);
   padding-left: var(--portal-registration-main-padding-x);
   padding-right: var(--portal-registration-main-padding-x);
 }
 
 @media (min-width: 1280px) {
-  .portal-main-body:has(.portal-registration-module) {
+  .portal-main-body:has(.portal-registration-module),
+  .portal-main-body:has(.portal-finances-module) {
     --portal-registration-main-padding-x: clamp(0.875rem, 0.45rem + 0.38vw, 1.125rem);
   }
 }
 
 @media (min-width: 1440px) {
-  .portal-main-body:has(.portal-registration-module) {
+  .portal-main-body:has(.portal-registration-module),
+  .portal-main-body:has(.portal-finances-module) {
     --portal-registration-main-padding-x: clamp(0.75rem, 0.4rem + 0.28vw, 1rem);
   }
 }
 
 @media (min-width: 1600px) {
-  .portal-main-body:has(.portal-registration-module) {
+  .portal-main-body:has(.portal-registration-module),
+  .portal-main-body:has(.portal-finances-module) {
     --portal-registration-main-padding-x: clamp(0.75rem, 0.35rem + 0.22vw, 0.875rem);
   }
 }
 
 @media (min-width: 1920px) {
-  .portal-main-body:has(.portal-registration-module) {
+  .portal-main-body:has(.portal-registration-module),
+  .portal-main-body:has(.portal-finances-module) {
     --portal-registration-main-padding-x: clamp(0.625rem, 0.28rem + 0.16vw, 0.75rem);
   }
 }
@@ -672,7 +677,8 @@
     padding-top: 0.875rem;
   }
 
-  .portal-main-body:has(.portal-registration-module) {
+  .portal-main-body:has(.portal-registration-module),
+  .portal-main-body:has(.portal-finances-module) {
     padding-left: var(--portal-main-padding-x);
     padding-right: var(--portal-main-padding-x);
   }
@@ -922,8 +928,7 @@
   max-width: 52rem;
 }
 
-/* —— Module layouts: local sub-navigation (Finances, Academics, Clinical, Documents) —— */
-.portal-finances-module,
+/* —— Module layouts: local sub-navigation (Academics, Clinical, Documents) —— */
 .portal-academics-module,
 .portal-clinical-module,
 .portal-documents-module {
@@ -932,8 +937,9 @@
   width: 100%;
 }
 
-/* Registration: fill the main column (no centered 74rem island) so catalog + expanded rows use available width */
-.portal-registration-module {
+/* Registration + Finances: fill the main column (no centered island) */
+.portal-registration-module,
+.portal-finances-module {
   max-width: none;
   width: 100%;
   margin: 0;
