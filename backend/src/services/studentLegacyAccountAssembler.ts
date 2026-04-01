@@ -1,14 +1,88 @@
-import type { LegacyAccountSnapshot } from "../repositories/studentLegacyAccountRepository.js";
-import type { StudentAccountPayload } from "../types/studentAccount.js";
+import type {
+  LegacyAccountingRow,
+  LegacyAccountSnapshot,
+} from "../repositories/studentLegacyAccountRepository.js";
+import type { PaymentRecord, StudentAccountPayload } from "../types/studentAccount.js";
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/** Legacy `accounting.date` is stored as YYYYMMDD (int). Emit ISO date for API / frontend. */
+export function legacyAccountingDateToIso(dateRaw: number): string {
+  const n = Math.trunc(Number(dateRaw));
+  if (!Number.isFinite(n) || n < 19000101 || n > 21001231) {
+    return "1970-01-01";
+  }
+  const s = String(n).padStart(8, "0");
+  const y = s.slice(0, 4);
+  const m = s.slice(4, 6);
+  const d = s.slice(6, 8);
+  return `${y}-${m}-${d}`;
+}
+
+function typeNorm(type: string): string {
+  return type.trim().toLowerCase();
+}
 
 /**
- * Step 3A: minimal honest payload from legacy `students` + `registration` only.
- * No portal billing reconstruction; empty arrays / nulls where data is not sourced yet.
+ * Real-student payload: legacy `students` + `registration` + `accounting` (Step 3B).
+ * Category splits are minimal; `lineItems` and portal-only fields stay empty until later steps.
  */
-export function assembleLegacyMinimalStudentAccountPayload(
+export function assembleLegacyStudentAccountPayload(
   snap: LegacyAccountSnapshot,
+  accountingRows: LegacyAccountingRow[],
 ): StudentAccountPayload {
-  const ob = Math.round(snap.totalFees * 100) / 100;
+  const regFees = roundMoney(snap.totalFees);
+
+  let totalCharges: number;
+  let paymentsTotal: number;
+  let outstandingBalance: number;
+  let tuitionTotal: number;
+  let feesTotal: number;
+  let otherTotal: number;
+  let payments: PaymentRecord[];
+
+  if (accountingRows.length === 0) {
+    totalCharges = regFees;
+    paymentsTotal = 0;
+    outstandingBalance = regFees;
+    tuitionTotal = 0;
+    feesTotal = 0;
+    otherTotal = 0;
+    payments = [];
+  } else {
+    const sumDebit = accountingRows.reduce((s, r) => s + r.debit, 0);
+    const sumCredit = accountingRows.reduce((s, r) => s + r.credit, 0);
+    totalCharges = roundMoney(sumDebit);
+    paymentsTotal = roundMoney(sumCredit);
+    outstandingBalance = roundMoney(sumDebit - sumCredit);
+
+    tuitionTotal = 0;
+    feesTotal = 0;
+    for (const r of accountingRows) {
+      const tk = typeNorm(r.type);
+      if (tk === "tuition") tuitionTotal += r.debit;
+      else if (tk === "fee") feesTotal += r.debit;
+    }
+    tuitionTotal = roundMoney(tuitionTotal);
+    feesTotal = roundMoney(feesTotal);
+
+    const clinicalTotal = 0;
+    otherTotal = roundMoney(
+      totalCharges - tuitionTotal - feesTotal - clinicalTotal,
+    );
+
+    payments = accountingRows
+      .filter((r) => r.credit > 0)
+      .map((r) => ({
+        amount: roundMoney(r.credit),
+        paidAt: legacyAccountingDateToIso(r.date),
+        method: "legacy",
+        description: r.memo.length > 0 ? r.memo : undefined,
+      }));
+  }
+
   return {
     program: null,
     term: snap.term,
@@ -23,16 +97,16 @@ export function assembleLegacyMinimalStudentAccountPayload(
     preference: null,
     lineItems: [],
     summary: {
-      tuitionTotal: 0,
+      tuitionTotal,
       clinicalTotal: 0,
-      feesTotal: 0,
-      otherTotal: 0,
-      totalCharges: ob,
-      payments: 0,
-      outstandingBalance: ob,
+      feesTotal,
+      otherTotal,
+      totalCharges,
+      payments: paymentsTotal,
+      outstandingBalance,
     },
     scheduleRows: [],
-    payments: [],
+    payments,
     installmentSchedule: [],
     installmentPolicy: [],
     billingStatus: null,

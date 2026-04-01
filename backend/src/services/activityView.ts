@@ -27,7 +27,10 @@ export function buildActivityRows(
       ? formatShortDate(effective)
       : "—";
   const rows: ActivityRow[] = [];
-  let balance = 0;
+  let balance =
+    payload.lineItems.length === 0 && payload.payments.length > 0
+      ? payload.summary.totalCharges
+      : 0;
   for (const li of payload.lineItems) {
     balance += li.amount;
     rows.push({

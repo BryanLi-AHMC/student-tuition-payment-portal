@@ -10,9 +10,13 @@ function formatShortDate(iso) {
 }
 export function buildActivityRows(payload) {
     const effective = payload.termChargeEffectiveDate;
-    const displayEffective = formatShortDate(effective);
+    const displayEffective = effective != null && String(effective).trim() !== ""
+        ? formatShortDate(effective)
+        : "—";
     const rows = [];
-    let balance = 0;
+    let balance = payload.lineItems.length === 0 && payload.payments.length > 0
+        ? payload.summary.totalCharges
+        : 0;
     for (const li of payload.lineItems) {
         balance += li.amount;
         rows.push({

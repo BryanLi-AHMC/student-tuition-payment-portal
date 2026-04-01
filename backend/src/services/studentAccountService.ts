@@ -3,6 +3,7 @@ import { pool } from "../lib/db.js";
 import {
   findLatestLegacyTermYear,
   loadLegacyAccountSnapshot,
+  loadLegacyAccountingRows,
 } from "../repositories/studentLegacyAccountRepository.js";
 import {
   findLatestTermYearForStudent,
@@ -10,7 +11,7 @@ import {
 } from "../repositories/studentAccountRepository.js";
 import type { StudentAccountPayload } from "../types/studentAccount.js";
 import { getCatalogDemoAccountPayload } from "./demoAccountService.js";
-import { assembleLegacyMinimalStudentAccountPayload } from "./studentLegacyAccountAssembler.js";
+import { assembleLegacyStudentAccountPayload } from "./studentLegacyAccountAssembler.js";
 import { assembleStudentAccountPayload } from "./studentAccountAssembler.js";
 
 export type AccountTermYearInput =
@@ -87,7 +88,13 @@ async function getRealStudentAccountPayload(
   if (!snap) {
     return null;
   }
-  return assembleLegacyMinimalStudentAccountPayload(snap);
+  const accountingRows = await loadLegacyAccountingRows(
+    pool,
+    studentId,
+    term,
+    year,
+  );
+  return assembleLegacyStudentAccountPayload(snap, accountingRows);
 }
 
 export async function getStudentAccountPayload(

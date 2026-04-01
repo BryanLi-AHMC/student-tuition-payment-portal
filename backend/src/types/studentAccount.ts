@@ -11,8 +11,11 @@ export type StudentAccountSummary = {
   clinicalTotal: number;
   feesTotal: number;
   otherTotal: number;
+  /** Legacy real students (Step 3B+): sum of `accounting.debit` for the term (signed). */
   totalCharges: number;
+  /** Legacy real students (Step 3B+): sum of `accounting.credit` for the term. */
   payments: number;
+  /** Legacy: sum(debit) − sum(credit) for the term when accounting rows exist. */
   outstandingBalance: number;
 };
 
@@ -35,6 +38,7 @@ export type StudentTermPreference = {
 export type PaymentRecord = {
   amount: number;
   paidAt: string;
+  /** Demo/portal rows use stored method; legacy `accounting` rows use `"legacy"` when unknown. */
   method: string;
   description?: string;
 };

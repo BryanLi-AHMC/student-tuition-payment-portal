@@ -9,8 +9,11 @@ export type StudentAccountSummary = {
     clinicalTotal: number;
     feesTotal: number;
     otherTotal: number;
+    /** Legacy real students (Step 3B+): sum of `accounting.debit` for the term (signed). */
     totalCharges: number;
+    /** Legacy real students (Step 3B+): sum of `accounting.credit` for the term. */
     payments: number;
+    /** Legacy: sum(debit) − sum(credit) for the term when accounting rows exist. */
     outstandingBalance: number;
 };
 export type ScheduleRow = {
@@ -30,6 +33,7 @@ export type StudentTermPreference = {
 export type PaymentRecord = {
     amount: number;
     paidAt: string;
+    /** Demo/portal rows use stored method; legacy `accounting` rows use `"legacy"` when unknown. */
     method: string;
     description?: string;
 };
@@ -39,7 +43,7 @@ export type InstallmentScheduleEntry = {
     amount: number;
 };
 export type StudentAccountPayload = {
-    program: string;
+    program: string | null;
     term: string;
     year: number;
     studentId: string;
@@ -50,15 +54,15 @@ export type StudentAccountPayload = {
         term: string;
         year: number;
     };
-    preference: StudentTermPreference;
+    preference: StudentTermPreference | null;
     lineItems: BillingLineItem[];
     summary: StudentAccountSummary;
     scheduleRows: ScheduleRow[];
     payments: PaymentRecord[];
     installmentSchedule: InstallmentScheduleEntry[];
     installmentPolicy: string[];
-    billingStatus: string;
-    termChargeEffectiveDate: string;
+    billingStatus: string | null;
+    termChargeEffectiveDate: string | null;
 };
 export type EnrollmentRecord = {
     studentId: string;
