@@ -1,19 +1,45 @@
 import { useAccount } from '../context/AccountContext'
 import { formatMoney } from '../lib/formatMoney'
 
-export function PortalStudentInfoBar() {
-  const { account } = useAccount()
-  const initials = account.student.name
-    .split(/\s+/)
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 0 || (parts.length === 1 && parts[0] === '')) {
+    return '—'
+  }
+  return parts
     .map((p) => p[0])
     .join('')
     .slice(0, 2)
     .toUpperCase()
+}
+
+export function PortalStudentInfoBar() {
+  const { fetchedAccount, loading, error } = useAccount()
+
+  const showLiveData = !loading && !error && fetchedAccount !== null
+  const displayName = showLiveData
+    ? fetchedAccount.student.name
+    : loading
+      ? 'Loading…'
+      : error
+        ? 'Account unavailable'
+        : '—'
+
+  const balanceAmount = showLiveData
+    ? formatMoney(fetchedAccount.summary.outstandingBalance)
+    : '—'
+
+  const initials = showLiveData
+    ? initialsFromName(fetchedAccount.student.name)
+    : loading
+      ? '…'
+      : '—'
 
   return (
     <section
       className="portal-student-info-bar"
       aria-label="Signed-in student"
+      aria-busy={loading}
     >
       <div className="portal-student-info-bar-inner">
         <div className="portal-student-info-bar-identity">
@@ -24,7 +50,16 @@ export function PortalStudentInfoBar() {
             {initials}
           </div>
           <div className="portal-student-info-bar-text">
-            <p className="portal-student-info-bar-name">{account.student.name}</p>
+            <p className="portal-student-info-bar-name">{displayName}</p>
+            {error ? (
+              <p
+                className="portal-student-info-bar-name"
+                style={{ fontSize: '0.85em', opacity: 0.85 }}
+                role="status"
+              >
+                {error}
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="portal-student-info-bar-balance">
@@ -32,7 +67,7 @@ export function PortalStudentInfoBar() {
             Balance
           </span>
           <span className="portal-student-info-bar-balance-amount">
-            {formatMoney(account.summary.outstandingBalance)}
+            {balanceAmount}
           </span>
         </div>
       </div>
