@@ -5,6 +5,7 @@ import { PortalLayout } from './components/PortalLayout'
 import { RegistrationLayout } from './pages/registration/RegistrationLayout'
 import { CourseSearchPage } from './pages/registration/CourseSearchPage'
 import { MyCourseBinPage } from './pages/registration/MyCourseBinPage'
+import { CourseBinCheckoutPage } from './pages/registration/CourseBinCheckoutPage'
 import { SchedulePage } from './pages/registration/SchedulePage'
 import { FinancesLayout } from './pages/finances/FinancesLayout'
 import { FinancesOverviewPage } from './pages/finances/FinancesOverviewPage'
@@ -47,6 +48,7 @@ export default function App() {
           <Route index element={<Navigate to="search" replace />} />
           <Route path="search" element={<CourseSearchPage />} />
           <Route path="course-bin" element={<MyCourseBinPage />} />
+          <Route path="checkout" element={<CourseBinCheckoutPage />} />
           <Route path="schedule" element={<SchedulePage />} />
         </Route>
         <Route path="/finances" element={<FinancesLayout />}>

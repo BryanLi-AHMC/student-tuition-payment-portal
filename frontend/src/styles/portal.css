@@ -1818,6 +1818,24 @@
   max-width: 40rem;
 }
 
+.portal-course-bin-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+}
+
+.portal-course-bin-card-header-text {
+  flex: 1;
+  min-width: min(100%, 12rem);
+}
+
+.portal-course-bin-card-header-actions {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 .portal-course-bin-course-cell {
   display: flex;
   flex-direction: column;
@@ -1845,6 +1863,32 @@
   text-align: right;
   white-space: nowrap;
   padding-left: 1rem !important;
+}
+
+/* Course Search / CourseBin table: compact outline control (Add to CourseBin, Remove) */
+.portal-btn.portal-btn--course-search-bin {
+  min-height: auto;
+  padding: 0.12rem 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: #6e1622;
+  background: transparent;
+  border: 1px solid rgba(110, 22, 34, 0.38);
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.portal-btn.portal-btn--course-search-bin:hover {
+  background: rgba(110, 22, 34, 0.07);
+  border-color: rgba(110, 22, 34, 0.55);
+  color: #6e1622;
+}
+
+.portal-btn.portal-btn--course-search-bin:focus-visible {
+  outline: 2px solid #6e1622;
+  outline-offset: 1px;
 }
 
 .portal-table-wrap--nested {

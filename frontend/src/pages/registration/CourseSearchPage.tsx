@@ -235,48 +235,43 @@ function CourseSectionScheduleTable({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
-                const canAddToBin = phase === 'data' && row.key !== 'placeholder'
-                return (
-                  <tr key={row.key}>
-                    <td>{row.section}</td>
-                    <td>{row.session}</td>
-                    <td>{row.type}</td>
-                    <td>{row.units}</td>
-                    <td>{row.registered}</td>
-                    <td>{row.time}</td>
-                    <td>{row.days}</td>
-                    <td>{row.instructor}</td>
-                    <td>{row.location}</td>
-                    <td className="portal-course-section-schedule-col-action">
-                      <button
-                        type="button"
-                        className="portal-btn portal-btn--secondary portal-btn--compact"
-                        disabled={!canAddToBin}
-                        onClick={() => {
-                          if (!canAddToBin) return
-                          addToCourseBin({
-                            course_code: cellText(courseCode),
-                            eng_name: cellText(course.eng_name),
-                            chi_name: cellText(course.chi_name),
-                            units: row.units,
-                            section: row.section,
-                            session: row.session,
-                            type: row.type,
-                            registered: row.registered,
-                            time: row.time,
-                            days: row.days,
-                            instructor: row.instructor,
-                            location: row.location,
-                          })
-                        }}
-                      >
-                        Add to CourseBin
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
+              {rows.map((row) => (
+                <tr key={row.key}>
+                  <td>{row.section}</td>
+                  <td>{row.session}</td>
+                  <td>{row.type}</td>
+                  <td>{row.units}</td>
+                  <td>{row.registered}</td>
+                  <td>{row.time}</td>
+                  <td>{row.days}</td>
+                  <td>{row.instructor}</td>
+                  <td>{row.location}</td>
+                  <td className="portal-course-section-schedule-col-action">
+                    <button
+                      type="button"
+                      className="portal-btn portal-btn--course-search-bin"
+                      onClick={() => {
+                        addToCourseBin({
+                          course_code: cellText(courseCode),
+                          eng_name: cellText(course.eng_name),
+                          chi_name: cellText(course.chi_name),
+                          units: row.units,
+                          section: row.section,
+                          session: row.session,
+                          type: row.type,
+                          registered: row.registered,
+                          time: row.time,
+                          days: row.days,
+                          instructor: row.instructor,
+                          location: row.location,
+                        })
+                      }}
+                    >
+                      Add to CourseBin
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useCourseBin, type CourseBinItem } from './CourseBinContext'
 
 function binRowKey(item: CourseBinItem): string {
@@ -5,18 +6,32 @@ function binRowKey(item: CourseBinItem): string {
 }
 
 export function MyCourseBinPage() {
+  const navigate = useNavigate()
   const { items, removeFromCourseBin } = useCourseBin()
+  const hasItems = items.length > 0
 
   return (
     <main className="portal-page portal-course-bin-page">
       <section className="portal-card portal-stack" aria-labelledby="course-bin-heading">
-        <div>
-          <h2 id="course-bin-heading" className="portal-section-heading">
-            My CourseBin
-          </h2>
-          <p className="portal-page-lede portal-course-bin-lede">
-            Sections you add from Course Search appear here before registration is finalized.
-          </p>
+        <div className="portal-course-bin-card-header">
+          <div className="portal-course-bin-card-header-text">
+            <h2 id="course-bin-heading" className="portal-section-heading">
+              My CourseBin
+            </h2>
+            <p className="portal-page-lede portal-course-bin-lede">
+              Sections you add from Course Search appear here before registration is finalized.
+            </p>
+          </div>
+          <div className="portal-course-bin-card-header-actions">
+            <button
+              type="button"
+              className="portal-btn portal-btn--primary portal-btn--compact"
+              disabled={!hasItems}
+              onClick={() => navigate('/registration/checkout')}
+            >
+              Checkout
+            </button>
+          </div>
         </div>
 
         <div className="portal-course-search-sections-table-wrap portal-course-search-sections-table-wrap--schedule">
@@ -65,7 +80,7 @@ export function MyCourseBinPage() {
                     <td className="portal-course-section-schedule-col-action">
                       <button
                         type="button"
-                        className="portal-btn portal-btn--secondary portal-btn--compact"
+                        className="portal-btn portal-btn--course-search-bin"
                         onClick={() => removeFromCourseBin(item.course_code, item.section)}
                       >
                         Remove
