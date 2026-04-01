@@ -4,9 +4,11 @@ import { deleteCourseBinItemHandler, getCourseBin, postCourseBin, } from "../con
 import { getCourseSections, getCourses } from "../controllers/courseController.js";
 import { getHealth, getHealthDb } from "../controllers/healthController.js";
 import { getDemoAccount, getDemoActivity, getStudentAccount, getStudentActivity, } from "../controllers/studentAccountController.js";
+import { postStudentLogin } from "../controllers/studentAuthController.js";
 export const apiRouter = Router();
 apiRouter.get("/health", getHealth);
 apiRouter.get("/health/db", getHealthDb);
+apiRouter.post("/auth/login", postStudentLogin);
 apiRouter.get("/courses", getCourses);
 apiRouter.get("/courses/:code/sections", getCourseSections);
 /** Course bin (per student); requires `student_course_bin` table when used. */

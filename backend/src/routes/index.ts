@@ -17,11 +17,14 @@ import {
   getStudentAccount,
   getStudentActivity,
 } from "../controllers/studentAccountController.js";
+import { postStudentLogin } from "../controllers/studentAuthController.js";
 
 export const apiRouter = Router();
 
 apiRouter.get("/health", getHealth);
 apiRouter.get("/health/db", getHealthDb);
+
+apiRouter.post("/auth/login", postStudentLogin);
 
 apiRouter.get("/courses", getCourses);
 apiRouter.get("/courses/:code/sections", getCourseSections);

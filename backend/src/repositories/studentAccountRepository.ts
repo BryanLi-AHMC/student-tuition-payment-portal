@@ -12,6 +12,9 @@ import type {
 /**
  * MySQL-first account reads. Expect these tables (adjust names in migrations as needed):
  *
+ * `student_external_id` is the portal-side key for the student; in a legacy schema this matches
+ * `registration.id` (e.g. C17310), not a separate `students.student_id` column.
+ *
  * portal_students (student_external_id PK, full_name)
  * portal_courses (course_id PK, course_code, title, type ENUM, units, hours)
  * portal_enrollments (student_external_id, course_id, term, year)
@@ -50,6 +53,47 @@ function asBillingCategory(raw: unknown): BillingCategory {
     return s;
   }
   return "other";
+}
+
+/**
+ * Latest term/year for which the student has at least one enrollment row.
+ * Ordering: highest calendar year first, then Fall > Summer > Spring > Winter within the year.
+ */
+export async function findLatestTermYearForStudent(
+  pool: Pool,
+  studentExternalId: string,
+): Promise<{ term: string; year: number } | null> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT DISTINCT term, year
+     FROM portal_enrollments
+     WHERE student_external_id = ?
+     ORDER BY year DESC,
+       CASE UPPER(TRIM(term))
+         WHEN 'FALL' THEN 4
+         WHEN 'SUMMER' THEN 3
+         WHEN 'SPRING' THEN 2
+         WHEN 'WINTER' THEN 1
+         ELSE 0
+       END DESC
+     LIMIT 1`,
+    [studentExternalId],
+  );
+
+  if (rows.length === 0) {
+    console.debug(
+      "[account-debug] findLatestTermYearForStudent: none",
+      JSON.stringify({ studentExternalId }),
+    );
+    return null;
+  }
+
+  const r = rows[0]!;
+  const out = { term: String(r.term), year: Number(r.year) };
+  console.debug(
+    "[account-debug] findLatestTermYearForStudent: ok",
+    JSON.stringify({ studentExternalId, ...out }),
+  );
+  return out;
 }
 
 export async function loadAccountContext(

@@ -38,6 +38,7 @@ type AccountContextValue = {
   error: string | null
   reload: () => void
   currentStudentId: string | null
+  /** Call only after the backend login endpoint succeeds; does not validate credentials. */
   login: (studentId: string) => void
   logout: () => void
   isAuthenticated: boolean
@@ -95,7 +96,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
     ;(async () => {
       try {
-        const raw = await fetchStudentAccount(id, 'Fall', 2026, ac.signal)
+        // No term/year: API resolves the latest term that has enrollments for this student.
+        const raw = await fetchStudentAccount(id, { signal: ac.signal })
         if (ac.signal.aborted) return
         setFetchedAccount(raw as MahmAccountMock)
         setError(null)

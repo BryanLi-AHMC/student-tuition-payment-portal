@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PORTAL_BRANDING_TITLE, PORTAL_SHELL_SUBTITLE } from '../branding'
 import { useAccount } from '../context/AccountContext'
+import { loginStudent } from '../lib/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -9,8 +10,9 @@ export function LoginPage() {
   const [studentId, setStudentId] = useState('')
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleSignIn() {
+  async function handleSignIn() {
     const id = studentId.trim()
     const pw = password.trim()
     if (!id || !pw) {
@@ -18,8 +20,18 @@ export function LoginPage() {
       return
     }
     setFormError(null)
-    login(id)
-    navigate('/dashboard')
+    setSubmitting(true)
+    try {
+      const result = await loginStudent(id, password)
+      login(result.studentId)
+      navigate('/dashboard')
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : 'Sign in failed. Please try again.'
+      setFormError(message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -76,9 +88,10 @@ export function LoginPage() {
             <button
               type="button"
               className="portal-login-submit"
-              onClick={handleSignIn}
+              onClick={() => void handleSignIn()}
+              disabled={submitting}
             >
-              Sign In
+              {submitting ? 'Signing in…' : 'Sign In'}
             </button>
             <nav className="portal-login-help-links" aria-label="Account help">
               <a className="portal-login-help-link" href="#">

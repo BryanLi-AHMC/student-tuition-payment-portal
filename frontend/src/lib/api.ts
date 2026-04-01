@@ -10,7 +10,7 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '')
 const JSON_SNIPPET_MAX = 280
 
 /**
- * Join base + path. `path` must start with `/` (e.g. `/api/students/x/account?term=Fall`).
+ * Join base + path. `path` must start with `/` (e.g. `/api/students/x/account` or `...?term=Fall&year=2026`).
  */
 export function buildApiUrl(pathWithQuery: string): string {
   const path =
@@ -86,24 +86,72 @@ export async function fetchApiJson(
   return data
 }
 
-const DEFAULT_ACCOUNT_TERM = 'Fall'
-const DEFAULT_ACCOUNT_YEAR = 2026
+export type FetchStudentAccountOptions = {
+  /** When both set, load that term only; otherwise the API uses the latest enrolled term/year. */
+  term?: string
+  year?: number
+  signal?: AbortSignal
+}
 
 /**
- * GET /api/students/:studentId/account?term=Fall&year=2026 (defaults overridable).
- * Returns parsed JSON; callers should validate or cast to the app account shape.
+ * GET /api/students/:studentId/account
+ * Optional query: `term` + `year` together for a specific term; omit both to use the student's
+ * latest term with enrollments (server-side resolution).
  */
 export async function fetchStudentAccount(
   studentId: string,
-  term: string = DEFAULT_ACCOUNT_TERM,
-  year: number = DEFAULT_ACCOUNT_YEAR,
-  signal?: AbortSignal,
+  options?: FetchStudentAccountOptions,
 ): Promise<unknown> {
-  const params = new URLSearchParams({
-    term,
-    year: String(year),
-  })
-  const path = `/api/students/${encodeURIComponent(studentId)}/account?${params.toString()}`
+  const { term, year, signal } = options ?? {}
+  const params = new URLSearchParams()
+  if (
+    typeof term === 'string' &&
+    term.trim() !== '' &&
+    year != null &&
+    Number.isFinite(year)
+  ) {
+    params.set('term', term.trim())
+    params.set('year', String(year))
+  }
+  const qs = params.toString()
+  const path = `/api/students/${encodeURIComponent(studentId)}/account${qs ? `?${qs}` : ''}`
   console.debug('[account-debug] fetchStudentAccount', buildApiUrl(path))
   return fetchApiJson(path, { signal })
+}
+
+export type LoginStudentSuccess = {
+  studentId: string
+  displayName: string
+}
+
+/**
+ * POST /api/auth/login — legacy students table password check.
+ * On success returns { studentId, displayName }; throws on 4xx/5xx (see fetchApiJson).
+ */
+export async function loginStudent(
+  studentId: string,
+  password: string,
+  options?: { signal?: AbortSignal },
+): Promise<LoginStudentSuccess> {
+  const data = (await fetchApiJson('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studentId: studentId.trim(),
+      password,
+    }),
+    signal: options?.signal,
+  })) as unknown
+
+  if (
+    data != null &&
+    typeof data === 'object' &&
+    typeof (data as { studentId?: unknown }).studentId === 'string' &&
+    typeof (data as { displayName?: unknown }).displayName === 'string'
+  ) {
+    const o = data as LoginStudentSuccess
+    return { studentId: o.studentId, displayName: o.displayName }
+  }
+
+  throw new Error('Unexpected login response shape')
 }

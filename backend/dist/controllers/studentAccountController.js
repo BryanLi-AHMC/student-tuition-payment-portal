@@ -1,9 +1,29 @@
 import { buildActivityRows } from "../services/activityView.js";
 import { getCatalogDemoAccountPayload } from "../services/demoAccountService.js";
-import { getStudentAccountPayload } from "../services/studentAccountService.js";
+import { getStudentAccountPayload, } from "../services/studentAccountService.js";
+/**
+ * Both `term` and `year` must be present for an explicit term; otherwise resolve latest enrollment
+ * term/year for the student (see findLatestTermYearForStudent).
+ */
+function accountTermYearFromQuery(req) {
+    const termRaw = req.query.term;
+    const yearRaw = req.query.year;
+    const term = typeof termRaw === "string" && termRaw.trim() !== ""
+        ? termRaw.trim()
+        : null;
+    const yearNum = typeof yearRaw === "string" && yearRaw.trim() !== ""
+        ? Number(yearRaw)
+        : Number.NaN;
+    const year = Number.isFinite(yearNum) ? yearNum : null;
+    if (term != null && year != null) {
+        return { mode: "explicit", term, year };
+    }
+    return { mode: "auto" };
+}
+/** Demo and legacy links that omit query params still default to a concrete term. */
 function termFromQuery(req) {
     const t = req.query.term;
-    return typeof t === "string" && t ? t : "Fall";
+    return typeof t === "string" && t.trim() !== "" ? t.trim() : "Fall";
 }
 function yearFromQuery(req) {
     const y = req.query.year;
@@ -18,11 +38,10 @@ function pathStudentId(req) {
 }
 export async function getStudentAccount(req, res) {
     try {
-        const term = termFromQuery(req);
-        const year = yearFromQuery(req);
+        const termYear = accountTermYearFromQuery(req);
         const sid = pathStudentId(req);
-        console.debug("[account-debug] getStudentAccount", JSON.stringify({ studentId: sid, term, year }));
-        const payload = await getStudentAccountPayload(sid, term, year);
+        console.debug("[account-debug] getStudentAccount", JSON.stringify({ studentId: sid, termYear }));
+        const payload = await getStudentAccountPayload(sid, termYear);
         if (!payload) {
             res.status(404).json({ error: "Student term account not found" });
             return;
@@ -36,9 +55,8 @@ export async function getStudentAccount(req, res) {
 }
 export async function getStudentActivity(req, res) {
     try {
-        const term = termFromQuery(req);
-        const year = yearFromQuery(req);
-        const payload = await getStudentAccountPayload(pathStudentId(req), term, year);
+        const termYear = accountTermYearFromQuery(req);
+        const payload = await getStudentAccountPayload(pathStudentId(req), termYear);
         if (!payload) {
             res.status(404).json({ error: "Student term account not found" });
             return;
