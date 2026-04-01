@@ -20,6 +20,7 @@ import {
   getDemoActivity,
   getStudentAccount,
   getStudentActivity,
+  getStudentProfile,
 } from "../controllers/studentAccountController.js";
 import { postStudentLogin } from "../controllers/studentAuthController.js";
 
@@ -48,6 +49,7 @@ adminRouter.patch("/course-sections/:id", patchAdminCourseSection);
 adminRouter.delete("/course-sections/:id", deleteAdminCourseSection);
 apiRouter.use("/admin", adminRouter);
 
+apiRouter.get("/students/:studentId/profile", getStudentProfile);
 apiRouter.get("/students/:studentId/account", getStudentAccount);
 apiRouter.get("/students/:studentId/activity", getStudentActivity);
 apiRouter.get(

@@ -191,6 +191,47 @@ export async function listLegacyAccountingQuarters(
 /**
  * All `accounting` rows for one student (`id`), term, and year (signed debit/credit preserved).
  */
+/** Raw row from `students` for profile mapping (column names as returned by MySQL driver). */
+export type LegacyStudentProfileRow = RowDataPacket;
+
+/**
+ * Load one legacy `students` row by primary key `id` (e.g. C17310).
+ */
+export async function loadLegacyStudentProfileRow(
+  pool: Pool,
+  studentId: string,
+): Promise<LegacyStudentProfileRow | null> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       id,
+       name,
+       gender,
+       dob,
+       signed_date,
+       EnrollStartDate,
+       background,
+       admission_credits,
+       tertiary,
+       race,
+       address,
+       address2,
+       city,
+       state,
+       zip,
+       email,
+       requirements_id
+     FROM students
+     WHERE id = ?
+     LIMIT 1`,
+    [studentId],
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+  return rows[0]!;
+}
+
 export async function loadLegacyAccountingRows(
   pool: Pool,
   studentId: string,

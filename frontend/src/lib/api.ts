@@ -119,6 +119,42 @@ export async function fetchStudentAccount(
   return fetchApiJson(path, { signal })
 }
 
+/** GET /api/students/:studentId/profile — legacy `students` demographics. */
+export type StudentProfileResponse = {
+  studentId: string
+  fullName: string
+  track: string | null
+  gender: string | null
+  age: number | null
+  enrollmentDate: string | null
+  background: string | null
+  credits: number | null
+  highestDegree: string | null
+  race: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  email: string | null
+}
+
+export async function fetchStudentProfile(
+  studentId: string,
+  options?: { signal?: AbortSignal },
+): Promise<StudentProfileResponse> {
+  const path = `/api/students/${encodeURIComponent(studentId)}/profile`
+  const data = (await fetchApiJson(path, { signal: options?.signal })) as unknown
+  if (
+    data != null &&
+    typeof data === 'object' &&
+    typeof (data as { studentId?: unknown }).studentId === 'string' &&
+    typeof (data as { fullName?: unknown }).fullName === 'string'
+  ) {
+    return data as StudentProfileResponse
+  }
+  throw new Error('Unexpected student profile response')
+}
+
 export type LoginStudentSuccess = {
   studentId: string
   displayName: string
