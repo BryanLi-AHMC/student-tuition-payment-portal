@@ -17,6 +17,35 @@ const poolConfig: mysql.PoolOptions = {
 
 export const pool: mysql.Pool = mysql.createPool(poolConfig);
 
+/**
+ * Verifies the pool can reach MySQL (fail fast on startup).
+ * Logs structured details on failure for RDS/network/credential issues.
+ */
+export async function testDatabaseConnection(): Promise<void> {
+  let connection: mysql.PoolConnection | undefined;
+  try {
+    connection = await pool.getConnection();
+    await connection.ping();
+    if ((process.env.NODE_ENV ?? "development") === "development") {
+      console.log("[db] connection verified");
+    }
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException & Error;
+    console.error("[db] connection failed:", {
+      message: e.message,
+      code: e.code,
+      errno: e.errno,
+      syscall: e.syscall,
+      host: poolConfig.host,
+      database: poolConfig.database,
+    });
+    if (e.stack) console.error("[db] stack:", e.stack);
+    throw err;
+  } finally {
+    connection?.release();
+  }
+}
+
 pool.on("connection", (connection) => {
   (connection as unknown as EventEmitter).on(
     "error",
