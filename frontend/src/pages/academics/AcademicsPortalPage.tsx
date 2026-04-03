@@ -158,16 +158,14 @@ export function AcademicsPortalPage() {
         role="tablist"
         aria-label="Academics view"
       >
-        <div className="portal-academics-mode-toggle">
+        <div className="portal-tab-group portal-academics-portal-tabs">
           <button
             type="button"
             role="tab"
             aria-selected={mode === 'quarter'}
             className={[
-              'portal-academics-mode-toggle__btn',
-              mode === 'quarter'
-                ? 'portal-academics-mode-toggle__btn--active'
-                : '',
+              'portal-tab',
+              mode === 'quarter' ? 'portal-tab--active' : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -180,10 +178,8 @@ export function AcademicsPortalPage() {
             role="tab"
             aria-selected={mode === 'transcript'}
             className={[
-              'portal-academics-mode-toggle__btn',
-              mode === 'transcript'
-                ? 'portal-academics-mode-toggle__btn--active'
-                : '',
+              'portal-tab',
+              mode === 'transcript' ? 'portal-tab--active' : '',
             ]
               .filter(Boolean)
               .join(' ')}

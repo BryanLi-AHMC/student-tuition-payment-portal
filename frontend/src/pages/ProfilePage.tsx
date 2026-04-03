@@ -89,11 +89,7 @@ export function ProfilePage() {
     <main className="portal-page portal-module-page portal-profile-page">
       <header className="portal-module-header">
         <BackToDashboardLink />
-        <h1 className="portal-module-title">My Account</h1>
-        <p className="portal-module-subtitle">
-          Your enrollment and billing snapshot for the signed-in student. Additional
-          profile tools will roll out over time.
-        </p>
+        <h1 className="portal-page-title">My Account</h1>
       </header>
 
       {profileSectionLoading ? (

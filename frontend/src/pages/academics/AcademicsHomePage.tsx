@@ -31,9 +31,6 @@ const ACTIONS = [
 export function AcademicsHomePage() {
   return (
     <main className="portal-page">
-      <p className="portal-page-lede portal-academics-home-lede">
-        Access academic records, transcripts, GPA information, and student verification services.
-      </p>
       <section className="portal-module-panel" aria-labelledby="academics-actions-heading">
         <h3 id="academics-actions-heading" className="portal-module-panel-heading">
           Academic services

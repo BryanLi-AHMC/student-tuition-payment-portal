@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 function linkClass(isActive: boolean) {
-  return ['portal-clinical-nav-link', isActive ? 'portal-clinical-nav-link--active' : ''].filter(Boolean).join(' ')
+  return ['portal-tab', isActive ? 'portal-tab--active' : ''].filter(Boolean).join(' ')
 }
 
 const ITEMS = [
@@ -16,7 +16,7 @@ const ITEMS = [
 export function ClinicalNav() {
   return (
     <nav className="portal-clinical-nav" aria-label="Clinical">
-      <ul className="portal-clinical-nav-list">
+      <ul className="portal-tab-group">
         <li>
           <NavLink to="/clinical" end className={({ isActive }) => linkClass(isActive)}>
             Overview

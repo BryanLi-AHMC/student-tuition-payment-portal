@@ -7,7 +7,7 @@ export function FinancesLayout() {
     <div className="portal-finances-module">
       <header className="portal-module-header">
         <BackToDashboardLink />
-        <h1 className="portal-module-title">Finances</h1>
+        <h1 className="portal-page-title">Finances</h1>
       </header>
       <FinancesNav />
       <div className="portal-finances-outlet">

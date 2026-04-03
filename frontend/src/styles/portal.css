@@ -47,6 +47,10 @@
   --portal-sidebar-active: var(--amu-red-dark);
   --portal-sidebar-hover: var(--amu-red-dark);
   --portal-main-canvas-bg: var(--page-gray);
+  /* Primary reading size: matches course / grades table body (e.g. course titles in portal tables). */
+  --portal-body-font-size: 0.875rem;
+  --portal-body-line-height: 1.45;
+  --portal-page-title-size: 1rem;
   min-height: 100vh;
   background: var(--portal-bg);
   color: var(--portal-text);
@@ -553,6 +557,11 @@
   box-sizing: border-box;
 }
 
+.portal-shell--authenticated .portal-main-body {
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
+}
+
 .portal-main-body:has(.portal-dashboard) {
   padding-top: 1rem;
   /* ~24–32px below the two cards — homepage ends shortly after the row */
@@ -603,6 +612,7 @@
 
 @media (max-width: 768px) {
   .portal-shell--authenticated {
+    --portal-body-font-size: 0.8125rem;
     flex-direction: column;
     --portal-main-padding-x: 1rem;
     /* Two-row gold bar when user + logout stack. */
@@ -911,21 +921,98 @@
   border-radius: 2px;
 }
 
+/* System page header: slightly above body, calm weight (not marketing-scale). */
+.portal-page-title,
 .portal-module-title {
   margin: 0 0 0.5rem;
-  font-size: 1.375rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  font-size: var(--portal-page-title-size);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
   color: var(--portal-text);
+}
+
+/* No module subtitle: title is last in header — avoid extra gap before content */
+.portal-module-header > .portal-page-title:last-child,
+.portal-module-header > .portal-module-title:last-child {
+  margin-bottom: 0;
 }
 
 .portal-module-subtitle {
   margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.55;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
   max-width: 52rem;
+}
+
+/* —— Shared tab navigation (Documents, Clinical, Finances, Registration, Academics mode) —— */
+.portal-tab-group {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.625rem;
+}
+
+button.portal-tab {
+  margin: 0;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
+a.portal-tab,
+button.portal-tab {
+  box-sizing: border-box;
+}
+
+.portal-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.875rem;
+  font-size: var(--portal-body-font-size);
+  font-weight: 400;
+  line-height: 1.2;
+  text-decoration: none;
+  border-radius: var(--portal-radius);
+  border: 1px solid var(--portal-border-subtle);
+  background: #eef0f3;
+  color: var(--portal-text);
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.portal-tab:hover {
+  background: #e8eaee;
+  border-color: var(--portal-border);
+  color: var(--portal-text);
+}
+
+.portal-tab:focus-visible {
+  outline: 2px solid var(--portal-accent);
+  outline-offset: 2px;
+}
+
+.portal-tab--active,
+.portal-tab-active {
+  background: var(--portal-accent-soft);
+  border-color: var(--portal-border-subtle);
+  color: var(--portal-accent-hover);
+  font-weight: 400;
+}
+
+.portal-tab--active:hover,
+.portal-tab-active:hover {
+  background: var(--portal-accent-soft);
+  border-color: var(--portal-border-subtle);
+  color: var(--portal-accent-hover);
 }
 
 /* —— My Account (student profile) —— */
@@ -970,8 +1057,8 @@
 }
 
 .portal-profile-card .portal-profile-balance {
-  font-size: 1.0625rem;
-  font-weight: 700;
+  font-size: var(--portal-body-font-size);
+  font-weight: 600;
   color: var(--portal-accent);
   font-variant-numeric: tabular-nums;
 }
@@ -1008,75 +1095,9 @@
 
 .portal-finances-nav,
 .portal-registration-nav,
-.portal-academics-nav,
 .portal-clinical-nav,
 .portal-documents-nav {
   margin-bottom: 1.25rem;
-}
-
-.portal-finances-nav-list,
-.portal-registration-nav-list,
-.portal-academics-nav-list,
-.portal-clinical-nav-list,
-.portal-documents-nav-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-}
-
-.portal-finances-nav-link,
-.portal-registration-nav-link,
-.portal-academics-nav-link,
-.portal-clinical-nav-link,
-.portal-documents-nav-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.25rem;
-  padding: 0.375rem 0.875rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.2;
-  text-decoration: none;
-  border-radius: var(--portal-radius);
-  border: 1px solid var(--portal-border-subtle);
-  background: var(--portal-surface);
-  color: var(--portal-text);
-  transition:
-    background 0.12s ease,
-    border-color 0.12s ease,
-    color 0.12s ease;
-}
-
-.portal-finances-nav-link:hover,
-.portal-registration-nav-link:hover,
-.portal-academics-nav-link:hover,
-.portal-clinical-nav-link:hover,
-.portal-documents-nav-link:hover {
-  background: #f8f9fb;
-  border-color: var(--portal-border);
-}
-
-.portal-finances-nav-link:focus-visible,
-.portal-registration-nav-link:focus-visible,
-.portal-academics-nav-link:focus-visible,
-.portal-clinical-nav-link:focus-visible,
-.portal-documents-nav-link:focus-visible {
-  outline: 2px solid var(--portal-accent);
-  outline-offset: 2px;
-}
-
-.portal-finances-nav-link--active,
-.portal-registration-nav-link--active,
-.portal-academics-nav-link--active,
-.portal-clinical-nav-link--active,
-.portal-documents-nav-link--active {
-  background: var(--portal-accent-soft);
-  border-color: var(--portal-accent);
-  color: var(--portal-accent);
-  font-weight: 600;
 }
 
 .portal-finances-outlet,
@@ -1118,13 +1139,6 @@
 .portal-account-ledger__select:focus-visible {
   outline: 2px solid var(--portal-accent, #2563eb);
   outline-offset: 2px;
-}
-
-/* —— Academics / Documents module (pages) —— */
-.portal-academics-home-lede,
-.portal-clinical-home-lede,
-.portal-documents-home-lede {
-  max-width: 44rem;
 }
 
 /* —— Documents module (pages) —— */
@@ -1188,7 +1202,7 @@
 
 .portal-documents-item-title {
   margin: 0 0 0.25rem;
-  font-size: 0.9375rem;
+  font-size: var(--portal-body-font-size);
   font-weight: 600;
   line-height: 1.35;
   color: var(--portal-text);
@@ -1196,8 +1210,8 @@
 
 .portal-documents-item-meta {
   margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
 }
 
@@ -1222,8 +1236,8 @@
 
 .portal-documents-item-desc {
   margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
   max-width: 36rem;
 }
@@ -1251,8 +1265,8 @@
 
 .portal-documents-handbook-title {
   margin: 0 0 0.25rem;
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: var(--portal-page-title-size);
+  font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.3;
   color: var(--portal-text);
@@ -1266,8 +1280,8 @@
 
 .portal-documents-handbook-desc {
   margin: 0 0 1.125rem;
-  font-size: 0.875rem;
-  line-height: 1.55;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
 }
 
@@ -1279,8 +1293,8 @@
 
 .portal-documents-quick-intro {
   margin: -0.25rem 0 1rem;
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
 }
 
@@ -1328,7 +1342,7 @@
 }
 
 .portal-documents-quick-title {
-  font-size: 0.875rem;
+  font-size: var(--portal-body-font-size);
   font-weight: 600;
   line-height: 1.35;
   color: var(--portal-text);
@@ -1361,15 +1375,15 @@
 
 .portal-documents-upload-cta-title {
   margin: 0 0 0.5rem;
-  font-size: 0.9375rem;
+  font-size: var(--portal-body-font-size);
   font-weight: 600;
   color: var(--portal-text);
 }
 
 .portal-documents-upload-cta-desc {
   margin: 0 0 1rem;
-  font-size: 0.875rem;
-  line-height: 1.55;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
   max-width: 40rem;
 }
@@ -1421,8 +1435,8 @@
 }
 
 .portal-clinical-meta-line {
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
   margin-top: 0.25rem;
 }
@@ -1580,50 +1594,8 @@ table.portal-academics-portal-grades-table.portal-table--grades td {
   margin-bottom: var(--portal-space-section);
 }
 
-/* —— Academics unified portal (quarter grades / transcript preview) —— */
-.portal-academics-mode-toggle {
-  display: inline-flex;
-  flex-wrap: wrap;
-  border: 1px solid var(--portal-border-subtle);
-  border-radius: var(--portal-radius);
-  overflow: hidden;
-  background: var(--portal-surface);
+.portal-academics-portal-tabs {
   margin-bottom: 1.25rem;
-}
-
-.portal-academics-mode-toggle__btn {
-  margin: 0;
-  padding: 0.5rem 1rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  border: none;
-  border-right: 1px solid var(--portal-border-subtle);
-  background: var(--portal-surface);
-  color: var(--portal-text);
-  cursor: pointer;
-  transition:
-    background 0.12s ease,
-    color 0.12s ease;
-}
-
-.portal-academics-mode-toggle__btn:last-child {
-  border-right: none;
-}
-
-.portal-academics-mode-toggle__btn:hover {
-  background: #f8f9fb;
-}
-
-.portal-academics-mode-toggle__btn:focus-visible {
-  outline: 2px solid var(--portal-accent);
-  outline-offset: -2px;
-  z-index: 1;
-}
-
-.portal-academics-mode-toggle__btn--active {
-  background: var(--portal-accent-soft);
-  color: var(--portal-accent);
 }
 
 /* Quarter Grades: term totals (selected term only; document-style, compact) */
@@ -1638,9 +1610,9 @@ table.portal-academics-portal-grades-table.portal-table--grades td {
 
 .portal-academics-quarter-term-summary__title {
   margin: 0 0 0.4rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-size: var(--portal-body-font-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1.3;
   color: var(--portal-text);
 }
@@ -1657,19 +1629,19 @@ table.portal-academics-portal-grades-table.portal-table--grades td {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 0.5rem 1rem;
-  font-size: 0.8125rem;
+  font-size: var(--portal-body-font-size);
   line-height: 1.35;
 }
 
 .portal-academics-quarter-term-summary__row dt {
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--portal-text-muted);
 }
 
 .portal-academics-quarter-term-summary__row dd {
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--portal-text);
   text-align: right;
@@ -2039,7 +2011,7 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-registration-action-title {
   margin: 0;
   padding-right: 1.5rem;
-  font-size: 0.9375rem;
+  font-size: var(--portal-body-font-size);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.35;
@@ -2048,8 +2020,8 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 
 .portal-registration-action-desc {
   margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
 }
 
@@ -2472,16 +2444,16 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 
 .portal-registration-status-value {
   margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
+  font-size: var(--portal-body-font-size);
+  font-weight: 500;
   line-height: 1.35;
   color: var(--portal-text);
 }
 
 .portal-registration-status-note {
   margin: 0.25rem 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
   max-width: 28rem;
 }
@@ -2552,7 +2524,7 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   gap: 0.5rem 1rem;
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--portal-border-subtle);
-  font-size: 0.9375rem;
+  font-size: var(--portal-body-font-size);
   line-height: 1.4;
   color: var(--portal-text);
 }
@@ -2584,12 +2556,13 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 }
 
 @media (max-width: 768px) {
+  .portal-page-title,
   .portal-module-title {
-    font-size: 1.1875rem;
+    font-size: 0.9375rem;
   }
 
   .portal-module-subtitle {
-    font-size: 0.875rem;
+    font-size: var(--portal-body-font-size);
   }
 
   .portal-module-panel {
@@ -2600,14 +2573,14 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-page-lede {
   margin: 0 0 var(--portal-space-lede-bottom);
   max-width: 42rem;
-  font-size: 0.9375rem;
-  line-height: 1.55;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
 }
 
 .portal-section-heading {
   margin: 0 0 0.375rem;
-  font-size: 0.9375rem;
+  font-size: var(--portal-body-font-size);
   font-weight: 600;
   color: var(--portal-text);
   letter-spacing: -0.01em;
@@ -2618,8 +2591,8 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-inline-note {
   margin: 0 0 var(--portal-space-section);
   max-width: 42rem;
-  font-size: 0.8125rem;
-  line-height: 1.55;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
 }
 
@@ -2635,8 +2608,8 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-plan-terms-list {
   margin: 0.5rem 0 0;
   padding-left: 1.25rem;
-  font-size: 0.8125rem;
-  line-height: 1.6;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
 }
 
@@ -2668,17 +2641,17 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 
 .portal-card-value {
   margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 600;
+  font-size: var(--portal-body-font-size);
+  font-weight: 500;
   color: var(--portal-text);
   line-height: 1.35;
 }
 
 .portal-card-note {
   margin: 0.5rem 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--portal-body-font-size);
   color: var(--portal-text-muted);
-  line-height: 1.45;
+  line-height: var(--portal-body-line-height);
 }
 
 /* —— Grid —— */
@@ -2800,15 +2773,15 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 
 .portal-row dt {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--portal-body-font-size);
   color: var(--portal-text-muted);
   font-weight: 500;
 }
 
 .portal-row dd {
   margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
+  font-size: var(--portal-body-font-size);
+  font-weight: 500;
   color: var(--portal-text);
   text-align: right;
 }
@@ -2861,7 +2834,7 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--portal-body-font-size);
 }
 
 .portal-table th,
@@ -3033,8 +3006,8 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-note {
   margin: 0 0 var(--portal-space-section);
   padding: 1rem 1.125rem;
-  font-size: 0.8125rem;
-  line-height: 1.55;
+  font-size: var(--portal-body-font-size);
+  line-height: var(--portal-body-line-height);
   color: var(--portal-text-muted);
   background: #f8f9fb;
   border: 1px solid var(--portal-border-subtle);

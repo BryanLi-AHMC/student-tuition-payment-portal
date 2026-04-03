@@ -26,9 +26,6 @@ const ACTIONS = [
 export function DocumentsHomePage() {
   return (
     <main className="portal-page">
-      <p className="portal-page-lede portal-documents-home-lede">
-        Find school policies, downloadable forms, handbook resources, and document submissions.
-      </p>
       <section className="portal-module-panel" aria-labelledby="documents-actions-heading">
         <h2 id="documents-actions-heading" className="portal-module-panel-heading">
           Document center

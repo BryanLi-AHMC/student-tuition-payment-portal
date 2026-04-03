@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 function linkClass(isActive: boolean) {
-  return ['portal-documents-nav-link', isActive ? 'portal-documents-nav-link--active' : ''].filter(Boolean).join(' ')
+  return ['portal-tab', isActive ? 'portal-tab--active' : ''].filter(Boolean).join(' ')
 }
 
 const ITEMS = [
@@ -14,7 +14,7 @@ const ITEMS = [
 export function DocumentsNav() {
   return (
     <nav className="portal-documents-nav" aria-label="Documents and forms">
-      <ul className="portal-documents-nav-list">
+      <ul className="portal-tab-group">
         <li>
           <NavLink to="/documents" end className={({ isActive }) => linkClass(isActive)}>
             Overview

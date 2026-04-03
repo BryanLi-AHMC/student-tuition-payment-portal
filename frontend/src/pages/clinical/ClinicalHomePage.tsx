@@ -36,9 +36,6 @@ const ACTIONS = [
 export function ClinicalHomePage() {
   return (
     <main className="portal-page">
-      <p className="portal-page-lede portal-clinical-home-lede">
-        Access clinic scheduling, evaluations, requirement tracking, and training resources.
-      </p>
       <section className="portal-module-panel" aria-labelledby="clinical-actions-heading">
         <h2 id="clinical-actions-heading" className="portal-module-panel-heading">
           Clinical training

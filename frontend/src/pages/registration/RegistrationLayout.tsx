@@ -9,7 +9,7 @@ export function RegistrationLayout() {
       <div className="portal-registration-module">
         <header className="portal-module-header">
           <BackToDashboardLink />
-          <h1 className="portal-module-title">Registration</h1>
+          <h1 className="portal-page-title">Registration</h1>
         </header>
         <RegistrationNav />
         <div className="portal-registration-outlet">

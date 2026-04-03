@@ -7,10 +7,7 @@ export function DocumentsLayout() {
     <div className="portal-documents-module">
       <header className="portal-module-header">
         <BackToDashboardLink />
-        <h1 className="portal-module-title">Documents & Forms</h1>
-        <p className="portal-module-subtitle">
-          Access policies, agreements, forms, handbook resources, and submitted documents.
-        </p>
+        <h1 className="portal-page-title">Documents & Forms</h1>
       </header>
       <DocumentsNav />
       <div className="portal-documents-outlet">

@@ -16,7 +16,7 @@ export function ModulePlaceholderPage({ title, subtitle, items }: ModulePlacehol
     <main className="portal-page portal-module-page">
       <header className="portal-module-header">
         <BackToDashboardLink />
-        <h1 className="portal-module-title">{title}</h1>
+        <h1 className="portal-page-title">{title}</h1>
         <p className="portal-module-subtitle">{subtitle}</p>
       </header>
       <section className="portal-module-panel" aria-labelledby="portal-module-functions-heading">

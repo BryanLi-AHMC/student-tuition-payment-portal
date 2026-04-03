@@ -7,10 +7,7 @@ export function ClinicalLayout() {
     <div className="portal-clinical-module">
       <header className="portal-module-header">
         <BackToDashboardLink />
-        <h1 className="portal-module-title">Clinical</h1>
-        <p className="portal-module-subtitle">
-          Manage clinic scheduling, evaluations, requirements, and training readiness.
-        </p>
+        <h1 className="portal-page-title">Clinical</h1>
       </header>
       <ClinicalNav />
       <div className="portal-clinical-outlet">

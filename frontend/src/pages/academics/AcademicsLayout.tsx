@@ -6,10 +6,7 @@ export function AcademicsLayout() {
     <div className="portal-academics-module">
       <header className="portal-module-header portal-academics-print-hide">
         <BackToDashboardLink />
-        <h1 className="portal-module-title">Academics</h1>
-        <p className="portal-module-subtitle">
-          Quarter grades and unofficial transcript preview.
-        </p>
+        <h1 className="portal-page-title">Academics</h1>
       </header>
       <div className="portal-academics-outlet">
         <Outlet />
