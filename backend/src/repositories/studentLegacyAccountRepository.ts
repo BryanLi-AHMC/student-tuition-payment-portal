@@ -306,25 +306,23 @@ export async function loadLegacyAccountingRows(
   return out;
 }
 
-/** Raw row for admin student list: legacy `students` + latest `registration` + optional `accounting` rollup. */
+/** Raw row for admin student list: legacy `students` + latest `registration` term/year. */
 export type LegacyAdminStudentListRow = RowDataPacket & {
   id: string;
   name: unknown;
   email: unknown;
   background: unknown;
   requirements_id: unknown;
+  tertiary: unknown;
+  signed_date: unknown;
+  enroll_start_date: unknown;
   latest_term: unknown;
   latest_year: unknown;
-  total_fees: unknown;
-  sum_debit: unknown;
-  sum_credit: unknown;
-  acct_rows: unknown;
 };
 
 /**
- * All legacy `students` rows with latest registration term (same ordering as `findLatestLegacyTermYear`)
- * and matching `accounting` aggregates when present. Used for admin roster + balance aligned with
- * `assembleLegacyStudentAccountPayload` (no accounting → `total_fees`; else `sum(debit) - sum(credit)`).
+ * All legacy `students` rows with latest registration term/year (same ordering as
+ * `findLatestLegacyTermYear`). Used for the admin student roster.
  */
 export async function listLegacyAdminStudentRows(
   pool: Pool,
@@ -336,19 +334,17 @@ export async function listLegacyAdminStudentRows(
        s.email,
        s.background,
        s.requirements_id,
+       s.tertiary,
+       s.signed_date,
+       s.EnrollStartDate AS enroll_start_date,
        lr.term AS latest_term,
-       lr.year AS latest_year,
-       lr.total_fees AS total_fees,
-       a.sum_debit AS sum_debit,
-       a.sum_credit AS sum_credit,
-       a.acct_rows AS acct_rows
+       lr.year AS latest_year
      FROM students s
      LEFT JOIN (
        SELECT
          id,
          TRIM(term) AS term,
          year,
-         total_fees,
          ROW_NUMBER() OVER (
            PARTITION BY id
            ORDER BY year DESC,
@@ -362,21 +358,69 @@ export async function listLegacyAdminStudentRows(
          ) AS rn
        FROM registration
      ) lr ON lr.id = s.id AND lr.rn = 1
-     LEFT JOIN (
-       SELECT
-         id,
-         TRIM(term) AS term,
-         year,
-         SUM(debit) AS sum_debit,
-         SUM(credit) AS sum_credit,
-         COUNT(*) AS acct_rows
-       FROM accounting
-       GROUP BY id, TRIM(term), year
-     ) a ON a.id = s.id
-       AND lr.term IS NOT NULL
-       AND LOWER(TRIM(a.term)) = LOWER(TRIM(lr.term))
-       AND a.year = lr.year
      ORDER BY s.name ASC, s.id ASC`,
   );
   return rows;
+}
+
+export type LegacyStudentMasterUpdate = {
+  name: string;
+  email: string;
+  gender: string;
+  background: string;
+  tertiary: string;
+  requirements_id: number | null;
+  address: string;
+  address2: string;
+  city: string;
+  state: string;
+  zip: number;
+  signed_date_sql: string;
+  enroll_start_sql: string;
+};
+
+/**
+ * Update safe legacy `students` master columns only. Returns whether a row was updated.
+ * Date strings must already be validated SQL `YYYY-MM-DD` or `0000-00-00` for NOT NULL legacy columns.
+ */
+export async function updateLegacyStudentMasterRow(
+  pool: Pool,
+  studentId: string,
+  patch: LegacyStudentMasterUpdate,
+): Promise<boolean> {
+  const [result] = await pool.execute(
+    `UPDATE students SET
+       name = ?,
+       email = ?,
+       gender = ?,
+       background = ?,
+       tertiary = ?,
+       requirements_id = ?,
+       address = ?,
+       address2 = ?,
+       city = ?,
+       state = ?,
+       zip = ?,
+       signed_date = ?,
+       EnrollStartDate = ?
+     WHERE id = ?`,
+    [
+      patch.name,
+      patch.email,
+      patch.gender,
+      patch.background,
+      patch.tertiary,
+      patch.requirements_id,
+      patch.address,
+      patch.address2,
+      patch.city,
+      patch.state,
+      patch.zip,
+      patch.signed_date_sql,
+      patch.enroll_start_sql,
+      studentId,
+    ],
+  );
+  const header = result as { affectedRows?: number };
+  return (header.affectedRows ?? 0) > 0;
 }

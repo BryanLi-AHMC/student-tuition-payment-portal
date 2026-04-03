@@ -141,11 +141,60 @@ export type StudentProfileResponse = {
 /** GET /api/admin/students — legacy `students` roster (admin UI). */
 export type AdminStudentListItem = {
   studentId: string
+  division: 'Chinese' | 'English' | 'Unknown'
   name: string
-  program: string | null
-  status: string | null
   email: string | null
-  balance: number | null
+  requirementsId: string | null
+  highestDegree: string | null
+  backgroundSchool: string | null
+  signedDate: string | null
+  enrollStartDate: string | null
+  resolvedEntryDate: string | null
+  entryYear: number | null
+  latestRegistrationTerm: string | null
+}
+
+/** GET/PUT /api/admin/students/:studentId — admin student detail. */
+export type AdminStudentDetail = {
+  studentId: string
+  division: 'Chinese' | 'English' | 'Unknown'
+  name: string
+  email: string | null
+  requirementsId: string | null
+  highestDegree: string | null
+  backgroundSchool: string | null
+  gender: string | null
+  signedDate: string | null
+  enrollStartDate: string | null
+  resolvedEntryDate: string | null
+  entryYear: number | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  latestRegistrationTerm: string | null
+}
+
+export type AdminStudentUpdatePayload = {
+  name: string
+  email: string | null
+  gender: string | null
+  backgroundSchool: string | null
+  highestDegree: string | null
+  requirementsId: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  signedDate: string | null
+  enrollStartDate: string | null
+}
+
+function parseAdminDivision(
+  v: unknown,
+): 'Chinese' | 'English' | 'Unknown' {
+  if (v === 'Chinese' || v === 'English' || v === 'Unknown') return v
+  throw new Error('Unexpected admin students response')
 }
 
 function parseNullableString(v: unknown): string | null {
@@ -154,10 +203,66 @@ function parseNullableString(v: unknown): string | null {
   throw new Error('Unexpected admin students response')
 }
 
+function parseNullableRequirementsId(v: unknown): string | null {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'string') return v
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  throw new Error('Unexpected admin students response')
+}
+
 function parseNullableNumber(v: unknown): number | null {
   if (v === null || v === undefined) return null
   if (typeof v === 'number' && Number.isFinite(v)) return v
   throw new Error('Unexpected admin students response')
+}
+
+function parseAdminStudentListRow(o: Record<string, unknown>): AdminStudentListItem {
+  if (typeof o.studentId !== 'string' || typeof o.name !== 'string') {
+    throw new Error('Unexpected admin students response')
+  }
+  return {
+    studentId: o.studentId,
+    division: parseAdminDivision(o.division),
+    name: o.name,
+    email: parseNullableString(o.email),
+    requirementsId: parseNullableRequirementsId(o.requirementsId),
+    highestDegree: parseNullableString(o.highestDegree),
+    backgroundSchool: parseNullableString(o.backgroundSchool),
+    signedDate: parseNullableString(o.signedDate),
+    enrollStartDate: parseNullableString(o.enrollStartDate),
+    resolvedEntryDate: parseNullableString(o.resolvedEntryDate),
+    entryYear: parseNullableNumber(o.entryYear),
+    latestRegistrationTerm: parseNullableString(o.latestRegistrationTerm),
+  }
+}
+
+function parseAdminStudentDetailPayload(data: unknown): AdminStudentDetail {
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected admin student detail response')
+  }
+  const o = data as Record<string, unknown>
+  if (typeof o.studentId !== 'string' || typeof o.name !== 'string') {
+    throw new Error('Unexpected admin student detail response')
+  }
+  return {
+    studentId: o.studentId,
+    division: parseAdminDivision(o.division),
+    name: o.name,
+    email: parseNullableString(o.email),
+    requirementsId: parseNullableRequirementsId(o.requirementsId),
+    highestDegree: parseNullableString(o.highestDegree),
+    backgroundSchool: parseNullableString(o.backgroundSchool),
+    gender: parseNullableString(o.gender),
+    signedDate: parseNullableString(o.signedDate),
+    enrollStartDate: parseNullableString(o.enrollStartDate),
+    resolvedEntryDate: parseNullableString(o.resolvedEntryDate),
+    entryYear: parseNullableNumber(o.entryYear),
+    address: parseNullableString(o.address),
+    city: parseNullableString(o.city),
+    state: parseNullableString(o.state),
+    zip: parseNullableRequirementsId(o.zip),
+    latestRegistrationTerm: parseNullableString(o.latestRegistrationTerm),
+  }
 }
 
 export async function fetchAdminStudents(options?: {
@@ -178,20 +283,33 @@ export async function fetchAdminStudents(options?: {
     if (row == null || typeof row !== 'object') {
       throw new Error('Unexpected admin students response')
     }
-    const o = row as Record<string, unknown>
-    if (typeof o.studentId !== 'string' || typeof o.name !== 'string') {
-      throw new Error('Unexpected admin students response')
-    }
-    students.push({
-      studentId: o.studentId,
-      name: o.name,
-      program: parseNullableString(o.program),
-      status: parseNullableString(o.status),
-      email: parseNullableString(o.email),
-      balance: parseNullableNumber(o.balance),
-    })
+    students.push(parseAdminStudentListRow(row as Record<string, unknown>))
   }
   return students
+}
+
+export async function fetchAdminStudentDetail(
+  studentId: string,
+  options?: { signal?: AbortSignal },
+): Promise<AdminStudentDetail> {
+  const path = `/api/admin/students/${encodeURIComponent(studentId)}`
+  const data = await fetchApiJson(path, { signal: options?.signal })
+  return parseAdminStudentDetailPayload(data)
+}
+
+export async function updateAdminStudent(
+  studentId: string,
+  body: AdminStudentUpdatePayload,
+  options?: { signal?: AbortSignal },
+): Promise<AdminStudentDetail> {
+  const path = `/api/admin/students/${encodeURIComponent(studentId)}`
+  const data = await fetchApiJson(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: options?.signal,
+  })
+  return parseAdminStudentDetailPayload(data)
 }
 
 export async function fetchStudentProfile(

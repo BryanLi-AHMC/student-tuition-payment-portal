@@ -5,6 +5,8 @@ import { AdminLayout } from './components/admin/AdminLayout'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminStudentsPage } from './pages/admin/AdminStudentsPage'
+import { AdminStudentDetailPage } from './pages/admin/AdminStudentDetailPage'
+import { AdminStudentEditPage } from './pages/admin/AdminStudentEditPage'
 import { AdminCoursesPage } from './pages/admin/AdminCoursesPage'
 import { AdminFinancePage } from './pages/admin/AdminFinancePage'
 import { LoginPage } from './pages/LoginPage'
@@ -62,6 +64,8 @@ export default function App() {
       <Route element={<RequireAdminAuth />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboardPage />} />
+          <Route path="students/:studentId/edit" element={<AdminStudentEditPage />} />
+          <Route path="students/:studentId" element={<AdminStudentDetailPage />} />
           <Route path="students" element={<AdminStudentsPage />} />
           <Route path="courses" element={<AdminCoursesPage />} />
           <Route path="finance" element={<AdminFinancePage />} />

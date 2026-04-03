@@ -1,13 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   fetchAdminStudents,
-  formatMoney,
   type AdminStudentListItem,
 } from '../../lib/api'
 
 function displayCell(value: string | null): string {
   if (value == null || value.trim() === '') return '—'
   return value
+}
+
+/** Display ISO `YYYY-MM-DD` as MM/DD/YYYY for table cells. */
+function formatTableDate(iso: string | null): string {
+  if (iso == null || iso.trim() === '') return '—'
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim())
+  if (m) {
+    const [, y, mo, d] = m
+    return `${mo}/${d}/${y}`
+  }
+  return displayCell(iso)
+}
+
+function formatEntryYear(y: number | null): string {
+  if (y == null || !Number.isFinite(y)) return '—'
+  return String(Math.trunc(y))
 }
 
 export function AdminStudentsPage() {
@@ -115,18 +131,24 @@ export function AdminStudentsPage() {
             <thead>
               <tr>
                 <th scope="col">Student ID</th>
+                <th scope="col">Division</th>
                 <th scope="col">Name</th>
-                <th scope="col">Program</th>
-                <th scope="col">Status</th>
                 <th scope="col">Email</th>
-                <th scope="col">Balance</th>
+                <th scope="col">Requirements ID</th>
+                <th scope="col">Highest Degree</th>
+                <th scope="col">Background School</th>
+                <th scope="col">Signed Date</th>
+                <th scope="col">Enroll Start Date</th>
+                <th scope="col">Resolved Entry Date</th>
+                <th scope="col">Entry Year</th>
+                <th scope="col">Latest Registration Term</th>
                 <th scope="col">Action</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="portal-card-note">
+                  <td colSpan={13} className="portal-card-note">
                     {rows.length === 0
                       ? 'No students on file.'
                       : 'No students match your search.'}
@@ -136,29 +158,31 @@ export function AdminStudentsPage() {
                 filtered.map((r) => (
                   <tr key={r.studentId}>
                     <td>{r.studentId}</td>
+                    <td>{r.division}</td>
                     <td>{r.name}</td>
-                    <td>{displayCell(r.program)}</td>
-                    <td>{displayCell(r.status)}</td>
                     <td>{displayCell(r.email)}</td>
-                    <td>
-                      {r.balance != null && Number.isFinite(r.balance)
-                        ? formatMoney(r.balance)
-                        : '—'}
-                    </td>
+                    <td>{displayCell(r.requirementsId)}</td>
+                    <td>{displayCell(r.highestDegree)}</td>
+                    <td>{displayCell(r.backgroundSchool)}</td>
+                    <td>{formatTableDate(r.signedDate)}</td>
+                    <td>{formatTableDate(r.enrollStartDate)}</td>
+                    <td>{formatTableDate(r.resolvedEntryDate)}</td>
+                    <td>{formatEntryYear(r.entryYear)}</td>
+                    <td>{displayCell(r.latestRegistrationTerm)}</td>
                     <td>
                       <div className="admin-table-actions">
-                        <button
-                          type="button"
+                        <Link
+                          to={`/admin/students/${encodeURIComponent(r.studentId)}`}
                           className="portal-btn portal-btn--secondary portal-btn--compact"
                         >
                           View
-                        </button>
-                        <button
-                          type="button"
+                        </Link>
+                        <Link
+                          to={`/admin/students/${encodeURIComponent(r.studentId)}/edit`}
                           className="portal-btn portal-btn--secondary portal-btn--compact"
                         >
                           Edit
-                        </button>
+                        </Link>
                       </div>
                     </td>
                   </tr>

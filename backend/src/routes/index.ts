@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { getAdminStudents } from "../controllers/adminStudentController.js";
+import {
+  getAdminStudent,
+  getAdminStudents,
+  putAdminStudent,
+} from "../controllers/adminStudentController.js";
 import {
   deleteAdminCourseSection,
   patchAdminCourseSection,
@@ -52,6 +56,8 @@ apiRouter.delete(
 /** Admin section CRUD: protect with auth / role checks before exposing publicly. */
 const adminRouter = Router();
 adminRouter.get("/students", getAdminStudents);
+adminRouter.get("/students/:studentId", getAdminStudent);
+adminRouter.put("/students/:studentId", putAdminStudent);
 adminRouter.post("/course-sections", postAdminCourseSection);
 adminRouter.patch("/course-sections/:id", patchAdminCourseSection);
 adminRouter.delete("/course-sections/:id", deleteAdminCourseSection);

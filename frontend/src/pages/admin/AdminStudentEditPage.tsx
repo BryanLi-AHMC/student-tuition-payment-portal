@@ -1,0 +1,266 @@
+import { type FormEvent, useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  fetchAdminStudentDetail,
+  updateAdminStudent,
+  type AdminStudentDetail,
+  type AdminStudentUpdatePayload,
+} from '../../lib/api'
+
+function nullableTrim(s: string): string | null {
+  const t = s.trim()
+  return t === '' ? null : t
+}
+
+function detailToFormState(d: AdminStudentDetail): Record<string, string> {
+  return {
+    name: d.name,
+    email: d.email ?? '',
+    gender: d.gender ?? '',
+    backgroundSchool: d.backgroundSchool ?? '',
+    highestDegree: d.highestDegree ?? '',
+    requirementsId: d.requirementsId ?? '',
+    address: d.address ?? '',
+    city: d.city ?? '',
+    state: d.state ?? '',
+    zip: d.zip ?? '',
+    signedDate: d.signedDate?.slice(0, 10) ?? '',
+    enrollStartDate: d.enrollStartDate?.slice(0, 10) ?? '',
+  }
+}
+
+function formToPayload(f: Record<string, string>): AdminStudentUpdatePayload {
+  return {
+    name: f.name.trim(),
+    email: nullableTrim(f.email),
+    gender: nullableTrim(f.gender),
+    backgroundSchool: nullableTrim(f.backgroundSchool),
+    highestDegree: nullableTrim(f.highestDegree),
+    requirementsId: nullableTrim(f.requirementsId),
+    address: nullableTrim(f.address),
+    city: nullableTrim(f.city),
+    state: nullableTrim(f.state),
+    zip: nullableTrim(f.zip),
+    signedDate: nullableTrim(f.signedDate),
+    enrollStartDate: nullableTrim(f.enrollStartDate),
+  }
+}
+
+export function AdminStudentEditPage() {
+  const { studentId: studentIdParam } = useParams<{ studentId: string }>()
+  const studentId = studentIdParam ?? ''
+  const navigate = useNavigate()
+
+  const [form, setForm] = useState<Record<string, string> | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    if (!studentId.trim()) {
+      setForm(null)
+      setLoading(false)
+      setError('Missing student id.')
+      return
+    }
+
+    const ac = new AbortController()
+    setForm(null)
+    setLoading(true)
+    setError(null)
+
+    ;(async () => {
+      try {
+        const d = await fetchAdminStudentDetail(studentId, {
+          signal: ac.signal,
+        })
+        if (ac.signal.aborted) return
+        setForm(detailToFormState(d))
+        setError(null)
+      } catch (e) {
+        if (ac.signal.aborted) return
+        setForm(null)
+        setError(
+          e instanceof Error ? e.message : 'Could not load student.',
+        )
+      } finally {
+        if (!ac.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    })()
+
+    return () => ac.abort()
+  }, [studentId, reloadKey])
+
+  const sectionLoading = loading && form === null && error === null
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!form || !studentId.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      const payload = formToPayload(form)
+      await updateAdminStudent(studentId, payload)
+      navigate(`/admin/students/${encodeURIComponent(studentId)}`, {
+        replace: true,
+      })
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not save changes.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function field(
+    key: keyof ReturnType<typeof detailToFormState>,
+    label: string,
+    opts?: { type?: string; id?: string },
+  ) {
+    if (!form) return null
+    const id = opts?.id ?? `admin-edit-${key}`
+    return (
+      <div className="portal-stack" style={{ gap: '0.35rem' }}>
+        <label htmlFor={id} className="portal-card-note" style={{ margin: 0 }}>
+          {label}
+        </label>
+        <input
+          id={id}
+          name={key}
+          type={opts?.type ?? 'text'}
+          className="admin-input"
+          style={{ maxWidth: '28rem', width: '100%' }}
+          value={form[key]}
+          onChange={(ev) =>
+            setForm((prev) =>
+              prev ? { ...prev, [key]: ev.target.value } : prev,
+            )
+          }
+          disabled={saving}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <main className="admin-page">
+      <div className="admin-page__toolbar">
+        <div>
+          <Link
+            to={
+              studentId
+                ? `/admin/students/${encodeURIComponent(studentId)}`
+                : '/admin/students'
+            }
+            className="portal-text-muted"
+            style={{ fontSize: '0.875rem', textDecoration: 'none' }}
+          >
+            ← Back
+          </Link>
+          <h1 className="admin-page__title admin-page__title--inline">
+            Edit student
+          </h1>
+        </div>
+      </div>
+
+      {sectionLoading ? (
+        <section
+          className="portal-card portal-profile-state"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <p className="portal-profile-state__title">Loading student</p>
+          <p className="portal-profile-state__detail">
+            Please wait while we load this record.
+          </p>
+        </section>
+      ) : null}
+
+      {!sectionLoading && error && form === null ? (
+        <section
+          className="portal-card portal-profile-state portal-profile-state--error"
+          role="alert"
+          aria-live="assertive"
+        >
+          <p className="portal-profile-state__title">We could not load this student</p>
+          <p className="portal-profile-state__detail">{error}</p>
+          <div className="portal-actions portal-profile-state__actions">
+            <Link to="/admin/students" className="portal-btn portal-btn--secondary">
+              Back to list
+            </Link>
+            <button
+              type="button"
+              className="portal-btn portal-btn--secondary"
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              Try again
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {!sectionLoading && form ? (
+        <form
+          onSubmit={onSubmit}
+          className="portal-card portal-stack"
+          style={{ gap: '1.25rem', maxWidth: '40rem' }}
+        >
+          {error ? (
+            <p
+              className="portal-profile-state__detail portal-profile-state--error"
+              role="alert"
+              style={{ margin: 0 }}
+            >
+              {error}
+            </p>
+          ) : null}
+
+          <fieldset
+            disabled={saving}
+            className="portal-stack"
+            style={{ gap: '1rem', border: 'none', margin: 0, padding: 0 }}
+          >
+            <legend className="portal-section-heading" style={{ padding: 0 }}>
+              Profile fields
+            </legend>
+            {field('name', 'Name *')}
+            {field('email', 'Email')}
+            {field('gender', 'Gender')}
+            {field('backgroundSchool', 'Background school')}
+            {field('highestDegree', 'Highest degree')}
+            {field('requirementsId', 'Requirements ID')}
+            {field('address', 'Address')}
+            {field('city', 'City')}
+            {field('state', 'State')}
+            {field('zip', 'Zip')}
+            {field('signedDate', 'Signed date', { type: 'date', id: 'admin-edit-signed' })}
+            {field('enrollStartDate', 'Enroll start date', {
+              type: 'date',
+              id: 'admin-edit-enroll',
+            })}
+          </fieldset>
+
+          <div className="portal-actions">
+            <button
+              type="submit"
+              className="portal-btn portal-btn--primary"
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+            <Link
+              to={`/admin/students/${encodeURIComponent(studentId)}`}
+              className="portal-btn portal-btn--secondary"
+            >
+              Cancel
+            </Link>
+          </div>
+        </form>
+      ) : null}
+    </main>
+  )
+}
