@@ -1,10 +1,12 @@
-import { forwardRef } from 'react'
-import { Link } from 'react-router-dom'
+import { forwardRef, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAccount } from '../context/AccountContext'
 import { PORTAL_BRANDING_TITLE } from '../branding'
 import { PORTAL_MOBILE_NAV_DRAWER_ID } from './PortalSidebar'
 
 export const PORTAL_MOBILE_MENU_BUTTON_ID = 'portal-main-menu-button'
+
+const LOGOUT_ICON_SRC = '/logout%20(1).svg'
 
 type TopBarProps = {
   mobileMenuOpen?: boolean
@@ -17,10 +19,16 @@ export const TopBar = forwardRef<HTMLButtonElement, TopBarProps>(function TopBar
   { mobileMenuOpen, onMobileMenuToggle, showPortalBanner = false },
   ref,
 ) {
-  const { fetchedAccount, loading } = useAccount()
+  const navigate = useNavigate()
+  const { fetchedAccount, loading, logout } = useAccount()
   const displayName = loading
     ? 'Loading…'
     : (fetchedAccount?.student.name?.trim() || 'Student')
+
+  const handleLogout = useCallback(() => {
+    logout()
+    navigate('/login', { replace: true })
+  }, [logout, navigate])
 
   return (
     <header className="portal-app-header">
@@ -40,9 +48,9 @@ export const TopBar = forwardRef<HTMLButtonElement, TopBarProps>(function TopBar
               <span className="portal-branding-bar-menu-icon" aria-hidden="true" />
             </button>
             <Link
-              to="/login"
+              to="/dashboard"
               className="portal-branding-bar-logo-link"
-              aria-label={`${PORTAL_BRANDING_TITLE} — return to sign in`}
+              aria-label={`${PORTAL_BRANDING_TITLE} — go to dashboard`}
             >
               <img
                 src="/AMULogo.png"
@@ -52,13 +60,37 @@ export const TopBar = forwardRef<HTMLButtonElement, TopBarProps>(function TopBar
               />
             </Link>
           </div>
-          <div className="portal-branding-bar-actions">
-            <span className="portal-branding-bar-user" title="Signed-in student">
-              {displayName}
-            </span>
-            <Link to="/login" className="portal-branding-bar-logout">
-              Log out
+          <div className="portal-branding-bar-actions portal-user-actions">
+            <Link
+              to="/my-account"
+              className="portal-user-button"
+              title="My account"
+            >
+              <img
+                src="/user-circle.svg"
+                alt=""
+                className="portal-user-icon"
+                width={17}
+                height={17}
+                decoding="async"
+              />
+              <span className="portal-user-button__label">{displayName}</span>
             </Link>
+            <button
+              type="button"
+              className="portal-logout-button"
+              onClick={handleLogout}
+            >
+              <img
+                src={LOGOUT_ICON_SRC}
+                alt=""
+                className="portal-user-icon"
+                width={17}
+                height={17}
+                decoding="async"
+              />
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </div>

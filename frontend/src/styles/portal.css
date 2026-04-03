@@ -241,34 +241,55 @@
   min-width: 0;
 }
 
-.portal-branding-bar-user {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  max-width: 14rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.portal-branding-bar-logout {
+.portal-user-button,
+.portal-logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.2;
-  text-decoration: none;
   color: #1a1a1a;
+  text-decoration: none;
   white-space: nowrap;
+  background: none;
+  border: none;
   border-bottom: 1px solid transparent;
   padding-bottom: 0.05rem;
-  transition: color 0.12s ease, border-color 0.12s ease;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    opacity 0.12s ease;
 }
 
-.portal-branding-bar-logout:hover {
+.portal-user-button__label {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portal-user-icon {
+  flex-shrink: 0;
+  display: block;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  object-fit: contain;
+  object-position: center;
+}
+
+.portal-user-button:hover,
+.portal-logout-button:hover {
   color: var(--amu-red-dark);
   border-bottom-color: rgba(110, 22, 34, 0.45);
 }
 
-.portal-branding-bar-logout:focus-visible {
+.portal-user-button:focus-visible,
+.portal-logout-button:focus-visible {
   outline: 2px solid var(--amu-red-dark);
   outline-offset: 3px;
   border-radius: 2px;
@@ -669,13 +690,13 @@
     gap: 0.2rem;
   }
 
-  .portal-branding-bar-user {
+  .portal-user-button,
+  .portal-logout-button {
     font-size: 0.75rem;
-    max-width: 9.5rem;
   }
 
-  .portal-branding-bar-logout {
-    font-size: 0.75rem;
+  .portal-user-button__label {
+    max-width: 9.5rem;
   }
 
   .portal-portal-banner-inner {
@@ -4445,8 +4466,8 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-dashboard-home-grid {
   display: grid;
   width: 100%;
-  /* Fallback when not overridden: bias toward calendar (two-column layouts use fixed Services strip below) */
-  grid-template-columns: minmax(0, 36fr) minmax(0, 64fr);
+  /* Asymmetric split (~golden ratio): Services comfortable, calendar dominant */
+  grid-template-columns: minmax(0, 38fr) minmax(0, 62fr);
   gap: 1.5rem clamp(1.25rem, 2vw, 1.75rem);
   align-items: stretch;
 }
@@ -4467,16 +4488,10 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   height: 100%;
 }
 
-/* Large desktop: Services ≈ 22.5rem (360px); My Calendar = 1fr — portal main column dominates */
+/* Large desktop: wider gap; proportional split inherited from .portal-dashboard-home-grid */
 @media (min-width: 1025px) {
   .portal-dashboard-home-grid {
-    grid-template-columns: minmax(0, 22.5rem) minmax(0, 1fr);
     gap: 1.75rem clamp(1.25rem, 1.35vw, 1.75rem);
-  }
-
-  /* Slight horizontal bleed into the column gap: wider gold tiles */
-  .portal-dashboard-home-primary {
-    margin-inline-end: -0.25rem;
   }
 
   .portal-dashboard-home-primary > .portal-dashboard-services,
@@ -4572,29 +4587,12 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   flex: 1 1 12rem;
 }
 
-.portal-dashboard-courses-term-line {
-  margin: 0.25rem 0 0;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--portal-text);
-  letter-spacing: 0.01em;
-}
-
 .portal-dashboard-courses-term-select-wrap {
   margin: 0.5rem 0 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
-}
-
-.portal-dashboard-courses-term-select-label {
-  margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--portal-text-muted);
 }
 
 .portal-dashboard-courses-term-select {
@@ -4622,28 +4620,6 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--portal-text-muted);
-}
-
-.portal-dashboard-courses-registration-status {
-  margin: 0.125rem 0 0;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--portal-text-muted);
-}
-
-.portal-dashboard-courses-registration-status[data-status='registered'] {
-  color: #2d6a4f;
-}
-
-.portal-dashboard-courses-registration-status[data-status='not_registered'] {
-  color: var(--portal-text-muted);
-}
-
-.portal-dashboard-courses-registration-status[data-status='unknown'],
-.portal-dashboard-courses-registration-status[data-status='in_progress'] {
-  color: #b08900;
 }
 
 .portal-dashboard-courses-loading {
@@ -5097,14 +5073,113 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   padding: 1.125rem 1.5rem 1.5rem;
 }
 
+@media (max-width: 699px) {
+  .portal-dashboard-courses-timetable-wrap {
+    overflow-x: visible;
+    padding-left: 1.125rem;
+    padding-right: 1.125rem;
+  }
+}
+
+/* Week view — mobile list (< 700px): day groups, time + code + title */
+.portal-dashboard-courses-timetable-mobile {
+  display: none;
+  border: 1px solid color-mix(in srgb, var(--portal-border-subtle) 90%, var(--portal-surface));
+  border-radius: 0.375rem;
+  background: var(--portal-surface);
+  padding: 1rem 1.125rem 1.25rem;
+}
+
+.portal-dashboard-courses-timetable-mobile-day + .portal-dashboard-courses-timetable-mobile-day {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--portal-border-subtle) 88%, transparent);
+}
+
+.portal-dashboard-courses-timetable-mobile-day-title {
+  margin: 0 0 0.625rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--portal-text);
+  letter-spacing: -0.01em;
+}
+
+.portal-dashboard-courses-timetable-mobile-slots {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portal-dashboard-courses-timetable-mobile-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--portal-text);
+  border-bottom: 1px solid color-mix(in srgb, var(--portal-border-subtle) 70%, transparent);
+}
+
+.portal-dashboard-courses-timetable-mobile-slot:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.portal-dashboard-courses-timetable-mobile-time {
+  flex: 0 0 auto;
+  min-width: 6.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--portal-text-muted);
+}
+
+.portal-dashboard-courses-timetable-mobile-course {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.portal-dashboard-courses-timetable-mobile-code {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--portal-accent);
+}
+
+.portal-dashboard-courses-timetable-mobile-title {
+  font-weight: 500;
+  color: var(--portal-text);
+}
+
+@media (max-width: 699px) {
+  .portal-dashboard-courses-timetable-mobile {
+    display: block;
+  }
+
+  .portal-dashboard-courses-timetable--grid {
+    display: none !important;
+  }
+}
+
+@media (min-width: 700px) {
+  .portal-dashboard-courses-timetable-mobile {
+    display: none !important;
+  }
+}
+
 .portal-dashboard-courses-timetable {
-  /* Taller grid; column count set inline (Mon–Fri + optional Sat/Sun). */
+  /* Taller grid; column count + min widths set inline (Mon–Fri + optional Sat/Sun). */
   --portal-timetable-track-min-h: 27.5rem;
+  /* Desktop (>= 1200px): readable columns and time rail */
+  --portal-timetable-time-col: 3.625rem;
+  --portal-timetable-day-min: 7rem;
   display: grid;
   grid-template-columns: 3.625rem repeat(5, minmax(0, 1fr));
   grid-template-rows: auto minmax(var(--portal-timetable-track-min-h), 1fr);
   gap: 0;
-  min-width: 36rem;
   border: 1px solid color-mix(in srgb, var(--portal-border-subtle) 90%, var(--portal-surface));
   border-radius: 0.375rem;
   overflow: hidden;
@@ -5209,18 +5284,72 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--portal-accent);
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .portal-dashboard-courses-timetable-subtitle {
   font-size: 0.5625rem;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 1.3;
   color: var(--portal-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Tablet week grid: narrower time rail, smaller block type, minimum day column width */
+@media (max-width: 1199px) and (min-width: 700px) {
+  .portal-dashboard-courses-timetable {
+    --portal-timetable-time-col: 2.625rem;
+    --portal-timetable-day-min: 5.5rem;
+  }
+
+  .portal-dashboard-courses-timetable-dayhead {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    font-size: 0.53125rem;
+  }
+
+  .portal-dashboard-courses-timetable-timecol {
+    padding-right: 0.25rem;
+    padding-left: 0.125rem;
+  }
+
+  .portal-dashboard-courses-timetable-time-label {
+    font-size: 0.5625rem;
+  }
+
+  .portal-dashboard-courses-timetable-block {
+    padding: 0.25rem 0.3125rem 0.3125rem;
+  }
+
+  .portal-dashboard-courses-timetable-code {
+    font-size: 0.625rem;
+  }
+
+  .portal-dashboard-courses-timetable-subtitle {
+    font-size: 0.53125rem;
+    line-height: 1.3;
+  }
+}
+
+/* Desktop week grid: larger type and padding for readability */
+@media (min-width: 1200px) {
+  .portal-dashboard-courses-timetable-code {
+    font-size: 0.75rem;
+  }
+
+  .portal-dashboard-courses-timetable-subtitle {
+    font-size: 0.625rem;
+    line-height: 1.35;
+  }
+
+  .portal-dashboard-courses-timetable-block {
+    padding: 0.375rem 0.4375rem 0.4375rem;
+  }
 }
 
 /* Secondary dashboard row — compact panels aligned with My Calendar styling */
@@ -5324,10 +5453,6 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 @media (max-width: 1024px) {
   .portal-dashboard-home-grid {
     grid-template-columns: 1fr;
-  }
-
-  .portal-dashboard-home-primary {
-    margin-inline-end: 0;
   }
 }
 

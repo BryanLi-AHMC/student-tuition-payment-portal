@@ -261,6 +261,26 @@ export const WEEKDAY_SHORT_LABEL: Record<WeekdayKey, string> = {
   sunday: 'Sun',
 }
 
+export const WEEKDAY_LONG_LABEL: Record<WeekdayKey, string> = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+}
+
+/** Compact 24h range for list-style timetables, e.g. `10:00–13:00`. */
+export function formatBlockTimeRange24(block: WeekTimetableBlock): string {
+  const fmt = (total: number) => {
+    const h = Math.floor(total / 60)
+    const m = total % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+  return `${fmt(block.startMinutes)}–${fmt(block.endMinutes)}`
+}
+
 /** Hour labels from grid start through the range (exclusive of end boundary). */
 export function hourTickMinutes(gridStartMinutes: number, gridEndMinutes: number): number[] {
   const ticks: number[] = []

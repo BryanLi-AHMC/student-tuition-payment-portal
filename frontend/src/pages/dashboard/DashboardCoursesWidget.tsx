@@ -10,9 +10,11 @@ import {
 import {
   blockVerticalStyle,
   buildWeekTimetableFromScheduleRows,
+  formatBlockTimeRange24,
   formatHourLabel,
   hourTickMinutes,
   type WeekTimetableModel,
+  WEEKDAY_LONG_LABEL,
   WEEKDAY_SHORT_LABEL,
 } from '../../lib/dashboardWeekTimetable'
 import type { MahmAccountMock } from '../../mock/mahmAccountMock'
@@ -116,21 +118,6 @@ function WeekGridIcon({ className }: { className?: string }) {
   )
 }
 
-function registrationStatusLabel(status: string): string {
-  switch (status) {
-    case 'registered':
-      return 'Registered'
-    case 'not_registered':
-      return 'Not registered'
-    case 'in_progress':
-      return 'Registration in progress'
-    case 'unknown':
-      return 'Schedule status unavailable'
-    default:
-      return 'Schedule status unavailable'
-  }
-}
-
 function scheduleRowKey(row: ScheduleRow, index: number): string {
   const code = row.courseCode?.trim() || 'course'
   return `${code}-${index}`
@@ -152,6 +139,46 @@ function scheduleTermOptionValue(term: string, year: number): string {
   return `${term.trim()}|${year}`
 }
 
+function DashboardWeekTimetableMobileList({ model }: { model: WeekTimetableModel }) {
+  const { visibleDays, blocksByDay } = model
+  const daysWithBlocks = visibleDays.filter((d) => blocksByDay[d].length > 0)
+
+  return (
+    <div className="portal-dashboard-courses-timetable-mobile" aria-label="Weekly timetable, list view">
+      {daysWithBlocks.map((day) => (
+        <section key={day} className="portal-dashboard-courses-timetable-mobile-day">
+          <h3 className="portal-dashboard-courses-timetable-mobile-day-title">
+            {WEEKDAY_LONG_LABEL[day]}
+          </h3>
+          <ul className="portal-dashboard-courses-timetable-mobile-slots">
+            {blocksByDay[day].map((block, bi) => (
+              <li
+                key={`${day}-${block.courseCode}-${block.startMinutes}-${bi}`}
+                className="portal-dashboard-courses-timetable-mobile-slot"
+              >
+                <span className="portal-dashboard-courses-timetable-mobile-time">
+                  {formatBlockTimeRange24(block)}
+                </span>
+                <span className="portal-dashboard-courses-timetable-mobile-course">
+                  <strong className="portal-dashboard-courses-timetable-mobile-code">
+                    {block.courseCode}
+                  </strong>
+                  {block.subtitle ? (
+                    <span className="portal-dashboard-courses-timetable-mobile-title">
+                      {' '}
+                      {block.subtitle}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  )
+}
+
 function DashboardWeekTimetableGrid({ model }: { model: WeekTimetableModel }) {
   const { visibleDays, gridStartMinutes, gridEndMinutes, blocksByDay } = model
   const colCount = visibleDays.length
@@ -159,10 +186,10 @@ function DashboardWeekTimetableGrid({ model }: { model: WeekTimetableModel }) {
 
   return (
     <div
-      className="portal-dashboard-courses-timetable"
+      className="portal-dashboard-courses-timetable portal-dashboard-courses-timetable--grid"
       style={{
-        gridTemplateColumns: `3.625rem repeat(${colCount}, minmax(0, 1fr))`,
-        minWidth: `min(100%, ${14 + colCount * 5.5}rem)`,
+        gridTemplateColumns: `var(--portal-timetable-time-col) repeat(${colCount}, minmax(var(--portal-timetable-day-min), 1fr))`,
+        minWidth: `calc(var(--portal-timetable-time-col) + ${colCount} * var(--portal-timetable-day-min))`,
       }}
     >
       <div
@@ -267,13 +294,9 @@ export function DashboardCoursesWidget() {
           <h2 id="portal-dashboard-courses-heading" className="portal-dashboard-card-panel-title">
             My Calendar
           </h2>
-          <p className="portal-dashboard-courses-term-line">{browseLabel}</p>
           {showTermPicker ? (
             <div className="portal-dashboard-courses-term-select-wrap">
-              <label
-                htmlFor="portal-dashboard-courses-term-select"
-                className="portal-dashboard-courses-term-select-label"
-              >
+              <label htmlFor="portal-dashboard-courses-term-select" className="visually-hidden">
                 Term
               </label>
               <select
@@ -303,12 +326,6 @@ export function DashboardCoursesWidget() {
               </select>
             </div>
           ) : null}
-          <p
-            className="portal-dashboard-courses-registration-status"
-            data-status={registration.status}
-          >
-            {registrationStatusLabel(registration.status)}
-          </p>
         </div>
         <div
           className="portal-dashboard-courses-view-tabs"
@@ -419,6 +436,7 @@ export function DashboardCoursesWidget() {
             role="region"
             aria-label={`Weekly timetable for ${browseLabel}`}
           >
+            <DashboardWeekTimetableMobileList model={weekTimetableModel} />
             <DashboardWeekTimetableGrid model={weekTimetableModel} />
           </div>
         ) : (
