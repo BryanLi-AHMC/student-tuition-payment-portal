@@ -4628,24 +4628,35 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   color: var(--portal-text-muted);
 }
 
+/* Fills card body below header; centers empty-state copy + CTA (Courses / Week tabs unchanged above) */
 .portal-dashboard-courses-empty {
-  padding: 1.5rem 1.5rem 1.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: clamp(1.25rem, 3vh, 2rem) 1.5rem;
   border-top: 1px solid var(--portal-border-subtle);
+  box-sizing: border-box;
 }
 
 .portal-dashboard-courses-empty-title {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.625rem;
   font-size: 1rem;
   font-weight: 700;
   color: var(--portal-text);
 }
 
 .portal-dashboard-courses-empty-text {
-  margin: 0 0 1rem;
+  margin: 0 0 1.125rem;
   font-size: 0.875rem;
   line-height: 1.45;
   color: var(--portal-text-muted);
   max-width: 28rem;
+  width: min(100%, 28rem);
+  box-sizing: border-box;
 }
 
 .portal-dashboard-courses-empty-cta {
