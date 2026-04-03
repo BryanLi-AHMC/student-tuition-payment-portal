@@ -26,6 +26,32 @@ export type ScheduleRow = {
   units: number | null;
   hours: number | null;
   charge: number;
+  /** Meeting pattern when available (e.g. legacy `marks` days/times). */
+  schedule?: string | null;
+  /** Location or instructor line when available. */
+  location?: string | null;
+};
+
+/** Resolved academic quarter for dashboard / current-term views. */
+export type AccountCurrentTerm = {
+  term: string;
+  year: number;
+  label: string;
+  quarterOrder?: number;
+};
+
+export type AccountRegistrationStatus =
+  | "registered"
+  | "not_registered"
+  | "in_progress"
+  | "unknown";
+
+export type AccountRegistration = {
+  status: AccountRegistrationStatus;
+  hasActiveCourses: boolean;
+  courseCount: number;
+  totalUnits: number | null;
+  emptyReason?: string;
 };
 
 export type StudentTermPreference = {
@@ -65,6 +91,8 @@ export type StudentAccountPayload = {
   lineItems: BillingLineItem[];
   summary: StudentAccountSummary;
   scheduleRows: ScheduleRow[];
+  currentTerm: AccountCurrentTerm;
+  registration: AccountRegistration;
   payments: PaymentRecord[];
   installmentSchedule: InstallmentScheduleEntry[];
   installmentPolicy: string[];

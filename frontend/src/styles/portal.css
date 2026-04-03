@@ -2581,6 +2581,43 @@ table.portal-academics-portal-grades-table.portal-table--grades td {
   margin-bottom: 1.25rem;
 }
 
+.portal-academics-empty-state {
+  padding: 1.25rem 1.35rem;
+}
+
+.portal-academics-empty-state__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--portal-text);
+}
+
+.portal-academics-empty-state__text {
+  margin: 0;
+  font-size: var(--portal-body-font-size);
+  line-height: 1.45;
+  color: var(--portal-text-muted);
+}
+
+.portal-academics-term-heading {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--portal-text);
+}
+
+.portal-academics-registration-history > * + * {
+  margin-top: 1.5rem;
+}
+
+.portal-academics-feedback-placeholder {
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--portal-text-muted);
+  line-height: 1.35;
+}
+
 /* Quarter grades: term dropdown only (no visible label); align with tab row. */
 .portal-academics-term-toolbar {
   justify-content: flex-start;
@@ -4401,6 +4438,98 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   justify-content: space-between;
   gap: 0.75rem 1rem;
   flex-wrap: wrap;
+}
+
+.portal-dashboard-courses-head-text {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.portal-dashboard-courses-term-line {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--portal-text);
+  letter-spacing: 0.01em;
+}
+
+.portal-dashboard-courses-registration-status {
+  margin: 0.125rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--portal-text-muted);
+}
+
+.portal-dashboard-courses-registration-status[data-status='registered'] {
+  color: #2d6a4f;
+}
+
+.portal-dashboard-courses-registration-status[data-status='not_registered'] {
+  color: var(--portal-text-muted);
+}
+
+.portal-dashboard-courses-registration-status[data-status='unknown'],
+.portal-dashboard-courses-registration-status[data-status='in_progress'] {
+  color: #b08900;
+}
+
+.portal-dashboard-courses-loading {
+  padding: 1.25rem 1.5rem 1.5rem;
+  font-size: 0.875rem;
+  color: var(--portal-text-muted);
+}
+
+.portal-dashboard-courses-empty {
+  padding: 1.5rem 1.5rem 1.75rem;
+  border-top: 1px solid var(--portal-border-subtle);
+}
+
+.portal-dashboard-courses-empty-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--portal-text);
+}
+
+.portal-dashboard-courses-empty-text {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--portal-text-muted);
+  max-width: 28rem;
+}
+
+.portal-dashboard-courses-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff;
+  background: #6e1622;
+  border: 1px solid color-mix(in srgb, #6e1622 88%, #000);
+}
+
+.portal-dashboard-courses-empty-cta:hover {
+  filter: brightness(1.05);
+}
+
+.portal-dashboard-courses-empty-cta:focus-visible {
+  outline: 2px solid #6e1622;
+  outline-offset: 2px;
+}
+
+.portal-dashboard-courses-week-placeholder {
+  margin: 0 0 0.75rem;
+  padding: 0 1.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--portal-text-muted);
 }
 
 /* MY CALENDAR — Courses / Week: header tabs (no segmented control / outer chrome) */

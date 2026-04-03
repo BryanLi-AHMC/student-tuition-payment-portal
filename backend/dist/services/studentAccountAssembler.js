@@ -1,5 +1,6 @@
 import { PROGRAM_LABEL } from "../config/constants.js";
 import { buildEnrollmentLineItems, buildInstallmentSchedule, buildScheduleRows, buildStudentAccountSummary, calculateInstallmentServiceFee, getInstallmentPlanPolicyText, mergeStandardFeesAndInstallmentFee, } from "./billingMath.js";
+import { buildAccountCurrentTerm, deriveAccountRegistration, } from "./studentAccountDashboard.js";
 const DEFAULT_INSTALLMENT_DUE_DATES = [
     "Sep 15, 2026",
     "Oct 15, 2026",
@@ -30,6 +31,12 @@ export function assembleStudentAccountPayload(ctx, options) {
     const paymentsTotal = Math.round(payments.reduce((s, p) => s + p.amount, 0) * 100) / 100;
     const summary = buildStudentAccountSummary(lineItems, paymentsTotal);
     const scheduleRows = buildScheduleRows(enrollments, courseById);
+    const currentTerm = buildAccountCurrentTerm(term, year);
+    const registration = deriveAccountRegistration({
+        scheduleRows,
+        enrollmentSourceCount: enrollments.length,
+        termLabel: currentTerm.label,
+    });
     const instCount = pref.useInstallmentPlan
         ? Math.min(Math.max(pref.installmentCount ?? 3, 2), 3)
         : 1;
@@ -60,6 +67,8 @@ export function assembleStudentAccountPayload(ctx, options) {
         lineItems,
         summary,
         scheduleRows,
+        currentTerm,
+        registration,
         payments: apiPayments,
         installmentSchedule,
         installmentPolicy: getInstallmentPlanPolicyText(),

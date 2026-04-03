@@ -1,5 +1,6 @@
 import { DEMO_STUDENT_ID } from "../config/constants.js";
 import { pool } from "../lib/db.js";
+import { listMarksForStudent } from "../repositories/studentAcademicsRepository.js";
 import {
   findLatestLegacyTermYear,
   loadLegacyAccountSnapshot,
@@ -94,7 +95,8 @@ async function getRealStudentAccountPayload(
     term,
     year,
   );
-  return assembleLegacyStudentAccountPayload(snap, accountingRows);
+  const allMarksRows = await listMarksForStudent(pool, studentId);
+  return assembleLegacyStudentAccountPayload(snap, accountingRows, allMarksRows);
 }
 
 export async function getStudentAccountPayload(

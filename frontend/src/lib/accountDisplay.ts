@@ -35,7 +35,11 @@ export function installmentPlanDisplayLabel(plan: MahmAccountMock['installmentPl
 }
 
 export function portalTermLabel(account: MahmAccountMock): string {
-  return `${account.student.term} ${account.student.year}`
+  const label = account.currentTerm?.label?.trim()
+  if (label) return label
+  const t = account.student.term?.trim() ?? ''
+  const y = account.student.year
+  return `${t} ${y}`.trim()
 }
 
 /** Maps mock ledger entries to activity table rows with running balance (oldest first). */

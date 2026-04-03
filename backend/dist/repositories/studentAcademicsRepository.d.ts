@@ -25,4 +25,8 @@ export type MarksRow = {
  * All `marks` rows for the student, newest term/year first (then course code).
  */
 export declare function listMarksForStudent(pool: Pool, studentId: string): Promise<MarksRow[]>;
+/**
+ * `marks` rows for one student and quarter (legacy schedule / enrollment-of-record).
+ */
+export declare function listMarksForStudentTerm(pool: Pool, studentId: string, term: string, year: number): Promise<MarksRow[]>;
 //# sourceMappingURL=studentAcademicsRepository.d.ts.map

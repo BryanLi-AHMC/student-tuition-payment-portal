@@ -1,6 +1,11 @@
-import { useState, type CSSProperties } from 'react'
-import { DASHBOARD_COURSES_MOCK, DASHBOARD_WEEKLY_TIMETABLE_MOCK } from './dashboardMockData'
-import type { WeeklyTimetableBlock } from './dashboardMockData'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAccount } from '../../context/AccountContext'
+import {
+  currentTermLabel,
+  noCurrentCoursesMessage,
+} from '../../lib/academicCourseRecordsDisplay'
+import type { ScheduleRow } from '../../types/billing'
 
 type CalendarView = 'list' | 'week'
 
@@ -11,11 +16,6 @@ const WEEKDAY_ORDER = [
   { key: 'thursday' as const, label: 'Thursday' },
   { key: 'friday' as const, label: 'Friday' },
 ]
-
-/** Grid covers 8:00 AM–6:00 PM so sessions ending after 5:00 PM still fit. */
-const TIMETABLE_GRID_START_MIN = 8 * 60
-const TIMETABLE_GRID_END_MIN = 18 * 60
-const TIMETABLE_GRID_TOTAL_MIN = TIMETABLE_GRID_END_MIN - TIMETABLE_GRID_START_MIN
 
 const TIMETABLE_TIME_LABELS = [
   '8:00 AM',
@@ -104,17 +104,6 @@ function ScheduleCell({ schedule }: { schedule: string }) {
   )
 }
 
-function blockLayoutStyle(b: WeeklyTimetableBlock): CSSProperties {
-  const start = Math.max(b.startMinutes, TIMETABLE_GRID_START_MIN)
-  const end = Math.min(b.endMinutes, TIMETABLE_GRID_END_MIN)
-  const topPct = ((start - TIMETABLE_GRID_START_MIN) / TIMETABLE_GRID_TOTAL_MIN) * 100
-  const heightPct = Math.max(((end - start) / TIMETABLE_GRID_TOTAL_MIN) * 100, 2.5)
-  return {
-    top: `${topPct}%`,
-    height: `${heightPct}%`,
-  }
-}
-
 function ListIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -138,15 +127,65 @@ function WeekGridIcon({ className }: { className?: string }) {
   )
 }
 
+function registrationStatusLabel(status: string): string {
+  switch (status) {
+    case 'registered':
+      return 'Registered'
+    case 'not_registered':
+      return 'Not registered'
+    case 'in_progress':
+      return 'Registration in progress'
+    case 'unknown':
+      return 'Schedule status unavailable'
+    default:
+      return 'Schedule status unavailable'
+  }
+}
+
+function scheduleRowKey(row: ScheduleRow, index: number): string {
+  const code = row.courseCode?.trim() || 'course'
+  return `${code}-${index}`
+}
+
 export function DashboardCoursesWidget() {
   const [view, setView] = useState<CalendarView>('list')
+  const { account, loading, isAuthenticated } = useAccount()
+
+  const scheduleRows = account.scheduleRows
+  const currentTerm = account.currentTerm
+  const registration = account.registration
+  const termLabel =
+    currentTerm.label?.trim() ||
+    currentTermLabel(
+      currentTerm.term?.trim() && Number.isFinite(currentTerm.year) && currentTerm.year > 0
+        ? { term: currentTerm.term, year: currentTerm.year }
+        : null,
+    )
+
+  const isLoadingAccount = Boolean(loading && isAuthenticated)
+  const showCourseTable =
+    !isLoadingAccount &&
+    registration.status === 'registered' &&
+    scheduleRows.length > 0
+
+  const showEmptyState =
+    !isLoadingAccount && (registration.status !== 'registered' || scheduleRows.length === 0)
 
   return (
     <section className="portal-dashboard-courses" aria-labelledby="portal-dashboard-courses-heading">
       <header className="portal-dashboard-courses-head">
-        <h2 id="portal-dashboard-courses-heading" className="portal-dashboard-card-panel-title">
-          My Calendar
-        </h2>
+        <div className="portal-dashboard-courses-head-text">
+          <h2 id="portal-dashboard-courses-heading" className="portal-dashboard-card-panel-title">
+            My Calendar
+          </h2>
+          <p className="portal-dashboard-courses-term-line">{termLabel}</p>
+          <p
+            className="portal-dashboard-courses-registration-status"
+            data-status={registration.status}
+          >
+            {registrationStatusLabel(registration.status)}
+          </p>
+        </div>
         <div
           className="portal-dashboard-courses-view-tabs"
           role="tablist"
@@ -177,7 +216,27 @@ export function DashboardCoursesWidget() {
         </div>
       </header>
 
-      {view === 'list' ? (
+      {isLoadingAccount ? (
+        <div className="portal-dashboard-courses-loading" role="status">
+          Loading your courses…
+        </div>
+      ) : null}
+
+      {!isLoadingAccount && showEmptyState ? (
+        <div className="portal-dashboard-courses-empty" aria-live="polite">
+          <h3 className="portal-dashboard-courses-empty-title">No courses registered</h3>
+          <p className="portal-dashboard-courses-empty-text">
+            {registration.emptyReason?.trim()
+              ? registration.emptyReason.trim()
+              : noCurrentCoursesMessage(termLabel)}
+          </p>
+          <Link to="/registration" className="portal-dashboard-courses-empty-cta">
+            Go to Registration
+          </Link>
+        </div>
+      ) : null}
+
+      {!isLoadingAccount && showCourseTable && view === 'list' ? (
         <div className="portal-dashboard-courses-table-wrap">
           <table className="portal-dashboard-courses-table">
             <colgroup>
@@ -195,31 +254,47 @@ export function DashboardCoursesWidget() {
               </tr>
             </thead>
             <tbody>
-              {DASHBOARD_COURSES_MOCK.map((c) => (
-                <tr key={c.id}>
-                  <td className="portal-dashboard-courses-code">
-                    <span className="portal-dashboard-courses-course-code">{c.code}</span>
-                  </td>
-                  <td className="portal-dashboard-courses-title-cell">
-                    <span className="portal-dashboard-courses-title-text">{c.title}</span>
-                  </td>
-                  <td className="portal-dashboard-courses-schedule">
-                    <ScheduleCell schedule={c.schedule} />
-                  </td>
-                  <td className="portal-dashboard-courses-location">
-                    <LocationCell location={c.location} />
-                  </td>
-                </tr>
-              ))}
+              {scheduleRows.map((c, i) => {
+                const sched =
+                  c.schedule != null && String(c.schedule).trim() !== ''
+                    ? String(c.schedule)
+                    : '—'
+                const loc =
+                  c.location != null && String(c.location).trim() !== ''
+                    ? String(c.location)
+                    : '—'
+                return (
+                  <tr key={scheduleRowKey(c, i)}>
+                    <td className="portal-dashboard-courses-code">
+                      <span className="portal-dashboard-courses-course-code">{c.courseCode}</span>
+                    </td>
+                    <td className="portal-dashboard-courses-title-cell">
+                      <span className="portal-dashboard-courses-title-text">{c.title}</span>
+                    </td>
+                    <td className="portal-dashboard-courses-schedule">
+                      <ScheduleCell schedule={sched} />
+                    </td>
+                    <td className="portal-dashboard-courses-location">
+                      <LocationCell location={loc} />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
-      ) : (
+      ) : null}
+
+      {!isLoadingAccount && showCourseTable && view === 'week' ? (
         <div
           className="portal-dashboard-courses-timetable-wrap"
           role="region"
           aria-label="Weekly timetable"
         >
+          <p className="portal-dashboard-courses-week-placeholder">
+            Week view will use your official meeting times when timetable data is available. No sample
+            classes are shown.
+          </p>
           <div className="portal-dashboard-courses-timetable">
             <div className="portal-dashboard-courses-timetable-corner" aria-hidden />
             {WEEKDAY_ORDER.map(({ key, label }) => (
@@ -234,31 +309,15 @@ export function DashboardCoursesWidget() {
                 </span>
               ))}
             </div>
-            {WEEKDAY_ORDER.map(({ key }) => {
-              const blocks = DASHBOARD_WEEKLY_TIMETABLE_MOCK[key]
-              return (
-                <div key={key} className="portal-dashboard-courses-timetable-daycol">
-                  <div className="portal-dashboard-courses-timetable-track">
-                    {blocks.map((b, i) => (
-                      <div
-                        key={`${key}-${b.code}-${i}`}
-                        className="portal-dashboard-courses-timetable-block"
-                        style={blockLayoutStyle(b)}
-                        aria-label={`${b.code}, ${b.time}`}
-                      >
-                        <span className="portal-dashboard-courses-timetable-code">{b.code}</span>
-                        {b.subtitle ? (
-                          <span className="portal-dashboard-courses-timetable-subtitle">{b.subtitle}</span>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
+            {WEEKDAY_ORDER.map(({ key }) => (
+              <div key={key} className="portal-dashboard-courses-timetable-daycol">
+                <div className="portal-dashboard-courses-timetable-track" />
+              </div>
+            ))}
           </div>
         </div>
-      )}
+      ) : null}
+
     </section>
   )
 }

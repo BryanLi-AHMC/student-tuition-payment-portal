@@ -1,3 +1,4 @@
+import { buildAccountCurrentTerm, deriveAccountRegistration, scheduleRowsFromLegacyMarks, } from "./studentAccountDashboard.js";
 function roundMoney(n) {
     return Math.round(n * 100) / 100;
 }
@@ -20,7 +21,7 @@ function typeNorm(type) {
  * Real-student payload: legacy `students` + `registration` + `accounting` (Step 3B).
  * Category splits are minimal; `lineItems` and portal-only fields stay empty until later steps.
  */
-export function assembleLegacyStudentAccountPayload(snap, accountingRows) {
+export function assembleLegacyStudentAccountPayload(snap, accountingRows, marksRows) {
     const regFees = roundMoney(snap.totalFees);
     let totalCharges;
     let paymentsTotal;
@@ -66,6 +67,13 @@ export function assembleLegacyStudentAccountPayload(snap, accountingRows) {
             description: r.memo.length > 0 ? r.memo : undefined,
         }));
     }
+    const scheduleRows = scheduleRowsFromLegacyMarks(marksRows, snap.studentId);
+    const currentTerm = buildAccountCurrentTerm(snap.term, snap.year);
+    const registration = deriveAccountRegistration({
+        scheduleRows,
+        enrollmentSourceCount: marksRows.length,
+        termLabel: currentTerm.label,
+    });
     return {
         program: null,
         term: snap.term,
@@ -88,7 +96,9 @@ export function assembleLegacyStudentAccountPayload(snap, accountingRows) {
             payments: paymentsTotal,
             outstandingBalance,
         },
-        scheduleRows: [],
+        scheduleRows,
+        currentTerm,
+        registration,
         payments,
         installmentSchedule: [],
         installmentPolicy: [],

@@ -9,8 +9,12 @@ import {
 } from 'react'
 import { fetchStudentAccount } from '../lib/api'
 import { mahmAccountMock } from '../mock/mahmAccountMock'
-import type { MahmAccountMock } from '../mock/mahmAccountMock'
-import type { BillingCategory } from '../types/billing'
+import type {
+  MahmAccountMock,
+  MahmCurrentTerm,
+  MahmRegistration,
+} from '../mock/mahmAccountMock'
+import type { BillingCategory, ScheduleRow } from '../types/billing'
 
 const PORTAL_STUDENT_ID_KEY = 'portal_student_id'
 
@@ -35,6 +39,147 @@ function asBillingCategory(raw: unknown): BillingCategory {
   return 'other'
 }
 
+function titleCaseTerm(term: string): string {
+  const t = term.trim()
+  if (!t) return ''
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
+}
+
+function quarterOrderFromTerm(term: string): number | undefined {
+  switch (term.trim().toUpperCase()) {
+    case 'WINTER':
+      return 1
+    case 'SPRING':
+      return 2
+    case 'SUMMER':
+      return 3
+    case 'FALL':
+      return 4
+    default:
+      return undefined
+  }
+}
+
+function defaultCurrentTermFromStudent(student: MahmAccountMock['student']): MahmCurrentTerm {
+  const term = String(student.term ?? '').trim()
+  const year = Number(student.year) || 0
+  const cap = titleCaseTerm(term)
+  const q = quarterOrderFromTerm(term)
+  return {
+    term,
+    year,
+    label: cap && year ? `${cap} ${year}` : cap || (year ? String(year) : ''),
+    ...(q != null ? { quarterOrder: q } : {}),
+  }
+}
+
+function fallbackRegistrationFromSchedule(
+  scheduleRows: ScheduleRow[],
+  termLabel: string,
+): MahmRegistration {
+  if (scheduleRows.length > 0) {
+    let sum = 0
+    let anyUnits = false
+    for (const r of scheduleRows) {
+      if (r.units != null && Number.isFinite(r.units)) {
+        sum += r.units
+        anyUnits = true
+      }
+    }
+    return {
+      status: 'registered',
+      hasActiveCourses: true,
+      courseCount: scheduleRows.length,
+      totalUnits: anyUnits ? Math.round(sum * 100) / 100 : null,
+    }
+  }
+  return {
+    status: 'unknown',
+    hasActiveCourses: false,
+    courseCount: 0,
+    totalUnits: null,
+    emptyReason: termLabel
+      ? `No courses registered for ${termLabel}.`
+      : 'No courses registered for the current term.',
+  }
+}
+
+function parseRegistrationStatus(raw: unknown): MahmRegistration['status'] | null {
+  const s = String(raw ?? '').trim()
+  if (
+    s === 'registered' ||
+    s === 'not_registered' ||
+    s === 'in_progress' ||
+    s === 'unknown'
+  ) {
+    return s
+  }
+  return null
+}
+
+function parseCurrentTermFromApi(
+  raw: unknown,
+  student: MahmAccountMock['student'],
+): MahmCurrentTerm {
+  if (raw != null && typeof raw === 'object') {
+    const t = raw as Record<string, unknown>
+    const term = String(t.term ?? student.term ?? '').trim()
+    const year = Number(t.year ?? student.year) || 0
+    const labelRaw = String(t.label ?? '').trim()
+    const cap = titleCaseTerm(term)
+    const label =
+      labelRaw || (cap && year ? `${cap} ${year}` : cap || (year ? String(year) : ''))
+    const qo = t.quarterOrder
+    return {
+      term,
+      year,
+      label,
+      ...(typeof qo === 'number' && Number.isFinite(qo) ? { quarterOrder: qo } : {}),
+    }
+  }
+  return defaultCurrentTermFromStudent(student)
+}
+
+function parseRegistrationFromApi(
+  raw: unknown,
+  scheduleRows: ScheduleRow[],
+  termLabel: string,
+): MahmRegistration {
+  if (raw != null && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>
+    const status = parseRegistrationStatus(r.status) ?? 'unknown'
+    const totalUnitsRaw =
+      r.totalUnits == null || r.totalUnits === '' ? null : Number(r.totalUnits)
+    return {
+      status,
+      hasActiveCourses: Boolean(r.hasActiveCourses),
+      courseCount: Number(r.courseCount ?? 0) || 0,
+      totalUnits:
+        totalUnitsRaw != null && Number.isFinite(totalUnitsRaw) ? totalUnitsRaw : null,
+      emptyReason:
+        r.emptyReason != null && String(r.emptyReason).trim() !== ''
+          ? String(r.emptyReason).trim()
+          : undefined,
+    }
+  }
+  return fallbackRegistrationFromSchedule(scheduleRows, termLabel)
+}
+
+function ensureAccountDashboardFields(account: MahmAccountMock): MahmAccountMock {
+  const currentTerm = account.currentTerm?.label?.trim()
+    ? account.currentTerm
+    : defaultCurrentTermFromStudent(account.student)
+  const termLabel =
+    currentTerm.label?.trim() ||
+    defaultCurrentTermFromStudent(account.student).label
+  const registration =
+    account.registration != null &&
+    parseRegistrationStatus(account.registration.status) != null
+      ? account.registration
+      : fallbackRegistrationFromSchedule(account.scheduleRows, termLabel)
+  return { ...account, currentTerm, registration }
+}
+
 /**
  * Maps GET /api/students/:id/account JSON (portal-assembled or legacy minimal) into the
  * `MahmAccountMock`-shaped view model finance widgets expect — without showing static Bingchen
@@ -51,7 +196,7 @@ function normalizeApiStudentAccount(raw: unknown): MahmAccountMock {
     o.installmentPlan != null &&
     typeof o.installmentPlan === 'object'
   ) {
-    return o as MahmAccountMock
+    return ensureAccountDashboardFields(o as MahmAccountMock)
   }
 
   const studentRaw = o.student
@@ -106,6 +251,14 @@ function normalizeApiStudentAccount(raw: unknown): MahmAccountMock {
       units: r.units == null ? null : Number(r.units),
       hours: r.hours == null ? null : Number(r.hours),
       charge: Number(r.charge ?? 0) || 0,
+      schedule:
+        r.schedule == null || String(r.schedule).trim() === ''
+          ? null
+          : String(r.schedule),
+      location:
+        r.location == null || String(r.location).trim() === ''
+          ? null
+          : String(r.location),
     }
   })
 
@@ -161,7 +314,14 @@ function normalizeApiStudentAccount(raw: unknown): MahmAccountMock {
       ? String(o.termChargeEffectiveDate).trim()
       : ''
 
-  return {
+  const currentTerm = parseCurrentTermFromApi(o.currentTerm, student)
+  const registration = parseRegistrationFromApi(
+    o.registration,
+    scheduleRows,
+    currentTerm.label,
+  )
+
+  return ensureAccountDashboardFields({
     program,
     student,
     summary,
@@ -171,21 +331,24 @@ function normalizeApiStudentAccount(raw: unknown): MahmAccountMock {
     billingStatus,
     termChargeEffectiveDate,
     scheduleRows,
+    currentTerm,
+    registration,
     recentActivity,
     statements: [],
-  }
+  })
 }
 
 /** Placeholder while signed in but account JSON has not arrived yet — avoids showing demo names/amounts. */
 function authenticatedPlaceholderAccount(studentId: string): MahmAccountMock {
-  return {
+  const student = {
+    name: '',
+    studentId: studentId.trim(),
+    term: '',
+    year: 0,
+  }
+  return ensureAccountDashboardFields({
     program: '',
-    student: {
-      name: '',
-      studentId: studentId.trim(),
-      term: '',
-      year: 0,
-    },
+    student,
     summary: {
       tuitionTotal: 0,
       clinicalTotal: 0,
@@ -206,9 +369,16 @@ function authenticatedPlaceholderAccount(studentId: string): MahmAccountMock {
     billingStatus: '',
     termChargeEffectiveDate: '',
     scheduleRows: [],
+    currentTerm: defaultCurrentTermFromStudent(student),
+    registration: {
+      status: 'unknown',
+      hasActiveCourses: false,
+      courseCount: 0,
+      totalUnits: null,
+    },
     recentActivity: [],
     statements: [],
-  }
+  })
 }
 
 type AccountContextValue = {

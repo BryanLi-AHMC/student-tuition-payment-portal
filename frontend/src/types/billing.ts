@@ -23,4 +23,6 @@ export type ScheduleRow = {
   units: number | null
   hours: number | null
   charge: number
+  schedule?: string | null
+  location?: string | null
 }

@@ -19,6 +19,27 @@ export type MahmStatementEntry = {
   balance: number
 }
 
+export type MahmCurrentTerm = {
+  term: string
+  year: number
+  label: string
+  quarterOrder?: number
+}
+
+export type MahmRegistrationStatus =
+  | 'registered'
+  | 'not_registered'
+  | 'in_progress'
+  | 'unknown'
+
+export type MahmRegistration = {
+  status: MahmRegistrationStatus
+  hasActiveCourses: boolean
+  courseCount: number
+  totalUnits: number | null
+  emptyReason?: string
+}
+
 export type MahmAccountMock = {
   program: string
   student: {
@@ -27,6 +48,8 @@ export type MahmAccountMock = {
     term: string
     year: number
   }
+  currentTerm: MahmCurrentTerm
+  registration: MahmRegistration
   summary: {
     tuitionTotal: number
     clinicalTotal: number
@@ -64,6 +87,18 @@ export const mahmAccountMock: MahmAccountMock = {
     studentId: 'AMU123456',
     term: 'Fall',
     year: 2026,
+  },
+  currentTerm: {
+    term: 'Fall',
+    year: 2026,
+    label: 'Fall 2026',
+    quarterOrder: 4,
+  },
+  registration: {
+    status: 'registered',
+    hasActiveCourses: true,
+    courseCount: 5,
+    totalUnits: 11,
   },
 
   summary: {

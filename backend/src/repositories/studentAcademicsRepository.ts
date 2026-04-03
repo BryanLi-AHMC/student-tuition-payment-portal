@@ -86,3 +86,36 @@ export async function listMarksForStudent(
 
   return rows.map(mapMarksRow);
 }
+
+/**
+ * `marks` rows for one student and quarter (legacy schedule / enrollment-of-record).
+ */
+export async function listMarksForStudentTerm(
+  pool: Pool,
+  studentId: string,
+  term: string,
+  year: number,
+): Promise<MarksRow[]> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT TRIM(name) AS name,
+            TRIM(code) AS code,
+            course_title,
+            units,
+            days,
+            time_from,
+            time_to,
+            instructor,
+            TRIM(term) AS term,
+            year,
+            grade,
+            grade2
+     FROM marks
+     WHERE TRIM(id) = TRIM(?)
+       AND LOWER(TRIM(term)) = LOWER(TRIM(?))
+       AND year = ?
+     ORDER BY TRIM(code) ASC`,
+    [studentId, term, year],
+  );
+
+  return rows.map(mapMarksRow);
+}

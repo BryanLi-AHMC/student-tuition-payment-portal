@@ -1,79 +1,7 @@
 import { DEMO_STUDENT_ID } from "../config/constants.js";
 import { pool } from "../lib/db.js";
 import { listMarksForStudent, } from "../repositories/studentAcademicsRepository.js";
-function formatMysqlTime(v) {
-    if (v == null)
-        return null;
-    if (v instanceof Date) {
-        const s = v.toISOString().slice(11, 19);
-        return s.length > 0 ? s : null;
-    }
-    const s = String(v).trim();
-    return s.length > 0 ? s : null;
-}
-function nullableStr(s) {
-    return s.length > 0 ? s : null;
-}
-function numericGradeFromDb(v) {
-    if (v == null)
-        return null;
-    const s = String(v).trim();
-    if (s === "")
-        return null;
-    const n = Number(s);
-    return Number.isFinite(n) ? n : null;
-}
-function transcriptGrade(grade) {
-    return grade.length > 0 ? grade : null;
-}
-function termsMatch(a, b) {
-    return a.trim().toLowerCase() === b.trim().toLowerCase();
-}
-/** Matches legacy `marks` ORDER BY term weight: Fall > Summer > Spring > Winter > other. */
-function termSortOrder(term) {
-    switch (term.trim().toUpperCase()) {
-        case "FALL":
-            return 4;
-        case "SUMMER":
-            return 3;
-        case "SPRING":
-            return 2;
-        case "WINTER":
-            return 1;
-        default:
-            return 0;
-    }
-}
-const MIN_TERM_YEAR = 1900;
-const MAX_TERM_YEAR = 2100;
-function buildAvailableTerms(rows) {
-    const byKey = new Map();
-    for (const r of rows) {
-        const term = r.term.trim();
-        const year = r.year;
-        if (term.length === 0 ||
-            !Number.isFinite(year) ||
-            year < MIN_TERM_YEAR ||
-            year > MAX_TERM_YEAR) {
-            continue;
-        }
-        const key = `${term.toLowerCase()}|${year}`;
-        if (!byKey.has(key)) {
-            byKey.set(key, { term, year });
-        }
-    }
-    const list = [...byKey.values()];
-    list.sort((a, b) => {
-        if (b.year !== a.year)
-            return b.year - a.year;
-        return termSortOrder(b.term) - termSortOrder(a.term);
-    });
-    return list.map(({ term, year }) => ({
-        term,
-        year,
-        label: `${term} ${year}`,
-    }));
-}
+import { buildAcademicCourseRecordsFromMarks, buildAvailableTermsFromCourseRecords, courseRecordToEnrollmentItem, courseRecordToScheduleItem, courseRecordToTranscriptItem, resolveActiveTermFromCourseRecords, } from "./studentAcademicCourseRecords.js";
 function buildPayload(studentId, rows) {
     if (rows.length === 0) {
         return {
@@ -84,50 +12,25 @@ function buildPayload(studentId, rows) {
             currentSchedule: [],
             transcript: [],
             enrollmentHistory: [],
+            courseRecords: [],
         };
     }
     const nameFromMarks = rows[0].name.trim();
     const studentName = nameFromMarks.length > 0 ? nameFromMarks : studentId;
-    const latest = rows[0];
-    const currentTerm = {
-        term: latest.term,
-        year: latest.year,
-    };
-    const currentSchedule = rows
-        .filter((r) => r.year === latest.year && termsMatch(r.term, latest.term))
-        .map((r) => ({
-        courseCode: r.code,
-        courseTitle: r.course_title,
-        days: r.days,
-        timeFrom: formatMysqlTime(r.time_from),
-        timeTo: formatMysqlTime(r.time_to),
-        instructor: nullableStr(r.instructor),
-        term: r.term,
-        year: r.year,
-    }));
-    const transcript = rows.map((r) => ({
-        courseCode: r.code,
-        courseTitle: r.course_title,
-        term: r.term,
-        year: r.year,
-        grade: transcriptGrade(r.grade),
-        numericGrade: numericGradeFromDb(r.grade2),
-        credits: Number.isFinite(r.units) ? r.units : null,
-    }));
-    const enrollmentHistory = rows.map((r) => ({
-        courseCode: r.code,
-        courseTitle: r.course_title,
-        term: r.term,
-        year: r.year,
-    }));
+    const courseRecords = buildAcademicCourseRecordsFromMarks(studentId, rows);
+    const currentTerm = resolveActiveTermFromCourseRecords(courseRecords);
+    const currentSchedule = courseRecords
+        .filter((r) => r.status === "active")
+        .map(courseRecordToScheduleItem);
     return {
         studentId,
         studentName,
         currentTerm,
-        availableTerms: buildAvailableTerms(rows),
+        availableTerms: buildAvailableTermsFromCourseRecords(courseRecords),
         currentSchedule,
-        transcript,
-        enrollmentHistory,
+        transcript: courseRecords.map(courseRecordToTranscriptItem),
+        enrollmentHistory: courseRecords.map(courseRecordToEnrollmentItem),
+        courseRecords,
     };
 }
 export async function getStudentAcademicsPayload(studentId) {
@@ -141,6 +44,7 @@ export async function getStudentAcademicsPayload(studentId) {
             currentSchedule: [],
             transcript: [],
             enrollmentHistory: [],
+            courseRecords: [],
         };
     }
     if (trimmed === DEMO_STUDENT_ID) {
@@ -152,6 +56,7 @@ export async function getStudentAcademicsPayload(studentId) {
             currentSchedule: [],
             transcript: [],
             enrollmentHistory: [],
+            courseRecords: [],
         };
     }
     const rows = await listMarksForStudent(pool, trimmed);

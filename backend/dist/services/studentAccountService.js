@@ -1,5 +1,6 @@
 import { DEMO_STUDENT_ID } from "../config/constants.js";
 import { pool } from "../lib/db.js";
+import { listMarksForStudentTerm } from "../repositories/studentAcademicsRepository.js";
 import { findLatestLegacyTermYear, loadLegacyAccountSnapshot, loadLegacyAccountingRows, } from "../repositories/studentLegacyAccountRepository.js";
 import { findLatestTermYearForStudent, loadAccountContext, } from "../repositories/studentAccountRepository.js";
 import { getCatalogDemoAccountPayload } from "./demoAccountService.js";
@@ -54,7 +55,8 @@ async function getRealStudentAccountPayload(studentId, termYear) {
         return null;
     }
     const accountingRows = await loadLegacyAccountingRows(pool, studentId, term, year);
-    return assembleLegacyStudentAccountPayload(snap, accountingRows);
+    const marksRows = await listMarksForStudentTerm(pool, studentId, term, year);
+    return assembleLegacyStudentAccountPayload(snap, accountingRows, marksRows);
 }
 export async function getStudentAccountPayload(studentId, termYear) {
     if (studentId === DEMO_STUDENT_ID) {
