@@ -22,13 +22,13 @@ export function QuizQuestion({
 
   return (
     <fieldset
-      className="portal-doc-quiz-question"
+      className="portal-doc-quiz-question portal-doc-quiz-question--bar-only"
       disabled={disabled}
       aria-labelledby={legendId}
     >
       <legend id={legendId} className="portal-doc-quiz-question__legend">
         <span className="portal-doc-quiz-question__num">{index + 1}.</span>{' '}
-        <span className="portal-doc-quiz-question__prompt">{question.prompt}</span>
+        <span className="portal-doc-quiz-question__prompt">{question.question}</span>
       </legend>
       <ul className="portal-doc-quiz-question__options" role="presentation">
         {question.options.map((opt, optIndex) => {
