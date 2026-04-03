@@ -110,6 +110,7 @@ export default function App() {
             <Route path="uploads" element={<Navigate to="/documents" replace />} />
           </Route>
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/my-account" element={<ProfilePage />} />
         </Route>
       </Route>
       <Route path="/overview" element={<Navigate to="/finances/overview" replace />} />
