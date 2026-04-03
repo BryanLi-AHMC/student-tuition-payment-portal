@@ -1084,11 +1084,14 @@ button.portal-tab {
 }
 
 /* —— Module layouts: local sub-navigation (Clinical, Documents) —— */
+/* Full-width column like Academics / Finances (no centered max-width island). */
 .portal-clinical-module,
 .portal-documents-module {
-  max-width: min(var(--portal-module-max), 100%);
-  margin: 0 auto;
+  max-width: none;
   width: 100%;
+  margin: 0;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Registration + Finances + Academics: fill the main column (no centered island) */
@@ -1411,22 +1414,16 @@ button.portal-tab {
 }
 
 /* —— Documents home: Quiz entry (overview) —— */
-.portal-documents-quiz-home-main {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  padding: 1.75rem 1.25rem 3rem;
-  background: #eef0f4;
-  border-radius: var(--portal-radius);
-}
-
+/* Content sits on the shell canvas; only individual quiz rows use .portal-doc-quiz-entry-card. */
 .portal-documents-quiz-page {
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
-  max-width: 44rem;
+  max-width: min(75rem, 100%);
   margin: 0 auto;
+  padding: 0;
+  background: transparent;
+  box-sizing: border-box;
 }
 
 .portal-documents-quiz-page-title {
@@ -1561,11 +1558,6 @@ button.portal-tab {
 }
 
 @media (max-width: 640px) {
-  .portal-documents-quiz-home-main {
-    padding: 1.25rem 1rem 2.25rem;
-    border-radius: 0;
-  }
-
   .portal-documents-quiz-page {
     gap: 1.35rem;
   }
