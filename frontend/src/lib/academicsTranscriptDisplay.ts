@@ -1,6 +1,12 @@
-import type { StudentAcademicsResponse } from './api'
+import type {
+  StudentAcademicsResponse,
+  StudentTranscriptPreviewResponse,
+} from './api'
 
-export type TranscriptRow = StudentAcademicsResponse['transcript'][number]
+/** Row shape from either legacy academics transcript or transcript-preview (merged marks + clinic). */
+export type TranscriptRow =
+  | StudentAcademicsResponse['transcript'][number]
+  | StudentTranscriptPreviewResponse['transcript'][number]
 
 const MIN_MEANINGFUL_YEAR = 1900
 const MAX_MEANINGFUL_YEAR = 2100
@@ -131,6 +137,14 @@ export function defaultTermKeyFromTranscript(
     )
     if (hit) return hit.key
   }
+  return options[0]!.key
+}
+
+/** Default quarter term from preview transcript order (newest term first; see `compareTermGroups`). */
+export function defaultTermKeyFromPreview(
+  options: TranscriptTermOption[],
+): string | null {
+  if (options.length === 0) return null
   return options[0]!.key
 }
 

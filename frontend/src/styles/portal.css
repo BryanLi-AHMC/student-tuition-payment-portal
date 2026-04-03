@@ -1792,6 +1792,45 @@ table.portal-academics-portal-grades-table.portal-table--grades td {
   font-size: 0.8125rem;
 }
 
+/*
+ * Transcript preview: identical column geometry for every term table so headers/body
+ * line up across sections; title column absorbs wrapping without shifting other cols.
+ */
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table {
+  table-layout: fixed;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table th:nth-child(1),
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table td:nth-child(1) {
+  width: 11%;
+}
+
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table th:nth-child(2),
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table td:nth-child(2) {
+  width: 47%;
+  max-width: none;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table th:nth-child(3),
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table td:nth-child(3) {
+  width: 13%;
+}
+
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table th:nth-child(4),
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table td:nth-child(4) {
+  width: 14%;
+}
+
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table th:nth-child(5),
+table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-table td:nth-child(5) {
+  width: 15%;
+}
+
 .portal-academics-transcript-sheet__cumulative {
   margin-top: 1.125rem;
   padding-top: 0.65rem;
