@@ -5783,6 +5783,8 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  justify-content: center;
+  align-items: center;
 }
 
 .admin-finance-summary {
