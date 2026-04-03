@@ -154,6 +154,23 @@ export type AdminStudentListItem = {
   latestRegistrationTerm: string | null
 }
 
+/** One line-item under a term bucket in admin registration history (optional API field). */
+export type AdminStudentRegistrationHistoryItem = {
+  courseCode?: string
+  courseTitle?: string
+  credits?: number | null
+  instructor?: string | null
+  status?: string | null
+  grade?: string | null
+  schedule?: string | null
+}
+
+/** Registration history grouped by quarter/term (optional API field). */
+export type AdminStudentRegistrationHistoryTerm = {
+  term: string
+  items: AdminStudentRegistrationHistoryItem[]
+}
+
 /** GET/PUT /api/admin/students/:studentId — admin student detail. */
 export type AdminStudentDetail = {
   studentId: string
@@ -173,6 +190,8 @@ export type AdminStudentDetail = {
   state: string | null
   zip: string | null
   latestRegistrationTerm: string | null
+  /** When present, drives quarter-based registration history on the admin detail page. */
+  registrationHistory?: AdminStudentRegistrationHistoryTerm[]
 }
 
 export type AdminStudentUpdatePayload = {
@@ -216,6 +235,84 @@ function parseNullableNumber(v: unknown): number | null {
   throw new Error('Unexpected admin students response')
 }
 
+function parseOptionalFiniteNumber(v: unknown): number | null | undefined {
+  if (v === undefined) return undefined
+  if (v === null) return null
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return undefined
+}
+
+function parseOptionalRegistrationHistoryItem(
+  raw: Record<string, unknown>,
+): AdminStudentRegistrationHistoryItem {
+  const courseCodeRaw = raw.courseCode ?? raw.course_code
+  const courseTitleRaw = raw.courseTitle ?? raw.course_title
+  const instructorRaw = raw.instructor
+  const statusRaw = raw.status
+  const gradeRaw = raw.grade
+  const scheduleRaw = raw.schedule
+  return {
+    courseCode:
+      typeof courseCodeRaw === 'string' && courseCodeRaw.trim() !== ''
+        ? courseCodeRaw
+        : undefined,
+    courseTitle:
+      typeof courseTitleRaw === 'string' && courseTitleRaw.trim() !== ''
+        ? courseTitleRaw
+        : undefined,
+    credits: parseOptionalFiniteNumber(raw.credits),
+    instructor:
+      typeof instructorRaw === 'string' && instructorRaw.trim() !== ''
+        ? instructorRaw
+        : typeof instructorRaw === 'number' && Number.isFinite(instructorRaw)
+          ? String(instructorRaw)
+          : null,
+    status:
+      typeof statusRaw === 'string' && statusRaw.trim() !== ''
+        ? statusRaw
+        : null,
+    grade:
+      typeof gradeRaw === 'string' && gradeRaw.trim() !== ''
+        ? gradeRaw
+        : null,
+    schedule:
+      typeof scheduleRaw === 'string' && scheduleRaw.trim() !== ''
+        ? scheduleRaw
+        : null,
+  }
+}
+
+function parseOptionalRegistrationHistory(
+  v: unknown,
+): AdminStudentRegistrationHistoryTerm[] | undefined {
+  if (v === undefined || v === null) return undefined
+  if (!Array.isArray(v)) return undefined
+  const out: AdminStudentRegistrationHistoryTerm[] = []
+  for (const el of v) {
+    if (el == null || typeof el !== 'object') continue
+    const r = el as Record<string, unknown>
+    const termRaw = r.term
+    if (typeof termRaw !== 'string' || termRaw.trim() === '') continue
+    const term = termRaw.trim()
+    const itemsRaw = r.items
+    const items: AdminStudentRegistrationHistoryItem[] = []
+    if (Array.isArray(itemsRaw)) {
+      for (const it of itemsRaw) {
+        if (it == null || typeof it !== 'object') continue
+        items.push(
+          parseOptionalRegistrationHistoryItem(it as Record<string, unknown>),
+        )
+      }
+    }
+    out.push({ term, items })
+  }
+  return out.length > 0 ? out : undefined
+}
+
 function parseAdminStudentListRow(o: Record<string, unknown>): AdminStudentListItem {
   if (typeof o.studentId !== 'string' || typeof o.name !== 'string') {
     throw new Error('Unexpected admin students response')
@@ -244,6 +341,9 @@ function parseAdminStudentDetailPayload(data: unknown): AdminStudentDetail {
   if (typeof o.studentId !== 'string' || typeof o.name !== 'string') {
     throw new Error('Unexpected admin student detail response')
   }
+  const registrationHistory = parseOptionalRegistrationHistory(
+    o.registrationHistory ?? o.registration_history,
+  )
   return {
     studentId: o.studentId,
     division: parseAdminDivision(o.division),
@@ -262,6 +362,7 @@ function parseAdminStudentDetailPayload(data: unknown): AdminStudentDetail {
     state: parseNullableString(o.state),
     zip: parseNullableString(o.zip),
     latestRegistrationTerm: parseNullableString(o.latestRegistrationTerm),
+    ...(registrationHistory != null ? { registrationHistory } : {}),
   }
 }
 

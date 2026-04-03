@@ -61,12 +61,15 @@ export function AdminStudentsPage() {
     if (rows == null) return []
     const s = q.trim().toLowerCase()
     if (!s) return rows
-    return rows.filter(
-      (r) =>
+    return rows.filter((r) => {
+      const program = (r.requirementsId ?? '').toLowerCase()
+      return (
         r.studentId.toLowerCase().includes(s) ||
         r.name.toLowerCase().includes(s) ||
-        (r.email ?? '').toLowerCase().includes(s),
-    )
+        (r.email ?? '').toLowerCase().includes(s) ||
+        program.includes(s)
+      )
+    })
   }, [q, rows])
 
   const filteredIdSet = useMemo(
@@ -167,7 +170,7 @@ export function AdminStudentsPage() {
           <input
             type="search"
             className="admin-input admin-input--search"
-            placeholder="Search by student ID, name, or email"
+            placeholder="Search by student ID, name, email, or program"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             aria-label="Search students"
@@ -267,12 +270,12 @@ export function AdminStudentsPage() {
                   />
                 </th>
                 <th scope="col">Student ID</th>
-                <th scope="col">Division</th>
                 <th scope="col">Name</th>
+                <th scope="col">Division</th>
                 <th scope="col">Email</th>
+                <th scope="col">Program</th>
                 <th scope="col">Signed Date</th>
                 <th scope="col">Latest Registration Term</th>
-                <th scope="col">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -299,27 +302,19 @@ export function AdminStudentsPage() {
                       />
                     </td>
                     <td>{r.studentId}</td>
+                    <td>
+                      <Link
+                        to={`/admin/students/${encodeURIComponent(r.studentId)}`}
+                        className="admin-student-name-link"
+                      >
+                        {r.name}
+                      </Link>
+                    </td>
                     <td>{r.division}</td>
-                    <td>{r.name}</td>
                     <td>{displayCell(r.email)}</td>
+                    <td>{displayCell(r.requirementsId)}</td>
                     <td>{formatTableDate(r.signedDate)}</td>
                     <td>{displayCell(r.latestRegistrationTerm)}</td>
-                    <td>
-                      <div className="admin-table-actions">
-                        <Link
-                          to={`/admin/students/${encodeURIComponent(r.studentId)}`}
-                          className="portal-btn portal-btn--secondary portal-btn--compact"
-                        >
-                          View
-                        </Link>
-                        <Link
-                          to={`/admin/students/${encodeURIComponent(r.studentId)}/edit`}
-                          className="portal-btn portal-btn--secondary portal-btn--compact"
-                        >
-                          Edit
-                        </Link>
-                      </div>
-                    </td>
                   </tr>
                 ))
               )}

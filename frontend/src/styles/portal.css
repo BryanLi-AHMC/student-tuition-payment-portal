@@ -5804,6 +5804,111 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   vertical-align: middle;
 }
 
+.admin-student-name-link {
+  display: inline-block;
+  max-width: 100%;
+  font-weight: 600;
+  color: var(--portal-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+
+.admin-student-name-link:hover {
+  color: var(--portal-accent-hover);
+  border-bottom-color: rgba(140, 29, 44, 0.35);
+}
+
+.admin-student-name-link:focus-visible {
+  outline: 2px solid var(--portal-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.admin-detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0 0 1.25rem;
+  padding: 0.2rem;
+  background: var(--amu-card);
+  border: 1px solid var(--portal-border-subtle);
+  border-radius: var(--portal-radius);
+  box-shadow: var(--portal-shadow);
+}
+
+.admin-detail-tab {
+  margin: 0;
+  padding: 0.45rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  color: var(--portal-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--portal-radius) - 2px);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.admin-detail-tab:hover {
+  color: var(--portal-text);
+  background: var(--portal-accent-soft);
+}
+
+.admin-detail-tab:focus-visible {
+  outline: 2px solid var(--portal-accent);
+  outline-offset: 1px;
+}
+
+.admin-detail-tab--active {
+  color: var(--amu-card);
+  background: var(--portal-accent);
+  border-color: var(--portal-accent);
+}
+
+.admin-detail-tab--active:hover {
+  color: var(--amu-card);
+  background: var(--portal-accent-hover);
+  border-color: var(--portal-accent-hover);
+}
+
+.admin-detail-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-detail-field-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--portal-text);
+}
+
+.admin-detail-quarter-select {
+  min-width: min(100%, 220px);
+  width: auto;
+  max-width: 100%;
+}
+
+.admin-detail-empty {
+  margin: 0;
+  padding: 0.75rem 0 0;
+  text-align: left;
+  color: var(--portal-text-muted);
+}
+
+.admin-registration-history-table th,
+.admin-registration-history-table td {
+  font-size: 0.8125rem;
+}
+
 .admin-finance-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
