@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { DocumentsPage } from './trainingQuiz/DocumentsPage'
 
 const ACTIONS = [
   {
@@ -25,7 +26,8 @@ const ACTIONS = [
 
 export function DocumentsHomePage() {
   return (
-    <main className="portal-page">
+    <main className="portal-page portal-documents-home-stack">
+      <DocumentsPage />
       <section className="portal-module-panel" aria-labelledby="documents-actions-heading">
         <h2 id="documents-actions-heading" className="portal-module-panel-heading">
           Document center
