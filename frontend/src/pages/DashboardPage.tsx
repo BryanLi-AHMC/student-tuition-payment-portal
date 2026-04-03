@@ -16,8 +16,8 @@ function welcomeNameFromDisplay(name: string): string {
 }
 
 export function DashboardPage() {
-  const { fetchedAccount, loading, isAuthenticated } = useAccount()
-  const displayName = fetchedAccount?.student.name?.trim() ?? ''
+  const { account, loading, isAuthenticated } = useAccount()
+  const displayName = account.student.name?.trim() ?? ''
   const welcome =
     loading && isAuthenticated ? '…' : welcomeNameFromDisplay(displayName)
   const today = new Date()

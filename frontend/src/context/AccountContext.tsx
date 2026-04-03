@@ -545,7 +545,24 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           signal: ac.signal,
         })
         if (ac.signal.aborted) return
-        setFetchedAccount(normalizeApiStudentAccount(raw))
+        let normalized = normalizeApiStudentAccount(raw)
+        const accountName = normalized.student.name?.trim() ?? ''
+        if (accountName === '' || accountName === 'Student') {
+          try {
+            const profile = await fetchStudentProfile(id, { signal: ac.signal })
+            if (ac.signal.aborted) return
+            const full = profile.fullName?.trim() ?? ''
+            if (full) {
+              normalized = {
+                ...normalized,
+                student: { ...normalized.student, name: full },
+              }
+            }
+          } catch {
+            /* keep normalized; profile is optional enrichment */
+          }
+        }
+        setFetchedAccount(normalized)
         setError(null)
       } catch (e) {
         if (ac.signal.aborted) return

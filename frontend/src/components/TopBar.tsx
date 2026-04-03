@@ -20,10 +20,12 @@ export const TopBar = forwardRef<HTMLButtonElement, TopBarProps>(function TopBar
   ref,
 ) {
   const navigate = useNavigate()
-  const { fetchedAccount, loading, logout } = useAccount()
-  const displayName = loading
-    ? 'Loading…'
-    : (fetchedAccount?.student.name?.trim() || 'Student')
+  const { account, loading, isAuthenticated, logout } = useAccount()
+  const displayName = !isAuthenticated
+    ? 'Student'
+    : loading
+      ? 'Loading…'
+      : (account.student.name?.trim() || 'Student')
 
   const handleLogout = useCallback(() => {
     logout()
