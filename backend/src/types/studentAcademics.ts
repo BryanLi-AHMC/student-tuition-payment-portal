@@ -1,5 +1,32 @@
 /** GET /api/students/:studentId/academics — Phase 1, sourced from legacy `marks` only. */
 
+/** Deterministic row status from legacy `marks` (and merged transcript uses the same for `marks`/`clinic`). */
+export type StudentAcademicCourseStatus =
+  | "active"
+  | "completed"
+  | "withdrawn"
+  /** Reserved for a future legacy signal; not emitted without a reliable column/value. */
+  | "dropped"
+  | "unknown";
+
+/** One normalized student course row — single source for schedule, transcript, enrollment, and future feedback eligibility. */
+export type StudentAcademicCourseRecord = {
+  studentId: string;
+  courseCode: string;
+  courseTitle: string;
+  term: string;
+  year: number;
+  credits: number | null;
+  instructor: string | null;
+  days: string | null;
+  timeFrom: string | null;
+  timeTo: string | null;
+  grade: string | null;
+  numericGrade: number | null;
+  status: StudentAcademicCourseStatus;
+  source: "marks" | "clinic";
+};
+
 export type StudentAcademicsCurrentTerm = {
   term: string;
   year: number;
@@ -20,6 +47,8 @@ export type StudentAcademicsScheduleItem = {
   instructor: string | null;
   term: string;
   year: number;
+  credits: number | null;
+  status: StudentAcademicCourseStatus;
 };
 
 export type StudentAcademicsTranscriptItem = {
@@ -38,6 +67,12 @@ export type StudentAcademicsEnrollmentItem = {
   courseTitle: string;
   term: string;
   year: number;
+  credits: number | null;
+  grade: string | null;
+  status: StudentAcademicCourseStatus;
+  instructor: string | null;
+  /** True only for `completed`; reserved for future course feedback. */
+  feedbackEligible: boolean;
 };
 
 export type StudentAcademicsResponse = {
@@ -48,4 +83,6 @@ export type StudentAcademicsResponse = {
   currentSchedule: StudentAcademicsScheduleItem[];
   transcript: StudentAcademicsTranscriptItem[];
   enrollmentHistory: StudentAcademicsEnrollmentItem[];
+  /** Full normalized rows (marks-only for this endpoint); derived lists above are views of this array. */
+  courseRecords: StudentAcademicCourseRecord[];
 };

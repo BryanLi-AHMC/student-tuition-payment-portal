@@ -269,6 +269,32 @@ export async function fetchAccountingLedger(
   throw new Error('Unexpected accounting ledger response')
 }
 
+/** Shared status for normalized academic rows (matches backend `StudentAcademicCourseStatus`). */
+export type StudentAcademicCourseStatus =
+  | 'active'
+  | 'completed'
+  | 'withdrawn'
+  | 'dropped'
+  | 'unknown'
+
+/** One normalized course row from GET /academics (`courseRecords`) — use for schedule, history, feedback eligibility. */
+export type StudentAcademicCourseRecord = {
+  studentId: string
+  courseCode: string
+  courseTitle: string
+  term: string
+  year: number
+  credits: number | null
+  instructor: string | null
+  days: string | null
+  timeFrom: string | null
+  timeTo: string | null
+  grade: string | null
+  numericGrade: number | null
+  status: StudentAcademicCourseStatus
+  source: 'marks' | 'clinic'
+}
+
 /** GET /api/students/:studentId/academics — schedule, transcript, and term metadata. */
 export type StudentAcademicsResponse = {
   studentId: string
@@ -288,6 +314,8 @@ export type StudentAcademicsResponse = {
     instructor: string | null
     term: string
     year: number
+    credits: number | null
+    status: StudentAcademicCourseStatus
   }>
   transcript: Array<{
     courseCode: string
@@ -309,7 +337,14 @@ export type StudentAcademicsResponse = {
     courseTitle: string
     term: string
     year: number
+    credits: number | null
+    grade: string | null
+    status: StudentAcademicCourseStatus
+    instructor: string | null
+    feedbackEligible: boolean
   }>
+  /** Normalized marks rows; `currentSchedule`, `transcript`, and `enrollmentHistory` are views of this list. */
+  courseRecords: StudentAcademicCourseRecord[]
 }
 
 export async function fetchStudentAcademics(
@@ -339,6 +374,9 @@ export async function fetchStudentAcademics(
   if (!Array.isArray(o.transcript) || !Array.isArray(o.enrollmentHistory)) {
     throw new Error('Unexpected student academics response')
   }
+  if (!Array.isArray(o.courseRecords)) {
+    throw new Error('Unexpected student academics response')
+  }
   return data as StudentAcademicsResponse
 }
 
@@ -360,6 +398,8 @@ export type StudentTranscriptPreviewResponse = {
     numericGrade: number | null
     credits: number | null
     source: 'marks' | 'clinic'
+    status?: StudentAcademicCourseStatus
+    feedbackEligible?: boolean
   }>
 }
 

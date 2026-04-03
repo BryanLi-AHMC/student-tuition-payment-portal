@@ -1,12 +1,52 @@
 import type {
+  StudentAcademicCourseRecord,
   StudentAcademicsResponse,
   StudentTranscriptPreviewResponse,
 } from './api'
+
+export type { StudentAcademicCourseRecord }
 
 /** Row shape from either legacy academics transcript or transcript-preview (merged marks + clinic). */
 export type TranscriptRow =
   | StudentAcademicsResponse['transcript'][number]
   | StudentTranscriptPreviewResponse['transcript'][number]
+  | StudentAcademicCourseRecord
+
+/**
+ * Prefer for future Course Feedback: only legacy-completed rows (final outcome, not active/unknown/withdrawn).
+ */
+export function isCompletedForCourseFeedback(
+  row: Pick<StudentAcademicCourseRecord, 'status'>,
+): boolean {
+  return row.status === 'completed'
+}
+
+/** Map normalized `/academics` rows into the same columns Quarter Grades / transcript tables already expect. */
+export function transcriptViewRowsFromCourseRecords(
+  records: StudentAcademicCourseRecord[],
+): Array<{
+  courseCode: string
+  courseTitle: string
+  term: string
+  year: number
+  grade: string | null
+  numericGrade: number | null
+  credits: number | null
+  source?: 'marks' | 'clinic'
+  status?: StudentAcademicCourseRecord['status']
+}> {
+  return records.map((r) => ({
+    courseCode: r.courseCode,
+    courseTitle: r.courseTitle,
+    term: r.term,
+    year: r.year,
+    grade: r.grade,
+    numericGrade: r.numericGrade,
+    credits: r.credits,
+    source: r.source,
+    status: r.status,
+  }))
+}
 
 const MIN_MEANINGFUL_YEAR = 1900
 const MAX_MEANINGFUL_YEAR = 2100
@@ -55,17 +95,15 @@ export function compareTermGroups(
 }
 
 /**
- * Groups transcript rows by term/year using only rows with valid term/year.
- * Canonical term string is the first seen trimmed term for that bucket (stable casing).
+ * Groups rows by term/year (newest first). Shared by transcript, registration history, etc.
  */
-export function groupTranscriptByTermYear(
-  transcript: TranscriptRow[],
-): Array<{ year: number; term: string; rows: TranscriptRow[] }> {
-  type Bucket = { year: number; term: string; rows: TranscriptRow[] }
-  const map = new Map<string, Bucket>()
+export function groupRowsByTermYear<T extends { term: string; year: number }>(
+  rows: T[],
+): Array<{ year: number; term: string; rows: T[] }> {
+  const map = new Map<string, { year: number; term: string; rows: T[] }>()
   const order: string[] = []
 
-  for (const row of transcript) {
+  for (const row of rows) {
     const trimmed = row.term.trim().replace(/\t/g, ' ')
     const year = row.year
     if (!isValidTranscriptTermYear(trimmed, year)) continue
@@ -92,6 +130,16 @@ export function groupTranscriptByTermYear(
   })
 }
 
+/**
+ * Groups transcript rows by term/year using only rows with valid term/year.
+ * Canonical term string is the first seen trimmed term for that bucket (stable casing).
+ */
+export function groupTranscriptByTermYear(
+  transcript: TranscriptRow[],
+): Array<{ year: number; term: string; rows: TranscriptRow[] }> {
+  return groupRowsByTermYear(transcript)
+}
+
 export type TranscriptTermOption = {
   term: string
   year: number
@@ -103,7 +151,7 @@ export type TranscriptTermOption = {
 export function buildTranscriptTermOptions(
   transcript: TranscriptRow[],
 ): TranscriptTermOption[] {
-  return groupTranscriptByTermYear(transcript).map((g) => ({
+  return groupRowsByTermYear(transcript).map((g) => ({
     term: g.term,
     year: g.year,
     label: `${g.term} ${g.year}`,

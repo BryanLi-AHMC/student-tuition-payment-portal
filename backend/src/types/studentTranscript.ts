@@ -1,5 +1,7 @@
 /** GET /api/students/:studentId/transcript-preview — merged `marks` + `clinic`, titles from `courses`. */
 
+import type { StudentAcademicCourseStatus } from "./studentAcademics.js";
+
 export type StudentTranscriptAvailableTerm = {
   term: string;
   year: number;
@@ -15,6 +17,10 @@ export type StudentTranscriptRow = {
   numericGrade: number | null;
   credits: number | null;
   source: "marks" | "clinic";
+  /** Present when rows are built via unified academic course records (same semantics as academics API). */
+  status?: StudentAcademicCourseStatus;
+  /** True only when `status === "completed"`; feedback UI not implemented yet. */
+  feedbackEligible?: boolean;
 };
 
 export type StudentTranscriptPreviewResponse = {
