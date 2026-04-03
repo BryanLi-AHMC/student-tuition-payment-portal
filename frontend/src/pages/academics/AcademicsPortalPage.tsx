@@ -397,12 +397,19 @@ export function AcademicsPortalPage() {
           {transcriptPreview ? (
           <div className="portal-academics-transcript-sheet">
             <header className="portal-academics-transcript-sheet__masthead">
-              <p className="portal-academics-transcript-sheet__school">
-                {SCHOOL_TITLE}
-              </p>
-              <h2 className="portal-academics-transcript-sheet__title">
-                UNOFFICIAL TRANSCRIPT
-              </h2>
+              <div className="portal-academics-transcript-sheet__masthead-inner">
+                <img
+                  className="portal-academics-transcript-sheet__logo"
+                  src="/AMULogo.png"
+                  alt=""
+                />
+                <p className="portal-academics-transcript-sheet__school">
+                  {SCHOOL_TITLE}
+                </p>
+                <h2 className="portal-academics-transcript-sheet__title">
+                  UNOFFICIAL TRANSCRIPT
+                </h2>
+              </div>
             </header>
 
             <dl className="portal-academics-transcript-sheet__meta">
@@ -418,35 +425,7 @@ export function AcademicsPortalPage() {
                 <dt>Date issued</dt>
                 <dd>{issueDate}</dd>
               </div>
-              <div className="portal-academics-transcript-sheet__meta-row">
-                <dt>Date of birth</dt>
-                <dd className="portal-academics-transcript-sheet__omitted">
-                  Not on file in portal
-                </dd>
-              </div>
-              <div className="portal-academics-transcript-sheet__meta-row">
-                <dt>Address</dt>
-                <dd className="portal-academics-transcript-sheet__omitted">
-                  Not on file in portal
-                </dd>
-              </div>
-              <div className="portal-academics-transcript-sheet__meta-row">
-                <dt>Program / major</dt>
-                <dd className="portal-academics-transcript-sheet__omitted">
-                  Not on file in portal
-                </dd>
-              </div>
-              <div className="portal-academics-transcript-sheet__meta-row">
-                <dt>Transfer credits</dt>
-                <dd className="portal-academics-transcript-sheet__omitted">
-                  Not on file in portal
-                </dd>
-              </div>
             </dl>
-
-            <p className="portal-academics-transcript-sheet__disclaimer">
-              This web preview is unofficial and not certified for external use.
-            </p>
 
             {groupedPreview.length === 0 ? (
               <p className="portal-card-note">No transcript rows on file yet.</p>
