@@ -66,6 +66,10 @@ export function AdminStudentCreatePage() {
       return
     }
 
+    if (division !== 'Chinese' && division !== 'English') {
+      return
+    }
+
     const ac = new AbortController()
     setPreviewLoading(true)
     setPreviewError(null)
@@ -111,10 +115,10 @@ export function AdminStudentCreatePage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!formValid || division === '') return
+    if (!formValid) return
+    if (division !== 'Chinese' && division !== 'English') return
 
-    const reqId =
-      requirementsParsed === 'invalid' ? null : requirementsParsed
+    const reqId = requirementsParsed
 
     const body: CreateAdminStudentBody = {
       division,
