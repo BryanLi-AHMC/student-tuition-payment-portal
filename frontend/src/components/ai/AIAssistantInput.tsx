@@ -169,7 +169,7 @@ export function AIAssistantInput({
           ref={inputRef}
           id={id}
           className="portal-ai-assistant-input"
-          rows={2}
+          rows={1}
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
