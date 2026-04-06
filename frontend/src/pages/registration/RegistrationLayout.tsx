@@ -121,7 +121,7 @@ export function RegistrationLayout() {
   const courseBinKey = selectedTermId.trim() !== '' ? selectedTermId.trim() : 'none'
 
   return (
-    <CourseBinProvider key={courseBinKey}>
+    <CourseBinProvider key={courseBinKey} registrationTermId={selectedTermId.trim()}>
       <div className="portal-registration-module">
         <header className="portal-module-header">
           <BackToDashboardLink />

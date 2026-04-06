@@ -107,6 +107,16 @@ export function formatWeekdaysShortFromStored(stored: string | null | undefined)
   return days.map((d) => FULL_TO_SHORT[d]).join(', ')
 }
 
+/**
+ * Inverse of table short display: `Mon, Wed` → comma-separated storage (`Monday,Wednesday`).
+ */
+export function shortWeekdayDisplayToStorage(daysDisplay: string): string {
+  const t = daysDisplay.trim()
+  if (t === '' || t === '—' || /^TBA$/i.test(t)) return ''
+  const parts = t.split(',').map((x) => x.trim()).filter(Boolean)
+  return selectedWeekdaysToStorage(parts)
+}
+
 /** Long labels: `Monday, Wednesday` */
 export function formatWeekdaysLongFromStored(stored: string | null | undefined): string {
   const days = parseStoredWeekdaysToFullNames(stored)

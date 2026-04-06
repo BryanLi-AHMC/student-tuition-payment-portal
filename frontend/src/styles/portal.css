@@ -1242,6 +1242,94 @@ button.portal-tab {
   margin-left: 0.15em;
 }
 
+.portal-offered-section-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.portal-offered-section-modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 26rem;
+  max-height: min(90vh, 36rem);
+  overflow: auto;
+  padding: 1.2rem 1.3rem;
+  border-radius: var(--portal-radius);
+  border: 1px solid var(--portal-border-subtle);
+  background: var(--amu-card);
+  box-shadow: var(--portal-shadow);
+}
+
+.portal-offered-section-modal__title {
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--portal-text);
+}
+
+.portal-offered-section-modal__dl {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.portal-offered-section-modal__dl > div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.35rem 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.portal-offered-section-modal__dl dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--portal-text-muted);
+}
+
+.portal-offered-section-modal__dl dd {
+  margin: 0;
+  color: var(--portal-text);
+  word-break: break-word;
+}
+
+.portal-offered-section-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1.1rem;
+}
+
+.portal-my-timetable__block {
+  pointer-events: none;
+  cursor: default;
+}
+
+.portal-my-timetable-unplaced {
+  margin-top: 1.25rem;
+}
+
+.portal-my-timetable-unplaced__title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--portal-text);
+}
+
+.portal-my-timetable-unplaced__list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--portal-text);
+  line-height: 1.45;
+}
+
 .portal-finances-outlet,
 .portal-registration-outlet,
 .portal-academics-outlet,

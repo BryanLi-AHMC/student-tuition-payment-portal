@@ -88,3 +88,41 @@ export function formatTimeRangeHmsForDisplay(
   if (b === '—') return a
   return `${a} – ${b}`
 }
+
+/**
+ * Parse a single time produced by `formatTimeHmsForDisplay` (e.g. `09:00 AM`) → `HH:MM:SS`.
+ */
+function parseAmPmDisplayToHhMmSs(part: string): string | null {
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(part.trim())
+  if (!m) return null
+  let h = Number(m[1])
+  const minutes = m[2]!
+  const ap = m[3]!.toUpperCase()
+  if (!Number.isFinite(h) || h < 1 || h > 12 || minutes.length !== 2) return null
+  const minNum = Number(minutes)
+  if (!Number.isFinite(minNum) || minNum > 59) return null
+  let h24: number
+  if (ap === 'PM') {
+    h24 = h === 12 ? 12 : h + 12
+  } else {
+    h24 = h === 12 ? 0 : h
+  }
+  return `${String(h24).padStart(2, '0')}:${minutes}:00`
+}
+
+/**
+ * Inverse of `formatTimeRangeHmsForDisplay` for strings like `09:00 AM – 10:30 AM`
+ * (en dash or hyphen between parts).
+ */
+export function parseDisplayTimeRangeToHhMmSs(
+  display: string,
+): { start: string; end: string } | null {
+  const t = display.trim()
+  if (t === '' || t === '—' || /^TBA$/i.test(t)) return null
+  const parts = t.split(/\s*[–-]\s+/).map((x) => x.trim()).filter(Boolean)
+  if (parts.length !== 2) return null
+  const a = parseAmPmDisplayToHhMmSs(parts[0]!)
+  const b = parseAmPmDisplayToHhMmSs(parts[1]!)
+  if (!a || !b) return null
+  return { start: a, end: b }
+}

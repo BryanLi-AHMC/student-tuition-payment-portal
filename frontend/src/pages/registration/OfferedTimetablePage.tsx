@@ -8,19 +8,19 @@ import { formatDeliveryModeForDisplay } from '../../lib/deliveryMode'
 import { formatTimeHmsForDisplay, formatTimeRangeHmsForDisplay } from '../../lib/formatScheduleTime'
 import {
   buildTimetablePlacedBlocksByDay,
+  STUDENT_REGISTRATION_TIMETABLE_GRID,
   TIMETABLE_ROW_HEIGHT_PX,
   timetableBodyHeightPx,
-  type TimetableGridOptions,
 } from '../../lib/timetableBlockLayout'
 import {
+  formatWeekdaysLongFromStored,
   formatWeekdaysShortFromStored,
   type WeekdayFull,
 } from '../../lib/weekdaySchedule'
 import { useCourseBin, type CourseBinItem } from './CourseBinContext'
 import { useRegistrationTermSearchParam } from './registrationTermSearch'
 
-/** Student view: weekdays only, 08:00–18:59 visible (rows 8–18). */
-const OFFERED_GRID: TimetableGridOptions = { startHour: 8, endHour: 18 }
+const OFFERED_GRID = STUDENT_REGISTRATION_TIMETABLE_GRID
 
 const DAY_HEADERS: { full: WeekdayFull; label: string }[] = [
   { full: 'Monday', label: 'Monday' },
@@ -86,6 +86,9 @@ function adminSectionToCourseBinItem(
     days: daysRaw === '—' ? 'TBA' : daysRaw,
     instructor: instRaw === '' ? 'TBA' : instRaw,
     location: locRaw === '' ? 'TBA' : locRaw,
+    schedule_weekday: sec.weekday?.trim() ? sec.weekday.trim() : null,
+    schedule_start_time: sec.start_time,
+    schedule_end_time: sec.end_time,
   }
 }
 
@@ -100,7 +103,8 @@ function isSectionInBin(items: CourseBinItem[], sec: AdminCourseSection): boolea
 
 export function OfferedTimetablePage() {
   const registrationTermId = useRegistrationTermSearchParam()
-  const { items: binItems, addToCourseBin } = useCourseBin()
+  const { items: binItems, addToCourseBin, removeFromCourseBin } = useCourseBin()
+  const [detailSection, setDetailSection] = useState<AdminCourseSection | null>(null)
   const [sections, setSections] = useState<AdminCourseSection[] | null>(null)
   const [catalog, setCatalog] = useState<CatalogCourse[]>([])
   const [loading, setLoading] = useState(false)
@@ -202,19 +206,41 @@ export function OfferedTimetablePage() {
 
   const bodyHeightPx = timetableBodyHeightPx(OFFERED_GRID)
 
-  const handleAddSection = useCallback(
-    (sec: AdminCourseSection) => {
-      if (isSectionInBin(binItems, sec)) {
-        return
-      }
-      const cat = catalogByCode.get(cellText(sec.course_code).toUpperCase())
-      addToCourseBin(adminSectionToCourseBinItem(sec, cat))
-      showToast('Added to CourseBin')
-    },
-    [addToCourseBin, binItems, catalogByCode, showToast],
-  )
+  const handleConfirmAddFromModal = useCallback(() => {
+    if (detailSection == null) return
+    if (isSectionInBin(binItems, detailSection)) return
+    const cat = catalogByCode.get(cellText(detailSection.course_code).toUpperCase())
+    addToCourseBin(adminSectionToCourseBinItem(detailSection, cat))
+    showToast('Added to CourseBin')
+    setDetailSection(null)
+  }, [addToCourseBin, binItems, catalogByCode, detailSection, showToast])
+
+  const handleConfirmRemoveFromModal = useCallback(() => {
+    if (detailSection == null) return
+    removeFromCourseBin(detailSection.course_code, detailSection.section_code)
+    showToast('Removed from CourseBin')
+    setDetailSection(null)
+  }, [detailSection, removeFromCourseBin, showToast])
+
+  useEffect(() => {
+    if (detailSection == null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDetailSection(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [detailSection])
 
   const termMissing = registrationTermId == null || registrationTermId.trim() === ''
+
+  const detailCatalog = detailSection
+    ? catalogByCode.get(cellText(detailSection.course_code).toUpperCase())
+    : undefined
+  const detailEngTitle = detailCatalog
+    ? cellText(detailCatalog.eng_name)
+    : ''
+  const detailInBin =
+    detailSection != null && isSectionInBin(binItems, detailSection)
 
   return (
     <main
@@ -232,9 +258,9 @@ export function OfferedTimetablePage() {
           Offered Timetable
         </h2>
         <p className="portal-text-muted" style={{ marginTop: 0 }}>
-          Registrar-scheduled sections for the selected term (Monday–Friday, 8:00 a.m.–6:00 p.m.).
-          Click a block to add that section to your CourseBin. Sections outside this window or without
-          valid meeting times are hidden.
+          Registrar-scheduled sections for the selected term (Monday–Friday, 8:00 a.m.–9:00 p.m.).
+          Click a block to view details, then add or remove the section from your CourseBin. Sections
+          outside this window or without valid meeting times are hidden.
         </p>
 
         {termMissing && (
@@ -317,11 +343,11 @@ export function OfferedTimetablePage() {
                               left: `calc(${colW * b.colIndex}% + ${insetPx}px)`,
                               width: `calc(${colW}% - ${insetPx * 2}px)`,
                             }}
-                            onClick={() => handleAddSection(b.section)}
+                            onClick={() => setDetailSection(b.section)}
                             aria-label={
                               inBin
-                                ? `${b.section.course_code} section ${b.section.section_code}, already in CourseBin`
-                                : `Add ${b.section.course_code} section ${b.section.section_code} to CourseBin`
+                                ? `${b.section.course_code} section ${b.section.section_code}, in CourseBin — open details`
+                                : `View details for ${b.section.course_code} section ${b.section.section_code}`
                             }
                           >
                             <span className="admin-timetable-v2__block-title">
@@ -348,6 +374,95 @@ export function OfferedTimetablePage() {
           </div>
         )}
       </section>
+
+      {detailSection != null && (
+        <div
+          className="portal-offered-section-modal-backdrop"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setDetailSection(null)
+          }}
+        >
+          <div
+            className="portal-offered-section-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="offered-section-detail-title"
+          >
+            <h2 id="offered-section-detail-title" className="portal-offered-section-modal__title">
+              {detailSection.course_code} · {detailSection.section_code}
+            </h2>
+            <dl className="portal-offered-section-modal__dl">
+              <div>
+                <dt>Course code</dt>
+                <dd>{detailSection.course_code}</dd>
+              </div>
+              {detailEngTitle !== '' ? (
+                <div>
+                  <dt>Title (English)</dt>
+                  <dd>{detailEngTitle}</dd>
+                </div>
+              ) : null}
+              <div>
+                <dt>Section</dt>
+                <dd>{detailSection.section_code}</dd>
+              </div>
+              <div>
+                <dt>Weekdays</dt>
+                <dd>{formatWeekdaysLongFromStored(detailSection.weekday)}</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>
+                  {formatTimeRangeHmsForDisplay(detailSection.start_time, detailSection.end_time)}
+                </dd>
+              </div>
+              <div>
+                <dt>Delivery mode</dt>
+                <dd>{formatDeliveryModeForDisplay(detailSection.delivery_mode)}</dd>
+              </div>
+              <div>
+                <dt>Room</dt>
+                <dd>{detailSection.room?.trim() ? detailSection.room : '—'}</dd>
+              </div>
+              <div>
+                <dt>Instructor</dt>
+                <dd>{detailSection.instructor?.trim() ? detailSection.instructor : '—'}</dd>
+              </div>
+              <div>
+                <dt>Notes</dt>
+                <dd>{detailSection.notes?.trim() ? detailSection.notes : '—'}</dd>
+              </div>
+            </dl>
+            <div className="portal-offered-section-modal__actions">
+              {detailInBin ? (
+                <button
+                  type="button"
+                  className="portal-btn portal-btn--secondary portal-btn--compact"
+                  onClick={handleConfirmRemoveFromModal}
+                >
+                  Remove from CourseBin
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="portal-btn portal-btn--primary portal-btn--compact"
+                  onClick={handleConfirmAddFromModal}
+                >
+                  Add to CourseBin
+                </button>
+              )}
+              <button
+                type="button"
+                className="portal-btn portal-btn--compact"
+                onClick={() => setDetailSection(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

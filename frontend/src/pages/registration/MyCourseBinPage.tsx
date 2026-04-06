@@ -28,7 +28,8 @@ export function MyCourseBinPage() {
               My CourseBin
             </h2>
             <p className="portal-page-lede portal-course-bin-lede">
-              Sections you add from Course Search appear here before registration is finalized.
+              Sections you add from Course Search or the Offered Timetable appear here before
+              registration is finalized.
             </p>
           </div>
           <div className="portal-course-bin-card-header-actions">

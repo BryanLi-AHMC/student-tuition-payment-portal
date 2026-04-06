@@ -21,6 +21,12 @@ export type TimetableGridOptions = {
   endHour?: number
 }
 
+/** Student Offered / My Timetable grid — matches admin scheduling window. */
+export const STUDENT_REGISTRATION_TIMETABLE_GRID: TimetableGridOptions = {
+  startHour: TIMETABLE_START_HOUR,
+  endHour: TIMETABLE_END_HOUR,
+}
+
 function resolveGridHours(opts?: TimetableGridOptions): {
   startHour: number
   endHour: number
