@@ -6180,6 +6180,212 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   color: var(--portal-text-muted);
 }
 
+/* Continuous-block timetable (admin scheduling) */
+.admin-timetable-v2 {
+  --admin-tt-slot: 52px;
+  display: flex;
+  flex-direction: column;
+  min-width: 640px;
+  font-size: 0.75rem;
+}
+
+.admin-timetable-v2__head {
+  display: grid;
+  grid-template-columns: 5.5rem repeat(7, minmax(0, 1fr));
+  border-bottom: 1px solid var(--portal-border-subtle);
+  background: var(--page-gray);
+}
+
+.admin-timetable-v2__corner {
+  border-right: 1px solid var(--portal-border-subtle);
+}
+
+.admin-timetable-v2__day-head {
+  padding: 0.4rem 0.35rem;
+  font-weight: 600;
+  text-align: center;
+  border-left: 1px solid var(--portal-border-subtle);
+}
+
+.admin-timetable-v2__main {
+  display: grid;
+  grid-template-columns: 5.5rem repeat(7, minmax(0, 1fr));
+}
+
+.admin-timetable-v2__times {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid var(--portal-border-subtle);
+  background: var(--page-gray);
+}
+
+.admin-timetable-v2__time-cell {
+  box-sizing: border-box;
+  height: var(--admin-tt-slot);
+  padding: 0.2rem 0.45rem 0;
+  font-weight: 600;
+  color: var(--text-dark);
+  border-top: 1px solid var(--portal-border-subtle);
+}
+
+.admin-timetable-v2__time-cell:first-child {
+  border-top: none;
+}
+
+.admin-timetable-v2__day-col {
+  border-left: 1px solid var(--portal-border-subtle);
+  background: var(--amu-card);
+}
+
+.admin-timetable-v2__day-track {
+  position: relative;
+  box-sizing: border-box;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--portal-border-subtle) 0 1px,
+    transparent 1px var(--admin-tt-slot)
+  );
+}
+
+.admin-timetable-v2__block {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.25rem 0.3rem;
+  border: 1px solid rgba(139, 0, 0, 0.22);
+  border-radius: 6px;
+  background: rgba(139, 0, 0, 0.07);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-height: 0;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  line-height: 1.25;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.admin-timetable-v2__block:hover {
+  background: rgba(139, 0, 0, 0.11);
+  border-color: rgba(139, 0, 0, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.admin-timetable-v2__block:focus-visible {
+  outline: 2px solid var(--amu-red);
+  outline-offset: 1px;
+  z-index: 2;
+}
+
+.admin-timetable-v2__block-title {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.admin-timetable-v2__block-meta {
+  font-size: 0.65rem;
+  color: var(--portal-text-muted);
+}
+
+/* 12-hour time row in course section form */
+.admin-time12h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-time12h__sep {
+  font-weight: 600;
+  color: var(--portal-text-muted);
+  user-select: none;
+}
+
+.admin-time12h__select {
+  width: auto;
+  min-width: 3.25rem;
+}
+
+.admin-time12h__select--ap {
+  min-width: 4.25rem;
+}
+
+/* Section detail (timetable click) */
+.admin-section-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.admin-section-detail-modal {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 26rem;
+  max-height: min(90vh, 34rem);
+  overflow: auto;
+  padding: 1.2rem 1.3rem;
+  border-radius: var(--portal-radius);
+  border: 1px solid var(--portal-border-subtle);
+  background: var(--amu-card);
+  box-shadow: var(--portal-shadow);
+}
+
+.admin-section-detail-modal__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--portal-text);
+}
+
+.admin-section-detail-modal__meta {
+  margin: 0 0 0.85rem;
+  font-size: 0.8125rem;
+  color: var(--portal-text-muted);
+  line-height: 1.4;
+}
+
+.admin-section-detail-modal__dl {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.admin-section-detail-modal__dl > div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.35rem 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.admin-section-detail-modal__dl dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--portal-text-muted);
+}
+
+.admin-section-detail-modal__dl dd {
+  margin: 0;
+  color: var(--portal-text);
+  word-break: break-word;
+}
+
+.admin-section-detail-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1.1rem;
+}
+
 .admin-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

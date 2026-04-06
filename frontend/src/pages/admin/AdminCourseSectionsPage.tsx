@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AdminTime12hFields } from '../../components/admin/AdminTime12hFields'
 import {
   createAdminCourseSection,
   deleteAdminCourseSection,
@@ -11,6 +12,11 @@ import {
   type AdminCourseSection,
   type CourseCatalogItem,
 } from '../../lib/api'
+import {
+  canonicalDeliveryMode,
+  DELIVERY_MODE_OPTIONS,
+  formatDeliveryModeForDisplay,
+} from '../../lib/deliveryMode'
 import {
   formatTimeHmsForDisplay,
   inputTimeToApi,
@@ -179,7 +185,9 @@ export function AdminCourseSectionsPage() {
       weekdays: parsed.length > 0 ? parsed : ['Monday'],
       start_time: timeToInputValue(row.start_time),
       end_time: timeToInputValue(row.end_time),
-      delivery_mode: row.delivery_mode ?? '',
+      delivery_mode:
+        canonicalDeliveryMode(row.delivery_mode) ??
+        (row.delivery_mode ?? '').trim(),
       room: row.room ?? '',
       instructor: row.instructor ?? '',
       notes: row.notes ?? '',
@@ -427,7 +435,7 @@ export function AdminCourseSectionsPage() {
                   <td>{formatWeekdaysShortFromStored(row.weekday)}</td>
                   <td>{formatTimeHmsForDisplay(row.start_time)}</td>
                   <td>{formatTimeHmsForDisplay(row.end_time)}</td>
-                  <td>{displayCell(row.delivery_mode)}</td>
+                  <td>{formatDeliveryModeForDisplay(row.delivery_mode)}</td>
                   <td>{displayCell(row.room)}</td>
                   <td>{displayCell(row.instructor)}</td>
                   <td>{displayCell(row.notes)}</td>
@@ -512,38 +520,44 @@ export function AdminCourseSectionsPage() {
               ))}
             </div>
           </fieldset>
-          <label className="admin-field">
-            <span className="admin-field__label">Start time</span>
-            <input
-              type="time"
-              className="admin-input"
-              value={form.start_time}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, start_time: e.target.value }))
-              }
-            />
-          </label>
-          <label className="admin-field">
-            <span className="admin-field__label">End time</span>
-            <input
-              type="time"
-              className="admin-input"
-              value={form.end_time}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, end_time: e.target.value }))
-              }
-            />
-          </label>
+          <AdminTime12hFields
+            idPrefix="section-start"
+            label="Start time"
+            value={form.start_time}
+            onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
+            disabled={busy}
+          />
+          <AdminTime12hFields
+            idPrefix="section-end"
+            label="End time"
+            value={form.end_time}
+            onChange={(v) => setForm((f) => ({ ...f, end_time: v }))}
+            disabled={busy}
+          />
           <label className="admin-field">
             <span className="admin-field__label">Delivery mode</span>
-            <input
+            <select
               className="admin-input"
-              placeholder="e.g. In Person, Hybrid, Online"
-              value={form.delivery_mode}
+              value={form.delivery_mode.trim()}
               onChange={(e) =>
                 setForm((f) => ({ ...f, delivery_mode: e.target.value }))
               }
-            />
+              disabled={busy}
+              aria-label="Delivery mode"
+            >
+              <option value="">Not selected</option>
+              {DELIVERY_MODE_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+              {form.delivery_mode.trim() !== '' &&
+                canonicalDeliveryMode(form.delivery_mode) == null && (
+                  <option value={form.delivery_mode.trim()}>
+                    {form.delivery_mode.trim()} (legacy)
+                  </option>
+                )}
+            </select>
           </label>
           <label className="admin-field">
             <span className="admin-field__label">Room</span>

@@ -107,6 +107,13 @@ export function formatWeekdaysShortFromStored(stored: string | null | undefined)
   return days.map((d) => FULL_TO_SHORT[d]).join(', ')
 }
 
+/** Long labels: `Monday, Wednesday` */
+export function formatWeekdaysLongFromStored(stored: string | null | undefined): string {
+  const days = parseStoredWeekdaysToFullNames(stored)
+  if (days.length === 0) return '—'
+  return days.join(', ')
+}
+
 /** Timetable column index 0 = Monday … 6 = Sunday */
 export function weekdayFullToGridIndex(day: WeekdayFull): number {
   return ORDER_INDEX[day]

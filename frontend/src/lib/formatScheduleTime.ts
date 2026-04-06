@@ -1,7 +1,45 @@
 /**
  * Display helpers for schedule times stored as `HH:MM:SS` (or `HH:MM`) from the API.
- * Form inputs continue to use `<input type="time" />` (24h) and `timeToInputValue` / `inputTimeToApi`.
+ * Admin forms use 12-hour dropdowns; bridge via `timeToInputValue` / `twelveHourPartsToHhMm` / `inputTimeToApi`.
  */
+
+export type Time12hParts = {
+  hour12: number
+  minute: number
+  isPm: boolean
+}
+
+/** Parse API `HH:MM(:SS)` → 12h parts; invalid / empty → null */
+export function parseHmsTo12hParts(
+  t: string | null | undefined,
+): Time12hParts | null {
+  if (t == null || String(t).trim() === '') return null
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?/.exec(String(t).trim())
+  if (!m) return null
+  let h = Number(m[1])
+  const minute = Number(m[2])
+  if (!Number.isFinite(h) || !Number.isFinite(minute) || h > 23 || minute > 59) {
+    return null
+  }
+  const isPm = h >= 12
+  const hour12 = h % 12 === 0 ? 12 : h % 12
+  return { hour12, minute, isPm }
+}
+
+/**
+ * 12h dropdowns → `HH:MM` (24h), suitable for merging with `inputTimeToApi`.
+ * `hour12` 1–12, `minute` 0–59.
+ */
+export function twelveHourPartsToHhMm(parts: Time12hParts): string {
+  const { hour12, minute, isPm } = parts
+  let h24: number
+  if (isPm) {
+    h24 = hour12 === 12 ? 12 : hour12 + 12
+  } else {
+    h24 = hour12 === 12 ? 0 : hour12
+  }
+  return `${String(h24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
 
 /** `TIME` from API → `HH:MM` for `<input type="time" />` */
 export function timeToInputValue(t: string | null | undefined): string {

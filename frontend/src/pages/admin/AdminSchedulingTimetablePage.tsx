@@ -1,48 +1,25 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
+import { AdminCourseSectionDetailModal } from '../../components/admin/AdminCourseSectionDetailModal'
 import {
   fetchAcademicTerms,
   fetchAdminCourseSections,
   type AcademicTerm,
   type AdminCourseSection,
 } from '../../lib/api'
+import { formatDeliveryModeForDisplay } from '../../lib/deliveryMode'
 import { formatTimeHmsForDisplay } from '../../lib/formatScheduleTime'
 import {
-  parseStoredWeekdaysToFullNames,
-  weekdayFullToGridIndex,
-  type WeekdayFull,
-} from '../../lib/weekdaySchedule'
-
-/** Row = hour block [H, H+1) in 24h local interpretation of stored TIME. */
-const TIMETABLE_START_HOUR = 8
-const TIMETABLE_END_HOUR = 21
+  buildTimetablePlacedBlocksByDay,
+  TIMETABLE_END_HOUR,
+  TIMETABLE_ROW_HEIGHT_PX,
+  TIMETABLE_START_HOUR,
+  timetableBodyHeightPx,
+} from '../../lib/timetableBlockLayout'
+import { type WeekdayFull } from '../../lib/weekdaySchedule'
 
 function hourRowLabel(hour: number): string {
   return formatTimeHmsForDisplay(`${hour}:00:00`)
-}
-
-function timeToMinutes(t: string | null | undefined): number | null {
-  if (t == null || String(t).trim() === '') return null
-  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?/.exec(String(t).trim())
-  if (!m) return null
-  const h = Number(m[1])
-  const min = Number(m[2])
-  if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) {
-    return null
-  }
-  return h * 60 + min
-}
-
-function sectionOverlapsHourSlot(
-  section: AdminCourseSection,
-  slotStartMin: number,
-  slotEndMin: number,
-): boolean {
-  const start = timeToMinutes(section.start_time)
-  const end = timeToMinutes(section.end_time)
-  if (start == null || end == null) return false
-  if (end <= start) return false
-  return start < slotEndMin && end > slotStartMin
 }
 
 const DAY_HEADERS: { full: WeekdayFull; label: string }[] = [
@@ -61,6 +38,10 @@ export function AdminSchedulingTimetablePage() {
   const [sections, setSections] = useState<AdminCourseSection[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [detail, setDetail] = useState<{
+    section: AdminCourseSection
+    dayLabel: string
+  } | null>(null)
 
   useEffect(() => {
     const ac = new AbortController()
@@ -114,6 +95,15 @@ export function AdminSchedulingTimetablePage() {
     return () => ac.abort()
   }, [academicTermId])
 
+  useEffect(() => {
+    if (detail == null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDetail(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [detail])
+
   const hourRows = useMemo(
     () =>
       Array.from(
@@ -123,27 +113,15 @@ export function AdminSchedulingTimetablePage() {
     [],
   )
 
-  const cells = useMemo(() => {
-    const byHourAndDay: AdminCourseSection[][][] = hourRows.map(() =>
-      Array.from({ length: 7 }, () => [] as AdminCourseSection[]),
-    )
-    const list = sections ?? []
-    for (const rowH of hourRows) {
-      const slotStart = rowH * 60
-      const slotEnd = (rowH + 1) * 60
-      const ri = rowH - TIMETABLE_START_HOUR
-      for (const sec of list) {
-        if (!sectionOverlapsHourSlot(sec, slotStart, slotEnd)) continue
-        const days = parseStoredWeekdaysToFullNames(sec.weekday)
-        for (const d of days) {
-          const di = weekdayFullToGridIndex(d)
-          const cell = byHourAndDay[ri]![di]!
-          if (!cell.some((x) => x.id === sec.id)) cell.push(sec)
-        }
-      }
-    }
-    return byHourAndDay
-  }, [sections, hourRows])
+  const placedByDay = useMemo(
+    () => buildTimetablePlacedBlocksByDay(sections ?? []),
+    [sections],
+  )
+
+  const bodyHeightPx = timetableBodyHeightPx()
+
+  const termCatalogLabel =
+    terms?.find((t) => t.id === academicTermId)?.term_label ?? null
 
   return (
     <main className="admin-page">
@@ -182,9 +160,10 @@ export function AdminSchedulingTimetablePage() {
       </div>
 
       <p className="portal-text-muted admin-form-hint" style={{ marginTop: 0 }}>
-        Read-only view of all sections for the selected term. Each row is a
-        one-hour block; sections spanning multiple hours appear in each row they
-        overlap. Times without a valid start/end are omitted from the grid.
+        Read-only week view: each section is one continuous block by start/end
+        time (sub-hour alignment). Click a block for full details. Sections
+        without valid times or outside {hourRowLabel(TIMETABLE_START_HOUR)}–
+        {hourRowLabel(TIMETABLE_END_HOUR + 1)} are omitted.
       </p>
 
       {error != null && (
@@ -196,61 +175,81 @@ export function AdminSchedulingTimetablePage() {
       {loading && <p className="portal-text-muted">Loading timetable…</p>}
 
       <div className="admin-timetable-wrap">
-        <table className="admin-timetable">
-          <thead>
-            <tr>
-              <th scope="col" className="admin-timetable__time">
-                Time
-              </th>
-              {DAY_HEADERS.map((d) => (
-                <th key={d.full} scope="col">
-                  {d.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {hourRows.map((h, ri) => (
-              <tr key={h}>
-                <th scope="row" className="admin-timetable__time">
-                  {hourRowLabel(h)}
-                </th>
-                {DAY_HEADERS.map((d, di) => {
-                  const blocks = cells[ri]![di]!
-                  return (
-                    <td key={d.full} className="admin-timetable__cell">
-                      <div className="admin-timetable__blocks">
-                        {blocks.map((sec) => (
-                          <div
-                            key={`${sec.id}-${h}-${d.full}`}
-                            className="admin-timetable__block"
-                          >
-                            <div className="admin-timetable__block-title">
-                              {sec.course_code} {sec.section_code}
-                            </div>
-                            <div className="admin-timetable__block-meta">
-                              {formatTimeHmsForDisplay(sec.start_time)} –{' '}
-                              {formatTimeHmsForDisplay(sec.end_time)}
-                            </div>
-                            <div className="admin-timetable__block-meta">
-                              {sec.room?.trim() ? sec.room : '—'}
-                            </div>
-                            <div className="admin-timetable__block-meta">
-                              {sec.instructor?.trim()
-                                ? sec.instructor
-                                : '—'}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                  )
-                })}
-              </tr>
+        <div
+          className="admin-timetable-v2"
+          style={
+            {
+              '--admin-tt-slot': `${TIMETABLE_ROW_HEIGHT_PX}px`,
+            } as CSSProperties
+          }
+        >
+          <div className="admin-timetable-v2__head">
+            <div className="admin-timetable-v2__corner" aria-hidden />
+            {DAY_HEADERS.map((d) => (
+              <div key={d.full} className="admin-timetable-v2__day-head">
+                {d.label}
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+          <div className="admin-timetable-v2__main">
+            <div
+              className="admin-timetable-v2__times"
+              style={{ height: bodyHeightPx }}
+            >
+              {hourRows.map((h) => (
+                <div key={h} className="admin-timetable-v2__time-cell">
+                  {hourRowLabel(h)}
+                </div>
+              ))}
+            </div>
+            {DAY_HEADERS.map((d, di) => (
+              <div key={d.full} className="admin-timetable-v2__day-col">
+                <div
+                  className="admin-timetable-v2__day-track"
+                  style={{ height: bodyHeightPx }}
+                >
+                  {placedByDay[di]!.map((b) => (
+                    <button
+                      key={`${b.section.id}-${d.full}-${b.startMin}-${b.colIndex}`}
+                      type="button"
+                      className="admin-timetable-v2__block"
+                      style={{
+                        top: b.topPx,
+                        height: b.heightPx,
+                        left: `${(100 / b.colCount) * b.colIndex}%`,
+                        width: `${100 / b.colCount}%`,
+                      }}
+                      onClick={() =>
+                        setDetail({ section: b.section, dayLabel: d.label })
+                      }
+                    >
+                      <span className="admin-timetable-v2__block-title">
+                        {b.section.course_code} {b.section.section_code}
+                      </span>
+                      <span className="admin-timetable-v2__block-meta">
+                        {formatTimeHmsForDisplay(b.section.start_time)} –{' '}
+                        {formatTimeHmsForDisplay(b.section.end_time)}
+                      </span>
+                      <span className="admin-timetable-v2__block-meta">
+                        {formatDeliveryModeForDisplay(b.section.delivery_mode)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {detail != null && (
+        <AdminCourseSectionDetailModal
+          section={detail.section}
+          dayColumnLabel={detail.dayLabel}
+          termCatalogLabel={termCatalogLabel}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </main>
   )
 }
