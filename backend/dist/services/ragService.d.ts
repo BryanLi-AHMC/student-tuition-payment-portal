@@ -10,11 +10,20 @@ export type RagAnswerResult = {
     answer: string;
     sources: RetrievedChunk[];
 };
+export type ChatHistoryItem = {
+    role: "user" | "assistant";
+    content: string;
+};
 export declare class RagQuestionValidationError extends Error {
     constructor(message: string);
 }
 /**
- * End-to-end AMU catalog RAG: intent routing, optional retrieval, grounded chat completion.
+ * Normalize optional client-supplied history: drop invalid entries, trim, cap length and count.
  */
-export declare function answerAmuQuestion(question: string): Promise<RagAnswerResult>;
+export declare function sanitizeChatHistory(raw: unknown): ChatHistoryItem[] | undefined;
+/**
+ * End-to-end AMU catalog RAG: intent routing, optional retrieval, grounded chat completion.
+ * @param rawHistory - Optional recent turns; sanitized (capped, invalid entries dropped).
+ */
+export declare function answerAmuQuestion(question: string, rawHistory?: unknown): Promise<RagAnswerResult>;
 //# sourceMappingURL=ragService.d.ts.map

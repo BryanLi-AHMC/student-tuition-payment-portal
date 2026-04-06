@@ -7,6 +7,9 @@ import {
 
 const TOP_K = 5;
 const MAX_QUESTION_CHARS = 2000;
+const MAX_HISTORY_MESSAGES = 4;
+const MAX_HISTORY_CONTENT_CHARS = 500;
+const MAX_REWRITE_OUTPUT_CHARS = 320;
 
 type RagIntent = "direct" | "strict" | "guidance";
 
@@ -25,7 +28,8 @@ You may provide cautious, general planning guidance when the excerpts support it
 Do NOT invent official semester-by-semester schedules, deadlines, or requirements unless they are explicitly stated in the excerpts.
 Clearly separate what the excerpts state as facts from general suggestions when the excerpts are incomplete for the student's situation.
 When stating facts, tie them to the source labels in the excerpts.
-If the question asks for planning or sequencing advice, give a conservative summary and include a brief reminder that the student should confirm final course selection with the AMU registrar or their academic advisor.`;
+If the question asks for planning or sequencing advice, give a conservative summary and include a brief reminder that the student should confirm final course selection with the AMU registrar or their academic advisor.
+If the excerpts do not clearly support a direct answer, do NOT end with only a short refusal like "I could not find a clear answer." Instead give an honest, helpful bounded reply: say the excerpts do not state enough explicitly, briefly list related catalog topics you can still discuss if they appear in the excerpts (e.g. tuition payment rules, installments, refunds, program structure), and remind the student to confirm with the AMU registrar or advisor. Stay grounded—do not invent financial aid or policies not in the excerpts.`;
 
 export type RetrievedChunk = {
   id: string;
@@ -39,6 +43,11 @@ export type RagAnswerResult = {
   question: string;
   answer: string;
   sources: RetrievedChunk[];
+};
+
+export type ChatHistoryItem = {
+  role: "user" | "assistant";
+  content: string;
 };
 
 export class RagQuestionValidationError extends Error {
@@ -67,6 +76,150 @@ function validateQuestion(raw: string): string {
     );
   }
   return trimmed;
+}
+
+/**
+ * Normalize optional client-supplied history: drop invalid entries, trim, cap length and count.
+ */
+export function sanitizeChatHistory(raw: unknown): ChatHistoryItem[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) return undefined;
+  const out: ChatHistoryItem[] = [];
+  for (const item of raw) {
+    if (item == null || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const role = rec.role;
+    const content = rec.content;
+    if (role !== "user" && role !== "assistant") continue;
+    if (typeof content !== "string") continue;
+    const trimmed = content.trim();
+    if (trimmed.length === 0) continue;
+    const capped =
+      trimmed.length > MAX_HISTORY_CONTENT_CHARS
+        ? trimmed.slice(0, MAX_HISTORY_CONTENT_CHARS)
+        : trimmed;
+    out.push({ role, content: capped });
+  }
+  if (out.length === 0) return undefined;
+  return out.length > MAX_HISTORY_MESSAGES
+    ? out.slice(-MAX_HISTORY_MESSAGES)
+    : out;
+}
+
+function formatRecentConversationBlock(history: ChatHistoryItem[]): string {
+  const lines = history.map((h) => {
+    const who = h.role === "user" ? "User" : "Assistant";
+    return `- ${who}: ${h.content}`;
+  });
+  return `Recent conversation context (for resolving follow-ups only; not a factual source):\n${lines.join("\n")}`;
+}
+
+/** True when the latest question looks like a follow-up or vague reference (with history present). */
+function followUpOrVagueCue(trimmed: string, lower: string): boolean {
+  if (/\b(that|this|those|these|it|them)\b/i.test(lower)) return true;
+  if (
+    /what\s+about|how\s+about|how\s+should\s+i\s+do|how\s+do\s+i\s+do\s+that/i.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /那|这|它|怎么办|那我|学费呢|第一学期呢|如果我家|怎么支付|如何支付|该怎么做|那如果/.test(
+      trimmed,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function shouldRewriteForRetrieval(
+  question: string,
+  history: ChatHistoryItem[],
+): boolean {
+  if (history.length === 0) return false;
+  const trimmed = question.trim();
+  const lower = trimmed.toLowerCase();
+  if (isDefinitionalPolicyQuestion(lower)) return false;
+
+  if (trimmed.length >= 140 && !followUpOrVagueCue(trimmed, lower)) return false;
+
+  if (trimmed.length <= 48) return true;
+  if (followUpOrVagueCue(trimmed, lower)) return true;
+  if (trimmed.length < 75 && /[?？]/.test(trimmed)) return true;
+  if (
+    /穷|困难|付.{0,6}费|支付|学费|tuition|payment|afford|installment|分期|退款|退费|滞纳/i.test(
+      trimmed + lower,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+async function rewriteQuestionForRetrieval(
+  client: OpenAI,
+  question: string,
+  history: ChatHistoryItem[] | undefined,
+): Promise<string> {
+  const h = history ?? [];
+  if (!shouldRewriteForRetrieval(question, h)) return question;
+
+  const histText = h
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+    .join("\n");
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You rewrite the user's latest message into ONE concise standalone search query for a university catalog (AMU).
+Use the recent conversation only to resolve pronouns and implicit topics.
+Output ONLY the query text, no quotes or labels, no explanation.
+Do not invent facts, policies, dates, or program details not implied by the conversation.
+Maximum ${MAX_REWRITE_OUTPUT_CHARS} characters.`,
+        },
+        {
+          role: "user",
+          content: `Recent conversation:\n${histText}\n\nCurrent user message:\n${question}\n\nRetrieval query:`,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 200,
+    });
+
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    const oneLine = raw.replace(/\s+/g, " ").trim();
+    if (oneLine.length === 0) return question;
+    return oneLine.length > MAX_REWRITE_OUTPUT_CHARS
+      ? oneLine.slice(0, MAX_REWRITE_OUTPUT_CHARS)
+      : oneLine;
+  } catch {
+    return question;
+  }
+}
+
+const GUIDANCE_FALLBACK_EN =
+  "I could not find a clear, explicit answer in the AMU catalog excerpts provided. Based on the available catalog context, I can help explain related topics such as tuition payment rules, installment options, refund policy, or program structure, but you should confirm final academic or payment decisions with AMU registrar/advisor.";
+
+const GUIDANCE_FALLBACK_ZH =
+  "我无法在当前提供的 AMU 目录摘录中找到明确、直接的答案。根据现有目录内容，我可以继续帮助你解释相关主题，例如学费支付规则、分期付款、退费政策或课程结构；但最终的选课、缴费或学术决定，仍建议你向 AMU registrar/advisor 确认。";
+
+function looksLikeStrictCatalogRefusal(answer: string): boolean {
+  if (/could not find a clear answer in the amu catalog excerpts/i.test(answer)) {
+    return true;
+  }
+  if (/无法在[^。]*目录摘录[^。]*找到[^。]*答案/.test(answer)) return true;
+  if (/未在[^。]*提供的[^。]*摘录[^。]*找到/.test(answer)) return true;
+  return false;
+}
+
+function applyGuidanceFallbackIfNeeded(answer: string, question: string): string {
+  if (!looksLikeStrictCatalogRefusal(answer)) return answer;
+  return isMostlyChinese(question) ? GUIDANCE_FALLBACK_ZH : GUIDANCE_FALLBACK_EN;
 }
 
 /** Heuristic: treat as Chinese when CJK clearly dominates the visible text. */
@@ -125,6 +278,16 @@ function hasSubstantiveCatalogCue(trimmed: string, lower: string): boolean {
 
 function isGuidanceQuestion(trimmed: string, lower: string): boolean {
   if (isDefinitionalPolicyQuestion(lower)) return false;
+
+  const guidanceSupportZh =
+    /怎么支付|如何支付|怎么付学费|如何付学费|付学费|交学费|家里穷|家里.{0,6}困难|经济困难|付不起学费|分期.{0,4}付/.test(
+      trimmed,
+    );
+  const guidanceSupportEn =
+    /\bhow\s+(do|can)\s+i\s+pay\b|\bcan'?t\s+afford\b|\bafford\s+to\s+pay\b/i.test(
+      lower,
+    );
+  if (guidanceSupportZh || guidanceSupportEn) return true;
 
   const guidanceEn =
     /\b(how\s+should\s+i\s+plan|how\s+do\s+i\s+arrange|what\s+should\s+i\s+take\s+first|first\s+semester|course\s+planning|curriculum\s+planning|how\s+should\s+i\s+schedule\s+my\s+classes)\b/i.test(
@@ -254,9 +417,14 @@ function languageInstructionForLlm(question: string): string {
 
 /**
  * End-to-end AMU catalog RAG: intent routing, optional retrieval, grounded chat completion.
+ * @param rawHistory - Optional recent turns; sanitized (capped, invalid entries dropped).
  */
-export async function answerAmuQuestion(question: string): Promise<RagAnswerResult> {
+export async function answerAmuQuestion(
+  question: string,
+  rawHistory?: unknown,
+): Promise<RagAnswerResult> {
   const q = validateQuestion(question);
+  const history = sanitizeChatHistory(rawHistory);
 
   const intent = detectIntent(q);
 
@@ -276,9 +444,11 @@ export async function answerAmuQuestion(question: string): Promise<RagAnswerResu
   const client = new OpenAI({ apiKey });
   const chunks = await getKnowledgeChunks();
 
+  const retrievalQuery = await rewriteQuestionForRetrieval(client, q, history);
+
   const embedRes = await client.embeddings.create({
     model: "text-embedding-3-small",
-    input: q,
+    input: retrievalQuery,
   });
   const questionEmbedding = embedRes.data[0]?.embedding;
   if (!questionEmbedding) {
@@ -301,9 +471,14 @@ export async function answerAmuQuestion(question: string): Promise<RagAnswerResu
       ? `${GUIDANCE_SYSTEM_PROMPT_BASE}\n\n${langLine}`
       : `${STRICT_SYSTEM_PROMPT_BASE}\n\n${langLine}`;
 
+  const historyPrefix =
+    intent === "guidance" && history && history.length > 0
+      ? `${formatRecentConversationBlock(history)}\n\n`
+      : "";
+
   const userPreamble =
     intent === "guidance"
-      ? `Use the following AMU catalog excerpts as the basis for cautious, helpful guidance. Synthesize what they support; note gaps where the user's situation is not fully covered.
+      ? `${historyPrefix}Use the following AMU catalog excerpts as the basis for cautious, helpful guidance. Synthesize what they support; note gaps where the user's situation is not fully covered.
 
 ${contextBlock}
 
@@ -325,8 +500,11 @@ ${q}`;
     temperature: intent === "guidance" ? 0.35 : 0.2,
   });
 
-  const answer =
+  let answer =
     completion.choices[0]?.message?.content?.trim() ?? "(no response)";
+  if (intent === "guidance") {
+    answer = applyGuidanceFallbackIfNeeded(answer, q);
+  }
 
   return {
     question: q,

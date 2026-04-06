@@ -12,9 +12,10 @@ function readQuestion(req: Request): unknown {
 
 /**
  * POST /api/ai/ask
- * Body: { question: string }
+ * Body: { question: string, history?: { role: 'user' | 'assistant', content: string }[] }
  */
 export async function postAiAsk(req: Request, res: Response): Promise<void> {
+  const body = req.body as Record<string, unknown> | null | undefined;
   const q = readQuestion(req);
   if (typeof q !== "string") {
     res.status(400).json({
@@ -23,8 +24,26 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  if (
+    body != null &&
+    typeof body === "object" &&
+    Object.prototype.hasOwnProperty.call(body, "history") &&
+    body.history != null &&
+    !Array.isArray(body.history)
+  ) {
+    res.status(400).json({ error: "history must be an array when provided" });
+    return;
+  }
+
+  const rawHistory =
+    body != null &&
+    typeof body === "object" &&
+    Object.prototype.hasOwnProperty.call(body, "history")
+      ? body.history
+      : undefined;
+
   try {
-    const result = await answerAmuQuestion(q);
+    const result = await answerAmuQuestion(q, rawHistory);
     res.status(200).json(result);
   } catch (e) {
     if (e instanceof RagQuestionValidationError) {
