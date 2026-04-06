@@ -15,6 +15,22 @@ export const TIMETABLE_END_HOUR = 21
 /** One row = one hour [H, H+1); height drives block geometry. */
 export const TIMETABLE_ROW_HEIGHT_PX = 52
 
+/** Optional grid window; defaults match admin scheduling (08:00–22:00). */
+export type TimetableGridOptions = {
+  startHour?: number
+  endHour?: number
+}
+
+function resolveGridHours(opts?: TimetableGridOptions): {
+  startHour: number
+  endHour: number
+} {
+  return {
+    startHour: opts?.startHour ?? TIMETABLE_START_HOUR,
+    endHour: opts?.endHour ?? TIMETABLE_END_HOUR,
+  }
+}
+
 function timeToMinutes(t: string | null | undefined): number | null {
   if (t == null || String(t).trim() === '') return null
   const m = /^(\d{1,2}):(\d{2})(?::\d{2})?/.exec(String(t).trim())
@@ -27,13 +43,14 @@ function timeToMinutes(t: string | null | undefined): number | null {
   return h * 60 + min
 }
 
-export function timetableGridBoundsMinutes(): {
+export function timetableGridBoundsMinutes(opts?: TimetableGridOptions): {
   gridStartMin: number
   gridEndMin: number
   totalMin: number
 } {
-  const gridStartMin = TIMETABLE_START_HOUR * 60
-  const gridEndMin = (TIMETABLE_END_HOUR + 1) * 60
+  const { startHour, endHour } = resolveGridHours(opts)
+  const gridStartMin = startHour * 60
+  const gridEndMin = (endHour + 1) * 60
   return {
     gridStartMin,
     gridEndMin,
@@ -61,8 +78,9 @@ export type PlacedTimetableBlock = TimetableDayInstance & {
  */
 export function expandSectionsToDayInstances(
   sections: readonly AdminCourseSection[],
+  opts?: TimetableGridOptions,
 ): TimetableDayInstance[] {
-  const { gridStartMin, gridEndMin } = timetableGridBoundsMinutes()
+  const { gridStartMin, gridEndMin } = timetableGridBoundsMinutes(opts)
   const out: TimetableDayInstance[] = []
   for (const sec of sections) {
     const s = timeToMinutes(sec.start_time)
@@ -86,6 +104,7 @@ export function expandSectionsToDayInstances(
  */
 function placeInstancesForDay(
   instances: TimetableDayInstance[],
+  gridStartMin: number,
 ): PlacedTimetableBlock[] {
   if (instances.length === 0) return []
   const sorted = [...instances].sort(
@@ -104,7 +123,6 @@ function placeInstancesForDay(
     withCol.push({ ...inst, colIndex: col })
   }
   const colCount = Math.max(1, colLastEnd.length)
-  const { gridStartMin } = timetableGridBoundsMinutes()
   return withCol.map((inst) => {
     const offsetMin = inst.startMin - gridStartMin
     const durMin = inst.endMin - inst.startMin
@@ -126,15 +144,18 @@ function placeInstancesForDay(
 /** Blocks grouped by weekday column index 0–6, with geometry + overlap columns. */
 export function buildTimetablePlacedBlocksByDay(
   sections: readonly AdminCourseSection[],
+  opts?: TimetableGridOptions,
 ): PlacedTimetableBlock[][] {
+  const { gridStartMin } = timetableGridBoundsMinutes(opts)
   const byDay: TimetableDayInstance[][] = Array.from({ length: 7 }, () => [])
-  for (const inst of expandSectionsToDayInstances(sections)) {
+  for (const inst of expandSectionsToDayInstances(sections, opts)) {
     byDay[inst.dayIndex]!.push(inst)
   }
-  return byDay.map((list) => placeInstancesForDay(list))
+  return byDay.map((list) => placeInstancesForDay(list, gridStartMin))
 }
 
-export function timetableBodyHeightPx(): number {
-  const n = TIMETABLE_END_HOUR - TIMETABLE_START_HOUR + 1
+export function timetableBodyHeightPx(opts?: TimetableGridOptions): number {
+  const { startHour, endHour } = resolveGridHours(opts)
+  const n = endHour - startHour + 1
   return n * TIMETABLE_ROW_HEIGHT_PX
 }

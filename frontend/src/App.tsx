@@ -20,6 +20,7 @@ import { CourseSearchPage } from './pages/registration/CourseSearchPage'
 import { MyCourseBinPage } from './pages/registration/MyCourseBinPage'
 import { CourseBinCheckoutPage } from './pages/registration/CourseBinCheckoutPage'
 import { SchedulePage } from './pages/registration/SchedulePage'
+import { OfferedTimetablePage } from './pages/registration/OfferedTimetablePage'
 import { FinancesLayout } from './pages/finances/FinancesLayout'
 import { FinancesOverviewPage } from './pages/finances/FinancesOverviewPage'
 import { AcademicsLayout } from './pages/academics/AcademicsLayout'
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="course-bin" element={<MyCourseBinPage />} />
             <Route path="checkout" element={<CourseBinCheckoutPage />} />
             <Route path="schedule" element={<SchedulePage />} />
+            <Route path="offered-timetable" element={<OfferedTimetablePage />} />
           </Route>
           <Route path="/finances" element={<FinancesLayout />}>
             <Route index element={<Navigate to="overview" replace />} />
