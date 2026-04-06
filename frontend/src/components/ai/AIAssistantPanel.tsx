@@ -19,6 +19,8 @@ type AIAssistantPanelProps = {
   /** Desktop: drag by header (minimize/close excluded in handler). */
   onHeaderPointerDown?: (e: ReactPointerEvent<HTMLElement>) => void
   desktopDraggableHeader?: boolean
+  catHidden?: boolean
+  onShowCat?: () => void
 }
 
 export function AIAssistantPanel({
@@ -35,6 +37,8 @@ export function AIAssistantPanel({
   onClear,
   onHeaderPointerDown,
   desktopDraggableHeader,
+  catHidden = false,
+  onShowCat,
 }: AIAssistantPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -85,9 +89,16 @@ export function AIAssistantPanel({
       </header>
 
       <div className="portal-ai-assistant-panel__toolbar">
-        <button type="button" className="portal-ai-assistant-link-btn" onClick={onClear}>
-          Clear chat
-        </button>
+        <div className="portal-ai-assistant-panel__toolbar-actions">
+          {catHidden && onShowCat ? (
+            <button type="button" className="portal-ai-assistant-link-btn" onClick={onShowCat}>
+              Show AMU AI Cat
+            </button>
+          ) : null}
+          <button type="button" className="portal-ai-assistant-link-btn" onClick={onClear}>
+            Clear chat
+          </button>
+        </div>
       </div>
 
       <div

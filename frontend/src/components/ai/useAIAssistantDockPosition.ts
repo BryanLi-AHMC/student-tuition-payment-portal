@@ -1,35 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { AI_ASSISTANT_MOBILE_MEDIA } from './aiAssistantGeometry'
+import { persistCatPosition, readStoredCatPosition } from './useAIAssistantPet'
 
-export const AI_CAT_STORAGE_X = 'amu-ai-cat-x'
-export const AI_CAT_STORAGE_Y = 'amu-ai-cat-y'
+export { AI_CAT_STORAGE_X, AI_CAT_STORAGE_Y } from './useAIAssistantPet'
 
 const DRAG_THRESHOLD_PX = 8
 const MIN_VISIBLE = 56
-
-function readStoredPosition(): { left: number; top: number } | null {
-  try {
-    const xs = localStorage.getItem(AI_CAT_STORAGE_X)
-    const ys = localStorage.getItem(AI_CAT_STORAGE_Y)
-    if (xs == null || ys == null) return null
-    const left = Number(xs)
-    const top = Number(ys)
-    if (!Number.isFinite(left) || !Number.isFinite(top)) return null
-    return { left, top }
-  } catch {
-    return null
-  }
-}
-
-function persistPosition(left: number, top: number): void {
-  try {
-    localStorage.setItem(AI_CAT_STORAGE_X, String(Math.round(left)))
-    localStorage.setItem(AI_CAT_STORAGE_Y, String(Math.round(top)))
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
 
 function clampDock(left: number, top: number, width: number, height: number, vw: number, vh: number) {
   const minL = -width + MIN_VISIBLE
@@ -57,7 +34,7 @@ export function useAIAssistantDockPosition(
   onCatActivate: () => void,
 ) {
   const [customPos, setCustomPos] = useState<{ left: number; top: number } | null>(() =>
-    dragEnabled ? readStoredPosition() : null,
+    dragEnabled ? readStoredCatPosition() : null,
   )
 
   const dragRef = useRef<DragSession | null>(null)
@@ -72,7 +49,7 @@ export function useAIAssistantDockPosition(
       setCustomPos(null)
       return
     }
-    const stored = readStoredPosition()
+    const stored = readStoredCatPosition()
     setCustomPos(stored)
   }, [dragEnabled])
 
@@ -163,7 +140,7 @@ export function useAIAssistantDockPosition(
       }
       if (wasDragging) {
         const p = latestPosRef.current
-        if (p) persistPosition(p.left, p.top)
+        if (p) persistCatPosition(p.left, p.top)
       } else {
         onCatActivate()
       }

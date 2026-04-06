@@ -1,9 +1,14 @@
 import { useId, useRef } from 'react'
 import { AIAssistantPanel } from './AIAssistantPanel'
-import { AIAssistantPet } from './AIAssistantPet'
+import { AIAssistantDockCat } from './AIAssistantPet'
 import { useAIAssistantContext } from './AIAssistantProvider'
 import { useAIAssistantCatDragEnabled, useAIAssistantDockPosition } from './useAIAssistantDockPosition'
 import { useAIAssistantPanelLayout } from './useAIAssistantPanelLayout'
+import {
+  useAIAssistantCatContextMenuEnabled,
+  useAIAssistantCatDisplaySize,
+  useAIAssistantPet,
+} from './useAIAssistantPet'
 import './aiAssistant.css'
 
 export function AIAssistantLauncher() {
@@ -12,6 +17,9 @@ export function AIAssistantLauncher() {
   const messagesRegionId = `${baseId}-messages`
   const dockRef = useRef<HTMLDivElement>(null)
   const dragEnabled = useAIAssistantCatDragEnabled()
+  const contextMenuEnabled = useAIAssistantCatContextMenuEnabled()
+  const catSize = useAIAssistantCatDisplaySize()
+  const { catHidden, hideCat, showCat } = useAIAssistantPet()
 
   const {
     panelState,
@@ -38,28 +46,24 @@ export function AIAssistantLauncher() {
       {panelState === 'closed' ? (
         <div
           ref={dockRef}
-          className={`portal-ai-assistant-dock${dragEnabled ? ' portal-ai-assistant-dock--draggable' : ''}`}
+          className={`portal-ai-assistant-dock${dragEnabled ? ' portal-ai-assistant-dock--draggable' : ''}${
+            catHidden ? ' portal-ai-assistant-dock--cat-hidden' : ''
+          }`}
           style={dockStyle}
         >
-          <div
-            className="portal-ai-assistant-dock__cat-hit"
-            role="button"
-            tabIndex={0}
-            aria-label="Open AMU AI Assistant"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                openPanel()
-              }
-            }}
-            onPointerDown={dragEnabled ? onCatPointerDown : undefined}
-            onPointerMove={dragEnabled ? onCatPointerMove : undefined}
-            onPointerUp={dragEnabled ? onCatPointerUp : undefined}
-            onPointerCancel={dragEnabled ? onCatPointerCancel : undefined}
-            onClick={!dragEnabled ? () => openPanel() : undefined}
-          >
-            <AIAssistantPet size={104} aria-hidden={true} />
-          </div>
+          {!catHidden ? (
+            <AIAssistantDockCat
+              size={catSize}
+              dragEnabled={dragEnabled}
+              contextMenuEnabled={contextMenuEnabled}
+              onCatPointerDown={onCatPointerDown}
+              onCatPointerMove={onCatPointerMove}
+              onCatPointerUp={onCatPointerUp}
+              onCatPointerCancel={onCatPointerCancel}
+              onOpenAssistant={openPanel}
+              onRequestHideCat={hideCat}
+            />
+          ) : null}
           <button
             type="button"
             className="portal-ai-assistant-launcher"
@@ -68,7 +72,7 @@ export function AIAssistantLauncher() {
             aria-haspopup="dialog"
           >
             <span className="portal-ai-assistant-launcher__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
                 <path
                   d="M12 3C7.03 3 3 6.58 3 11c0 2.13 1.04 4.06 2.72 5.35L4.5 20.5l4.45-1.18A8.94 8.94 0 0012 19c4.97 0 9-3.58 9-8s-4.03-8-9-8z"
                   stroke="currentColor"
@@ -151,6 +155,8 @@ export function AIAssistantLauncher() {
               onClose={closePanel}
               onMinimize={minimizePanel}
               onClear={clearChat}
+              catHidden={catHidden}
+              onShowCat={showCat}
             />
           </div>
         ) : (
@@ -172,6 +178,8 @@ export function AIAssistantLauncher() {
               onClear={clearChat}
               onHeaderPointerDown={layout.onHeaderPointerDown}
               desktopDraggableHeader
+              catHidden={catHidden}
+              onShowCat={showCat}
             />
             <div
               className="portal-ai-assistant-resize portal-ai-assistant-resize--e"
