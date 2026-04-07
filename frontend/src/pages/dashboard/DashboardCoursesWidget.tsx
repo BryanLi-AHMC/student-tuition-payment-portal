@@ -193,8 +193,7 @@ function DashboardWeekTimetableGrid({ model }: { model: WeekTimetableModel }) {
       className="portal-dashboard-courses-timetable portal-dashboard-courses-timetable--grid"
       style={
         {
-          gridTemplateColumns: `var(--portal-timetable-time-col) repeat(${colCount}, minmax(var(--portal-timetable-day-min), 1fr))`,
-          minWidth: `calc(var(--portal-timetable-time-col) + ${colCount} * var(--portal-timetable-day-min))`,
+          gridTemplateColumns: `var(--portal-timetable-time-col) repeat(${colCount}, 1fr)`,
           '--portal-timetable-hour-bands': String(hourBands),
         } as CSSProperties
       }

@@ -4916,6 +4916,7 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-dashboard-home-aside {
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
   min-height: 0;
   align-self: stretch;
@@ -5360,6 +5361,7 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 .portal-dashboard-courses {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
   box-sizing: border-box;
   background: var(--portal-surface);
@@ -5553,8 +5555,9 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 
 .portal-dashboard-courses-timetable-wrap {
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
-  overflow-x: auto;
+  overflow-x: auto; /* allow scroll instead of compressing layout */
   -webkit-overflow-scrolling: touch;
   padding: 1.125rem 1.5rem 1.5rem;
 }
@@ -5616,7 +5619,6 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 
 .portal-dashboard-courses-timetable-mobile-time {
   flex: 0 0 auto;
-  min-width: 6.25rem;
   font-size: 0.8125rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -5624,8 +5626,9 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 }
 
 .portal-dashboard-courses-timetable-mobile-course {
-  flex: 1 1 12rem;
+  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
   overflow-wrap: anywhere;
 }
 
@@ -5664,12 +5667,13 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 }
 
 .portal-dashboard-courses-timetable {
-  /* Full-day grid; column count + min widths set inline (Mon–Sun). `--portal-timetable-hour-bands` set in JS. */
+  /* Full-day grid; column template set inline (Mon–Sun). `--portal-timetable-hour-bands` set in JS. */
   --portal-timetable-track-min-h: 31rem;
   --portal-timetable-hour-bands: 14;
   /* Desktop (>= 1200px): readable columns and time rail */
   --portal-timetable-time-col: 3.625rem;
   --portal-timetable-day-min: 6.25rem;
+  width: 100%;
   display: grid;
   grid-template-columns: 3.625rem repeat(7, minmax(0, 1fr));
   grid-template-rows: auto minmax(var(--portal-timetable-track-min-h), 1fr);
