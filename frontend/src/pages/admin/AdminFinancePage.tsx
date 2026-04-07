@@ -204,8 +204,8 @@ export function AdminFinancePage() {
                 filtered.map((r) => (
                   <Fragment key={r.studentId}>
                     <tr>
-                      <td>
-                        <code className="admin-code">{r.studentId}</code>
+                      <td className="admin-finance-student-id-cell">
+                        {r.studentId}
                       </td>
                       <td>{r.name}</td>
                       <td className="admin-table-numeric">

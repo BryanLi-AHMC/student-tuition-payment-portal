@@ -7197,6 +7197,11 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   min-width: 12rem;
 }
 
+/* Match Admin Students roster: plain body text, not .admin-code chip/monospace */
+.admin-finance-student-id-cell {
+  font-family: inherit;
+}
+
 .admin-finance-page-controls__search .admin-input--search {
   width: 100%;
   max-width: 22rem;

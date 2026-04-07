@@ -695,11 +695,16 @@ function parseAdminFinanceStudentRow(
   let balance: number | null
   if (bal === null || bal === undefined) {
     balance = null
-  } else if (typeof bal === 'number' && Number.isFinite(bal)) {
-    balance = bal
+  } else if (typeof bal === 'number') {
+    balance = Number.isFinite(bal) ? bal : null
   } else if (typeof bal === 'string') {
-    const n = Number(bal)
-    balance = Number.isFinite(n) ? n : null
+    const t = bal.trim()
+    if (t === '') {
+      balance = null
+    } else {
+      const n = Number(t)
+      balance = Number.isFinite(n) ? n : null
+    }
   } else {
     balance = null
   }
