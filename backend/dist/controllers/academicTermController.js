@@ -77,14 +77,19 @@ function parseCreateBody(body) {
     const end = parseOptionalDate(o.end_date);
     const ro = parseOptionalDate(o.registration_open);
     const rc = parseOptionalDate(o.registration_close);
+    const pdd = parseOptionalDate(o.payment_due_date);
     if (start === "invalid" ||
         end === "invalid" ||
         ro === "invalid" ||
-        rc === "invalid") {
+        rc === "invalid" ||
+        pdd === "invalid") {
         return null;
     }
     const vis = parseOptionalBool(o.is_visible);
     if (vis === "invalid")
+        return null;
+    const lockReg = parseOptionalBool(o.lock_registration_if_overdue);
+    if (lockReg === "invalid")
         return null;
     return {
         year,
@@ -97,6 +102,8 @@ function parseCreateBody(body) {
         end_date: end,
         registration_open: ro,
         registration_close: rc,
+        payment_due_date: pdd,
+        ...(lockReg !== undefined ? { lock_registration_if_overdue: lockReg } : {}),
         status: status,
         ...(vis !== undefined ? { is_visible: vis } : {}),
     };
@@ -138,6 +145,7 @@ function parsePatchBody(body) {
         "end_date",
         "registration_open",
         "registration_close",
+        "payment_due_date",
     ]) {
         if (o[key] !== undefined) {
             const d = parseOptionalDate(o[key]);
@@ -145,6 +153,12 @@ function parsePatchBody(body) {
                 return null;
             patch[key] = d;
         }
+    }
+    if (o.lock_registration_if_overdue !== undefined) {
+        const lock = parseOptionalBool(o.lock_registration_if_overdue);
+        if (lock === "invalid")
+            return null;
+        patch.lock_registration_if_overdue = lock;
     }
     if (o.is_visible !== undefined) {
         const vis = parseOptionalBool(o.is_visible);
@@ -209,7 +223,7 @@ export async function postAdminAcademicTerm(req, res) {
         const input = parseCreateBody(req.body);
         if (!input) {
             res.status(400).json({
-                error: "Invalid body: require year, term_name, sequence_no, status; optional date fields (YYYY-MM-DD), term_label, is_visible",
+                error: "Invalid body: require year, term_name, sequence_no, status; optional date fields (YYYY-MM-DD), term_label, is_visible, payment_due_date, lock_registration_if_overdue",
             });
             return;
         }

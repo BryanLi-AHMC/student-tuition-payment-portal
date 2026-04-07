@@ -6826,6 +6826,34 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   box-shadow: var(--portal-shadow);
 }
 
+.admin-section-detail-modal--form-wide {
+  max-width: min(42rem, 100%);
+  max-height: min(92vh, 46rem);
+}
+
+.admin-academic-terms-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-academic-terms-table {
+  min-width: 920px;
+}
+
+.admin-academic-terms__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--portal-text);
+  cursor: pointer;
+}
+
+.admin-academic-terms__checkbox-label input {
+  width: auto;
+  margin: 0;
+}
+
 .admin-section-detail-modal__title {
   margin: 0 0 0.35rem;
   font-size: 1.05rem;

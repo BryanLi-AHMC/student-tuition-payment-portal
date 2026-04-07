@@ -12,6 +12,8 @@ export type AcademicTermDetail = {
     end_date: string | null;
     registration_open: string | null;
     registration_close: string | null;
+    payment_due_date: string | null;
+    lock_registration_if_overdue: boolean;
     status: AcademicTermStatus;
     is_visible: boolean;
 };
@@ -25,6 +27,8 @@ export type CreateAcademicTermInput = {
     end_date?: string | null;
     registration_open?: string | null;
     registration_close?: string | null;
+    payment_due_date?: string | null;
+    lock_registration_if_overdue?: boolean;
     status: AcademicTermStatus;
     is_visible?: boolean;
 };
