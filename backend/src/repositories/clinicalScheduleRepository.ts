@@ -1,4 +1,8 @@
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type {
+  PoolConnection,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise";
 import { pool } from "../lib/db.js";
 
 export type ClinicalAssignmentDbRow = {
@@ -148,7 +152,9 @@ export type InsertClinicalAssignmentPayload = {
 
 export async function insertClinicalAssignment(
   payload: InsertClinicalAssignmentPayload,
+  connection?: PoolConnection,
 ): Promise<number> {
+  const cx = connection ?? pool;
   const status =
     payload.status != null && String(payload.status).trim() !== ""
       ? String(payload.status).trim()
@@ -168,7 +174,7 @@ export async function insertClinicalAssignment(
     payload.assignmentYear != null && Number.isFinite(payload.assignmentYear)
       ? Number(payload.assignmentYear)
       : null;
-  const [res] = await pool.query<ResultSetHeader>(
+  const [res] = await cx.query<ResultSetHeader>(
     `INSERT INTO clinical_assignments
       (student_id, course_code, session_date, session_name, site, faculty,
        timetable_id, term, \`year\`, status)

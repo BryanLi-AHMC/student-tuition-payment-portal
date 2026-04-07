@@ -1450,6 +1450,179 @@ export async function postAdminClinicalAssign(
   return { ok: true, id: o.id }
 }
 
+/** GET /api/students/:studentId/clinical-requests */
+export type StudentClinicalRequestItem = {
+  id: number
+  studentId: string
+  timetableId: number
+  term: string
+  year: number
+  status: string
+  slotLabel: string
+  createdAt: string
+  decidedAt: string | null
+  decidedBy: string | null
+}
+
+function isStudentClinicalRequestItem(
+  x: unknown,
+): x is StudentClinicalRequestItem {
+  if (x == null || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  return (
+    typeof o.id === 'number' &&
+    typeof o.studentId === 'string' &&
+    typeof o.timetableId === 'number' &&
+    typeof o.term === 'string' &&
+    typeof o.year === 'number' &&
+    typeof o.status === 'string' &&
+    typeof o.slotLabel === 'string' &&
+    typeof o.createdAt === 'string' &&
+    (o.decidedAt === null || typeof o.decidedAt === 'string') &&
+    (o.decidedBy === null || typeof o.decidedBy === 'string')
+  )
+}
+
+export async function fetchStudentClinicalRequests(
+  studentId: string,
+  options?: { signal?: AbortSignal },
+): Promise<StudentClinicalRequestItem[]> {
+  const path = `/api/students/${encodeURIComponent(studentId)}/clinical-requests`
+  const data = (await fetchApiJson(path, { signal: options?.signal })) as unknown
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected student clinical requests response')
+  }
+  for (const row of data) {
+    if (!isStudentClinicalRequestItem(row)) {
+      throw new Error('Unexpected student clinical requests response')
+    }
+  }
+  return data
+}
+
+/** POST /api/students/:studentId/clinical-requests — 201 { ok: true, id } */
+export async function postStudentClinicalRequest(
+  studentId: string,
+  body: { timetableId: number },
+  options?: { signal?: AbortSignal },
+): Promise<{ ok: boolean; id: number }> {
+  const path = `/api/students/${encodeURIComponent(studentId)}/clinical-requests`
+  const data = (await fetchApiJson(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: options?.signal,
+  })) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected student clinical request response')
+  }
+  const o = data as Record<string, unknown>
+  if (o.ok !== true || typeof o.id !== 'number' || !Number.isFinite(o.id)) {
+    throw new Error('Unexpected student clinical request response')
+  }
+  return { ok: true, id: o.id }
+}
+
+/** GET /api/admin/clinical/requests — pending queue only */
+export type AdminPendingClinicalRequestItem = {
+  id: number
+  studentId: string
+  timetableId: number
+  term: string
+  year: number
+  slotLabel: string
+  createdAt: string
+}
+
+function isAdminPendingClinicalRequestItem(
+  x: unknown,
+): x is AdminPendingClinicalRequestItem {
+  if (x == null || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  return (
+    typeof o.id === 'number' &&
+    typeof o.studentId === 'string' &&
+    typeof o.timetableId === 'number' &&
+    typeof o.term === 'string' &&
+    typeof o.year === 'number' &&
+    typeof o.slotLabel === 'string' &&
+    typeof o.createdAt === 'string'
+  )
+}
+
+export async function fetchAdminClinicalRequests(
+  options?: { signal?: AbortSignal },
+): Promise<AdminPendingClinicalRequestItem[]> {
+  const data = (await fetchApiJson('/api/admin/clinical/requests', {
+    signal: options?.signal,
+  })) as unknown
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected admin clinical requests response')
+  }
+  for (const row of data) {
+    if (!isAdminPendingClinicalRequestItem(row)) {
+      throw new Error('Unexpected admin clinical requests response')
+    }
+  }
+  return data
+}
+
+/** POST /api/admin/clinical/requests/:id/approve */
+export async function postApproveClinicalRequest(
+  requestId: number,
+  options?: { signal?: AbortSignal; decidedBy?: string | null },
+): Promise<{ ok: boolean; id: number }> {
+  const path = `/api/admin/clinical/requests/${encodeURIComponent(String(requestId))}/approve`
+  const body: Record<string, unknown> = {}
+  if (options?.decidedBy !== undefined) {
+    body.decidedBy = options.decidedBy
+  }
+  const data = (await fetchApiJson(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: options?.signal,
+  })) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected approve clinical request response')
+  }
+  const o = data as Record<string, unknown>
+  if (
+    o.ok !== true ||
+    typeof o.id !== 'number' ||
+    !Number.isFinite(o.id)
+  ) {
+    throw new Error('Unexpected approve clinical request response')
+  }
+  return { ok: true, id: o.id }
+}
+
+/** POST /api/admin/clinical/requests/:id/reject */
+export async function postRejectClinicalRequest(
+  requestId: number,
+  options?: { signal?: AbortSignal; decidedBy?: string | null },
+): Promise<{ ok: boolean }> {
+  const path = `/api/admin/clinical/requests/${encodeURIComponent(String(requestId))}/reject`
+  const body: Record<string, unknown> = {}
+  if (options?.decidedBy !== undefined) {
+    body.decidedBy = options.decidedBy
+  }
+  const data = (await fetchApiJson(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: options?.signal,
+  })) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected reject clinical request response')
+  }
+  const o = data as Record<string, unknown>
+  if (o.ok !== true) {
+    throw new Error('Unexpected reject clinical request response')
+  }
+  return { ok: true }
+}
+
 export type CourseFeedbackApiItem = {
   id: number
   courseCode: string

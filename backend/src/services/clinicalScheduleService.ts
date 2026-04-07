@@ -372,16 +372,15 @@ export async function assignClinicalSession(
   }
 }
 
-async function assignClinicalFromTimetableSlot(
+/**
+ * Build the same `clinical_assignments` insert payload used by
+ * `POST /api/admin/clinical/assign` for timetable-driven rows (CLINIC + placeholder date).
+ */
+export function buildTimetableClinicalAssignmentPayload(
   studentId: string,
-  timetableId: number,
+  tt: ClinicTimetableDbRow,
   status: string | null | undefined,
-): Promise<AssignClinicalSessionResult> {
-  const tt = await getClinicTimetableById(timetableId);
-  if (tt == null) {
-    return { ok: false, error: "timetableId not found", status: 404 };
-  }
-
+): InsertClinicalAssignmentPayload {
   const slotLabel = timetableRowToSlotLabel(tt);
   const term = tt.term.slice(0, 20);
   const year = tt.year;
@@ -397,18 +396,35 @@ async function assignClinicalFromTimetableSlot(
   const faculty =
     tt.instructor.trim() === "" ? null : tt.instructor.trim();
 
-  const payload: InsertClinicalAssignmentPayload = {
+  return {
     studentId,
     courseCode: "CLINIC",
     sessionDate: TIMETABLE_ASSIGNMENT_SESSION_DATE_PLACEHOLDER,
     sessionName: slotLabel,
     site: null,
     faculty,
-    timetableId,
+    timetableId: tt.id,
     assignmentTerm: term || null,
     assignmentYear: year,
     ...(statusForDb !== undefined ? { status: statusForDb } : {}),
   };
+}
+
+async function assignClinicalFromTimetableSlot(
+  studentId: string,
+  timetableId: number,
+  status: string | null | undefined,
+): Promise<AssignClinicalSessionResult> {
+  const tt = await getClinicTimetableById(timetableId);
+  if (tt == null) {
+    return { ok: false, error: "timetableId not found", status: 404 };
+  }
+
+  const payload = buildTimetableClinicalAssignmentPayload(
+    studentId,
+    tt,
+    status,
+  );
 
   try {
     const id = await insertClinicalAssignment(payload);

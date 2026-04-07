@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  fetchAdminClinicalRequests,
   fetchAdminStudents,
+  postApproveClinicalRequest,
+  postRejectClinicalRequest,
+  type AdminPendingClinicalRequestItem,
   type AdminStudentClinicalProgressSummary,
   type AdminStudentListItem,
 } from '../../lib/api'
@@ -33,6 +37,14 @@ export function AdminClinicalPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+
+  const [pendingRequests, setPendingRequests] = useState<
+    AdminPendingClinicalRequestItem[] | null
+  >(null)
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const [pendingError, setPendingError] = useState<string | null>(null)
+  const [pendingReloadKey, setPendingReloadKey] = useState(0)
+  const [pendingActionId, setPendingActionId] = useState<number | null>(null)
 
   const debouncedSearchPrev = useRef<string | null>(null)
   useEffect(() => {
@@ -78,6 +90,33 @@ export function AdminClinicalPage() {
     })()
     return () => ac.abort()
   }, [page, debouncedSearch, reloadKey])
+
+  useEffect(() => {
+    const ac = new AbortController()
+    setPendingLoading(true)
+    setPendingError(null)
+    ;(async () => {
+      try {
+        const list = await fetchAdminClinicalRequests({ signal: ac.signal })
+        if (ac.signal.aborted) return
+        setPendingRequests(list)
+        setPendingError(null)
+      } catch (e) {
+        if (ac.signal.aborted) return
+        setPendingRequests(null)
+        setPendingError(
+          e instanceof Error
+            ? e.message
+            : 'Could not load pending clinical requests.',
+        )
+      } finally {
+        if (!ac.signal.aborted) {
+          setPendingLoading(false)
+        }
+      }
+    })()
+    return () => ac.abort()
+  }, [pendingReloadKey])
 
   const items = rows ?? []
   const sectionLoading = loading && rows === null && error === null
@@ -289,6 +328,140 @@ export function AdminClinicalPage() {
           </div>
         </>
       ) : null}
+
+      <section
+        className="portal-module-panel"
+        aria-labelledby="admin-pending-clinical-requests-heading"
+        style={{ marginTop: '2rem' }}
+      >
+        <h2
+          id="admin-pending-clinical-requests-heading"
+          className="portal-module-panel-heading"
+        >
+          Pending clinical requests
+        </h2>
+        {pendingLoading && pendingRequests === null ? (
+          <p className="portal-card-note" aria-live="polite">
+            Loading requests…
+          </p>
+        ) : null}
+        {pendingError ? (
+          <p className="portal-page-lede" role="alert">
+            {pendingError}
+          </p>
+        ) : null}
+        {!pendingLoading && !pendingError && pendingRequests != null ? (
+          <div className="portal-table-wrap admin-table-wrap">
+            <table className="portal-table portal-data-table admin-students-table--center">
+              <thead>
+                <tr>
+                  <th scope="col">Student ID</th>
+                  <th scope="col">Slot</th>
+                  <th scope="col">Term / year</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="portal-card-note">
+                      No pending clinical requests.
+                    </td>
+                  </tr>
+                ) : (
+                  pendingRequests.map((r) => {
+                    const busy = pendingActionId === r.id
+                    return (
+                      <tr key={r.id}>
+                        <td>{r.studentId}</td>
+                        <td
+                          style={{
+                            maxWidth: '20rem',
+                            textAlign: 'left',
+                            whiteSpace: 'normal',
+                          }}
+                        >
+                          {r.slotLabel}
+                        </td>
+                        <td>
+                          {r.term} {r.year}
+                        </td>
+                        <td>
+                          <div
+                            className="portal-actions"
+                            style={{
+                              flexWrap: 'wrap',
+                              gap: '0.35rem',
+                              justifyContent: 'flex-end',
+                            }}
+                          >
+                            <button
+                              type="button"
+                              className="portal-btn portal-btn--primary"
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                fontSize: '0.8125rem',
+                              }}
+                              disabled={busy}
+                              onClick={() => {
+                                setPendingActionId(r.id)
+                                ;(async () => {
+                                  try {
+                                    await postApproveClinicalRequest(r.id)
+                                    setPendingReloadKey((k) => k + 1)
+                                  } catch (e) {
+                                    window.alert(
+                                      e instanceof Error
+                                        ? e.message
+                                        : 'Approve failed.',
+                                    )
+                                  } finally {
+                                    setPendingActionId(null)
+                                  }
+                                })()
+                              }}
+                            >
+                              {busy ? '…' : 'Approve'}
+                            </button>
+                            <button
+                              type="button"
+                              className="portal-btn portal-btn--secondary"
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                fontSize: '0.8125rem',
+                              }}
+                              disabled={busy}
+                              onClick={() => {
+                                setPendingActionId(r.id)
+                                ;(async () => {
+                                  try {
+                                    await postRejectClinicalRequest(r.id)
+                                    setPendingReloadKey((k) => k + 1)
+                                  } catch (e) {
+                                    window.alert(
+                                      e instanceof Error
+                                        ? e.message
+                                        : 'Reject failed.',
+                                    )
+                                  } finally {
+                                    setPendingActionId(null)
+                                  }
+                                })()
+                              }}
+                            >
+                              {busy ? '…' : 'Reject'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
     </main>
   )
 }

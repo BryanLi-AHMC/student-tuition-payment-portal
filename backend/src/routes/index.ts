@@ -68,6 +68,13 @@ import {
 } from "../controllers/academicTermController.js";
 import { postAiAsk } from "../controllers/aiAskController.js";
 import {
+  getAdminClinicalRequestsHandler,
+  getStudentClinicalRequestsHandler,
+  postApproveClinicalRequestHandler,
+  postRejectClinicalRequestHandler,
+  postStudentClinicalRequestHandler,
+} from "../controllers/clinicalRequestController.js";
+import {
   getAdminClinicalTimetableHandler,
   getStudentClinicalScheduleHandler,
   postAdminClinicalAssignHandler,
@@ -137,6 +144,15 @@ adminRouter.post("/academic-terms", postAdminAcademicTerm);
 adminRouter.patch("/academic-terms/:id", patchAdminAcademicTerm);
 adminRouter.get("/clinical/timetable", getAdminClinicalTimetableHandler);
 adminRouter.post("/clinical/assign", postAdminClinicalAssignHandler);
+adminRouter.get("/clinical/requests", getAdminClinicalRequestsHandler);
+adminRouter.post(
+  "/clinical/requests/:id/approve",
+  postApproveClinicalRequestHandler,
+);
+adminRouter.post(
+  "/clinical/requests/:id/reject",
+  postRejectClinicalRequestHandler,
+);
 apiRouter.use("/admin", adminRouter);
 
 apiRouter.get("/students/:studentId/profile", getStudentProfile);
@@ -157,6 +173,14 @@ apiRouter.get("/students/:studentId/account", getStudentAccount);
 apiRouter.get(
   "/students/:studentId/clinical-schedule",
   getStudentClinicalScheduleHandler,
+);
+apiRouter.post(
+  "/students/:studentId/clinical-requests",
+  postStudentClinicalRequestHandler,
+);
+apiRouter.get(
+  "/students/:studentId/clinical-requests",
+  getStudentClinicalRequestsHandler,
 );
 apiRouter.get("/students/:studentId/activity", getStudentActivity);
 apiRouter.get(
