@@ -5,6 +5,7 @@ import { listStudentEnrolledSectionRows } from "../repositories/studentEnrollmen
 import { InvalidAcademicTermError } from "../services/courseSectionService.js";
 import {
   enrollStudentForAcademicTerm,
+  RegistrationLockedOverdueBalanceError,
   type EnrollSectionInput,
 } from "../services/studentEnrollmentService.js";
 
@@ -74,6 +75,10 @@ export async function postStudentEnroll(
     }
     res.json({ success: true, insertedCount: result.insertedCount });
   } catch (e) {
+    if (e instanceof RegistrationLockedOverdueBalanceError) {
+      res.status(400).json({ error: e.message });
+      return;
+    }
     if (e instanceof InvalidAcademicTermError) {
       res.status(400).json({
         error:

@@ -94,26 +94,18 @@ export function AdminAcademicTermsPage() {
   const [form, setForm] = useState<TermForm>(() => defaultAddForm(1))
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [paymentPolicyColumnsAvailable, setPaymentPolicyColumnsAvailable] =
-    useState<boolean | null>(null)
 
   const load = useCallback(async () => {
     const ac = new AbortController()
     setLoading(true)
     setError(null)
     try {
-      const { terms, paymentPolicyColumnsAvailable: colsOk } =
-        await fetchAcademicTerms({
-          signal: ac.signal,
-          includePaymentColumnAvailability: true,
-        })
+      const terms = await fetchAcademicTerms({ signal: ac.signal })
       if (ac.signal.aborted) return
       setRows(terms)
-      setPaymentPolicyColumnsAvailable(colsOk)
     } catch (e) {
       if (ac.signal.aborted) return
       setRows(null)
-      setPaymentPolicyColumnsAvailable(null)
       setError(e instanceof Error ? e.message : 'Could not load academic terms.')
     } finally {
       if (!ac.signal.aborted) setLoading(false)
@@ -252,16 +244,6 @@ export function AdminAcademicTermsPage() {
         </section>
       ) : null}
 
-      {paymentPolicyColumnsAvailable === false ? (
-        <p
-          className="portal-card-note admin-academic-terms__schema-note"
-          role="status"
-        >
-          Payment DDL and overdue-lock fields are not yet available in the
-          current database schema. Core term fields still save normally.
-        </p>
-      ) : null}
-
       {!sectionLoading && error ? (
         <section
           className="portal-card portal-profile-state portal-profile-state--error"
@@ -370,14 +352,6 @@ export function AdminAcademicTermsPage() {
                 <code className="admin-code">2027-WIN</code>).
               </p>
             )}
-
-            {paymentPolicyColumnsAvailable === false ? (
-              <p className="portal-card-note" role="status">
-                Payment DDL and overdue-lock fields are not yet available in the
-                current database schema. You can still create and edit terms;
-                those two values will not be stored until the schema is updated.
-              </p>
-            ) : null}
 
             <form onSubmit={(e) => void onSubmit(e)}>
               <div className="portal-course-feedback-modal__field">
