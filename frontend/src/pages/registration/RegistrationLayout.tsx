@@ -5,6 +5,7 @@ import {
   fetchCurrentAcademicTerm,
   fetchRecentAcademicTerms,
   type AcademicTerm,
+  type AcademicTermName,
 } from '../../lib/api'
 import { CourseBinProvider } from './CourseBinContext'
 import { RegistrationNav } from './RegistrationNav'
@@ -15,6 +16,28 @@ import {
   resolveSelectedRegistrationTermId,
 } from './registrationTermSearch'
 
+/** Lets `?term=<id>` stay valid when the id is not in recent/current (admin may still schedule it). */
+function academicTermStubForDeepLink(termId: string): AcademicTerm {
+  const id = termId.trim()
+  const term_name: AcademicTermName = 'Spring'
+  return {
+    id,
+    term_label: id,
+    year: 0,
+    term_name,
+    quarter_index: 0,
+    sequence_no: -1,
+    start_date: null,
+    end_date: null,
+    registration_open: null,
+    registration_close: null,
+    payment_due_date: null,
+    lock_registration_if_overdue: false,
+    status: 'planned',
+    is_visible: true,
+  }
+}
+
 export function RegistrationLayout() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [recentTerms, setRecentTerms] = useState<AcademicTerm[]>([])
@@ -22,10 +45,12 @@ export function RegistrationLayout() {
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const options = useMemo(
-    () => mergeTermOptions(recentTerms, currentTerm),
-    [recentTerms, currentTerm],
-  )
+  const options = useMemo(() => {
+    const merged = mergeTermOptions(recentTerms, currentTerm)
+    const urlT = readRegistrationTermIdFromSearch(searchParams)?.trim() ?? ''
+    if (urlT === '' || merged.some((t) => t.id === urlT)) return merged
+    return [academicTermStubForDeepLink(urlT), ...merged]
+  }, [recentTerms, currentTerm, searchParams])
 
   useEffect(() => {
     const ac = new AbortController()

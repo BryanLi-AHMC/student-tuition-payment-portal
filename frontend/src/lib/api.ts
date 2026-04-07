@@ -1,3 +1,5 @@
+import { normalizeScheduleTrackValue } from './scheduleTrack'
+
 export { formatMoney } from './formatMoney'
 
 export const CARD_CONVENIENCE_RATE = 0.0285
@@ -1720,11 +1722,7 @@ function parseAdminCourseSectionRow(
     typeof yearRaw === 'number' ? yearRaw : Number(yearRaw)
   if (!Number.isFinite(year)) return null
   const stRaw = row.schedule_track ?? row.scheduleTrack
-  const stStr =
-    stRaw == null || stRaw === ''
-      ? 'EN'
-      : String(stRaw).trim().toUpperCase()
-  const schedule_track: 'EN' | 'CN' = stStr === 'CN' ? 'CN' : 'EN'
+  const schedule_track = normalizeScheduleTrackValue(stRaw)
   const ecRaw = row.enrolled_count ?? row.enrolledCount
   let enrolled_count = 0
   if (typeof ecRaw === 'number' && Number.isFinite(ecRaw)) {

@@ -20,7 +20,10 @@ import {
   getPreferredCourseTitle,
   getSecondaryCourseTitle,
 } from '../../lib/courseDisplayName'
-import { offeredTimetableHeading, scheduleTrackDetailLabel } from '../../lib/scheduleTrack'
+import {
+  normalizeScheduleTrackValue,
+  scheduleTrackDetailLabel,
+} from '../../lib/scheduleTrack'
 import {
   courseBinSectionKey,
   useCourseBin,
@@ -34,12 +37,16 @@ import { useRegistrationTermSearchParam } from './registrationTermSearch'
 
 const OFFERED_GRID = STUDENT_REGISTRATION_TIMETABLE_GRID
 
+type TimetableLangTab = 'en' | 'cn'
+
 const DAY_HEADERS: { full: WeekdayFull; label: string }[] = [
   { full: 'Monday', label: 'Monday' },
   { full: 'Tuesday', label: 'Tuesday' },
   { full: 'Wednesday', label: 'Wednesday' },
   { full: 'Thursday', label: 'Thursday' },
   { full: 'Friday', label: 'Friday' },
+  { full: 'Saturday', label: 'Saturday' },
+  { full: 'Sunday', label: 'Sunday' },
 ]
 
 function cellText(value: string | number | null | undefined): string {
@@ -71,7 +78,6 @@ function OfferedTimetableWeekGrid({
   binItems,
   onSelectSection,
 }: OfferedWeekGridProps) {
-  const placed = placedWeekdays.slice(0, DAY_HEADERS.length)
   return (
     <div className="admin-timetable-wrap">
       <div
@@ -107,7 +113,7 @@ function OfferedTimetableWeekGrid({
                 className="admin-timetable-v2__day-track"
                 style={{ height: bodyHeightPx }}
               >
-                {placed[di]!.map((b) => {
+                {placedWeekdays[di]!.map((b) => {
                   const colW = 100 / b.colCount
                   const insetPx = 3
                   const inBin = isSectionInBin(binItems, b.section)
@@ -184,6 +190,7 @@ export function OfferedTimetablePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [langTab, setLangTab] = useState<TimetableLangTab>('en')
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showToast = useCallback((message: string) => {
@@ -268,22 +275,28 @@ export function OfferedTimetablePage() {
     return Array.from({ length: eh - sh + 1 }, (_, i) => sh + i)
   }, [])
 
-  const enSections = useMemo(
-    () => (sections ?? []).filter((s) => s.schedule_track !== 'CN'),
+  const englishSections = useMemo(
+    () =>
+      (sections ?? []).filter(
+        (s) => normalizeScheduleTrackValue(s.schedule_track) !== 'CN',
+      ),
     [sections],
   )
-  const cnSections = useMemo(
-    () => (sections ?? []).filter((s) => s.schedule_track === 'CN'),
+  const chineseSections = useMemo(
+    () =>
+      (sections ?? []).filter(
+        (s) => normalizeScheduleTrackValue(s.schedule_track) === 'CN',
+      ),
     [sections],
   )
 
   const placedEn = useMemo(
-    () => buildTimetablePlacedBlocksByDay(enSections, OFFERED_GRID),
-    [enSections],
+    () => buildTimetablePlacedBlocksByDay(englishSections, OFFERED_GRID),
+    [englishSections],
   )
   const placedCn = useMemo(
-    () => buildTimetablePlacedBlocksByDay(cnSections, OFFERED_GRID),
-    [cnSections],
+    () => buildTimetablePlacedBlocksByDay(chineseSections, OFFERED_GRID),
+    [chineseSections],
   )
 
   const bodyHeightPx = timetableBodyHeightPx(OFFERED_GRID)
@@ -338,6 +351,12 @@ export function OfferedTimetablePage() {
   const detailInBin =
     detailSection != null && isSectionInBin(binItems, detailSection)
 
+  const showTimetableTabs =
+    !termMissing &&
+    !loading &&
+    sections != null &&
+    error == null
+
   return (
     <main
       className="portal-page portal-offered-timetable"
@@ -350,14 +369,41 @@ export function OfferedTimetablePage() {
       )}
 
       <section className="portal-card portal-stack" aria-labelledby="offered-timetable-heading">
-        <h2 id="offered-timetable-heading" className="portal-section-heading">
-          Offered Timetable
-        </h2>
-        <p className="portal-text-muted" style={{ marginTop: 0 }}>
-          Registrar-scheduled sections for the selected term (Monday–Friday, 8:00 a.m.–9:00 p.m.).
-          Click a block to view details, then add or remove the section from your CourseBin. Sections
-          outside this window or without valid meeting times are hidden.
-        </p>
+        <div className="portal-offered-timetable__title-row">
+          <h2 id="offered-timetable-heading" className="portal-section-heading">
+            Offered Timetable
+          </h2>
+          {showTimetableTabs ? (
+            <div
+              className="portal-timetable-lang-tabs"
+              role="tablist"
+              aria-label="Timetable language"
+            >
+              <button
+                type="button"
+                role="tab"
+                id="offered-tt-tab-en"
+                className="portal-timetable-lang-tab"
+                aria-selected={langTab === 'en'}
+                aria-controls="offered-tt-panel-en"
+                onClick={() => setLangTab('en')}
+              >
+                English Timetable
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="offered-tt-tab-cn"
+                className="portal-timetable-lang-tab"
+                aria-selected={langTab === 'cn'}
+                aria-controls="offered-tt-panel-cn"
+                onClick={() => setLangTab('cn')}
+              >
+                Chinese Timetable
+              </button>
+            </div>
+          ) : null}
+        </div>
 
         {termMissing && (
           <p className="portal-text-muted" role="status">
@@ -377,68 +423,51 @@ export function OfferedTimetablePage() {
           </p>
         )}
 
-        {!termMissing && !loading && sections != null && sections.length === 0 && error == null && (
-          <>
-            <p className="portal-text-muted" role="status">
-              No sections are scheduled for this term yet.
-            </p>
-            <h3 className="portal-section-heading" style={{ marginTop: '1.25rem' }}>
-              {offeredTimetableHeading('EN')}
-            </h3>
-            <p className="portal-text-muted" role="status">
-              No English timetable sections scheduled for this term.
-            </p>
-            <h3 className="portal-section-heading" style={{ marginTop: '1.25rem' }}>
-              {offeredTimetableHeading('CN')}
-            </h3>
-            <p className="portal-text-muted" role="status">
-              No Chinese timetable sections scheduled for this term.
-            </p>
-          </>
-        )}
-
-        {!termMissing && !loading && sections != null && sections.length > 0 && (
-          <div className="portal-stack" style={{ gap: '2rem' }}>
-            <div>
-              <h3 className="portal-section-heading" style={{ marginBottom: '0.5rem' }}>
-                {offeredTimetableHeading('EN')}
-              </h3>
-              {enSections.length === 0 ? (
-                <p className="portal-text-muted" role="status">
-                  No English timetable sections scheduled for this term.
-                </p>
-              ) : (
-                <OfferedTimetableWeekGrid
-                  placedWeekdays={placedEn}
-                  hourRows={hourRows}
-                  bodyHeightPx={bodyHeightPx}
-                  catalogByCode={catalogByCode}
-                  binItems={binItems}
-                  onSelectSection={setDetailSection}
-                />
-              )}
-            </div>
-            <div>
-              <h3 className="portal-section-heading" style={{ marginBottom: '0.5rem' }}>
-                {offeredTimetableHeading('CN')}
-              </h3>
-              {cnSections.length === 0 ? (
-                <p className="portal-text-muted" role="status">
-                  No Chinese timetable sections scheduled for this term.
-                </p>
-              ) : (
-                <OfferedTimetableWeekGrid
-                  placedWeekdays={placedCn}
-                  hourRows={hourRows}
-                  bodyHeightPx={bodyHeightPx}
-                  catalogByCode={catalogByCode}
-                  binItems={binItems}
-                  onSelectSection={setDetailSection}
-                />
-              )}
-            </div>
+        {showTimetableTabs && langTab === 'en' ? (
+          <div
+            role="tabpanel"
+            id="offered-tt-panel-en"
+            aria-labelledby="offered-tt-tab-en"
+          >
+            {sections!.length === 0 || englishSections.length === 0 ? (
+              <p className="portal-text-muted" role="status">
+                No English timetable sections scheduled for this term.
+              </p>
+            ) : (
+              <OfferedTimetableWeekGrid
+                placedWeekdays={placedEn}
+                hourRows={hourRows}
+                bodyHeightPx={bodyHeightPx}
+                catalogByCode={catalogByCode}
+                binItems={binItems}
+                onSelectSection={setDetailSection}
+              />
+            )}
           </div>
-        )}
+        ) : null}
+
+        {showTimetableTabs && langTab === 'cn' ? (
+          <div
+            role="tabpanel"
+            id="offered-tt-panel-cn"
+            aria-labelledby="offered-tt-tab-cn"
+          >
+            {sections!.length === 0 || chineseSections.length === 0 ? (
+              <p className="portal-text-muted" role="status">
+                No Chinese timetable sections scheduled for this term.
+              </p>
+            ) : (
+              <OfferedTimetableWeekGrid
+                placedWeekdays={placedCn}
+                hourRows={hourRows}
+                bodyHeightPx={bodyHeightPx}
+                catalogByCode={catalogByCode}
+                binItems={binItems}
+                onSelectSection={setDetailSection}
+              />
+            )}
+          </div>
+        ) : null}
       </section>
 
       {detailSection != null && (
