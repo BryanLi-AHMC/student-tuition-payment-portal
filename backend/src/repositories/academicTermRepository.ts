@@ -2,6 +2,27 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "../lib/db.js";
 import type { AcademicTermDetail, AcademicTermName, AcademicTermStatus } from "../types/academicTerm.js";
 
+function rowWantsPersistedPaymentPolicy(row: AcademicTermInsertRow): boolean {
+  const pdd = row.payment_due_date;
+  if (pdd != null && String(pdd).trim() !== "") return true;
+  return row.lock_registration_if_overdue === true;
+}
+
+/**
+ * When the DB has no payment-policy columns but the caller supplies values,
+ * fail loudly instead of returning 200 with data that was never written.
+ */
+function assertPaymentPolicyWritable(
+  hasPaymentPolicyColumns: boolean,
+  row: AcademicTermInsertRow,
+): void {
+  if (hasPaymentPolicyColumns) return;
+  if (!rowWantsPersistedPaymentPolicy(row)) return;
+  throw new Error(
+    "Database schema is missing academic_terms.payment_due_date and/or lock_registration_if_overdue. Apply backend/migrations/001_academic_terms_payment_policy.sql.",
+  );
+}
+
 function nullableDateString(v: unknown): string | null {
   if (v === undefined || v === null) return null;
   if (v instanceof Date) {
@@ -97,36 +118,33 @@ let cachedSchemaCaps: AcademicTermSchemaCaps | null = null;
 
 /**
  * Detects once per process whether `payment_due_date` and `lock_registration_if_overdue`
- * exist on `academic_terms`. Drives SELECT/INSERT/UPDATE shape and API hints.
+ * exist on `academic_terms`. Uses the same table resolution as app queries (not
+ * information_schema), so capability matches actual SELECT/INSERT/UPDATE behavior.
  */
 export async function academicTermSchemaCaps(): Promise<AcademicTermSchemaCaps> {
   if (cachedSchemaCaps !== null) {
     return cachedSchemaCaps;
   }
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT COUNT(*) AS c FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME = 'academic_terms'
-         AND COLUMN_NAME IN ('payment_due_date', 'lock_registration_if_overdue')`,
+    await pool.query(
+      `SELECT payment_due_date, lock_registration_if_overdue FROM academic_terms WHERE 1=0`,
     );
-    const n = Number((rows[0] as RowDataPacket | undefined)?.c ?? 0);
-    const hasPaymentPolicyColumns = n >= 2;
     cachedSchemaCaps = {
-      selectSql: hasPaymentPolicyColumns
-        ? TERM_SELECT_WITH_PAYMENT_COLUMNS
-        : TERM_SELECT_BASE,
-      hasPaymentPolicyColumns,
+      selectSql: TERM_SELECT_WITH_PAYMENT_COLUMNS,
+      hasPaymentPolicyColumns: true,
     };
   } catch (e) {
-    console.warn(
-      "[academic_terms] schema capability probe failed; assuming legacy table shape:",
-      e,
-    );
-    cachedSchemaCaps = {
-      selectSql: TERM_SELECT_BASE,
-      hasPaymentPolicyColumns: false,
-    };
+    const err = e as { code?: string; errno?: number };
+    const missingColumn =
+      err.code === "ER_BAD_FIELD_ERROR" || err.errno === 1054;
+    if (missingColumn) {
+      cachedSchemaCaps = {
+        selectSql: TERM_SELECT_BASE,
+        hasPaymentPolicyColumns: false,
+      };
+    } else {
+      throw e;
+    }
   }
   return cachedSchemaCaps;
 }
@@ -195,6 +213,7 @@ export async function insertAcademicTerm(
   row: AcademicTermInsertRow,
 ): Promise<AcademicTermDetail> {
   const { hasPaymentPolicyColumns } = await academicTermSchemaCaps();
+  assertPaymentPolicyWritable(hasPaymentPolicyColumns, row);
   if (hasPaymentPolicyColumns) {
     const sql = `
     INSERT INTO academic_terms (
@@ -281,6 +300,7 @@ export async function updateAcademicTermRow(
   const existing = await getAcademicTermById(currentId);
   if (!existing) return null;
   const { hasPaymentPolicyColumns } = await academicTermSchemaCaps();
+  assertPaymentPolicyWritable(hasPaymentPolicyColumns, row);
   if (hasPaymentPolicyColumns) {
     const sql = `
     UPDATE academic_terms SET
