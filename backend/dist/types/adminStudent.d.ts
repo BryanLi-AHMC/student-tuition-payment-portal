@@ -1,3 +1,4 @@
+import type { ClinicalProgress } from "./studentAccount.js";
 /** GET /api/admin/students — normalized roster row for the admin Students table. */
 export type AdminStudentListItem = {
     studentId: string;
@@ -32,6 +33,8 @@ export type AdminStudentDetail = {
     state: string | null;
     zip: string | null;
     latestRegistrationTerm: string | null;
+    /** Same shape as student account `clinicalProgress` (legacy clinic + requirements). */
+    clinicalProgress?: ClinicalProgress;
 };
 /** PUT /api/admin/students/:studentId — editable legacy master fields only. */
 export type AdminStudentUpdateBody = {

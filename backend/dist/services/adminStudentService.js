@@ -1,6 +1,7 @@
 import { pool } from "../lib/db.js";
 import { createLegacyStudentMasterRow, createLegacyStudentPasswordRow, deleteLegacyStudentMasterRow, deleteLegacyStudentPasswordRow, findLatestLegacyTermYear, getNextLegacyStudentId, hasLegacyStudentAccounting, hasLegacyStudentMarks, hasLegacyStudentRegistration, legacyStudentMasterExists, legacyStudentPasswordRowExists, listLegacyAdminStudentRows, loadLegacyStudentProfileRow, updateLegacyStudentMasterRow, } from "../repositories/studentLegacyAccountRepository.js";
 import { combineAddressLine, legacyDbDateToIso, resolveEnrollmentDate, } from "./studentProfileService.js";
+import { buildClinicalProgress } from "./clinicalProgressService.js";
 function str(v) {
     if (v == null)
         return "";
@@ -128,7 +129,15 @@ export async function getAdminStudentDetail(studentIdRaw) {
     const latestRegistrationTerm = latest
         ? formatLatestRegistrationTerm(latest.term, latest.year)
         : null;
-    return mapProfileRowToAdminDetail(row, latestRegistrationTerm);
+    const base = mapProfileRowToAdminDetail(row, latestRegistrationTerm);
+    try {
+        const clinicalProgress = await buildClinicalProgress(pool, studentId);
+        return { ...base, clinicalProgress };
+    }
+    catch (e) {
+        console.error("[admin] buildClinicalProgress failed", studentId, e);
+        return base;
+    }
 }
 const DATE_VALIDATION_PREFIX = "Validation:";
 function sqlDateFromBodyField(label, raw) {
