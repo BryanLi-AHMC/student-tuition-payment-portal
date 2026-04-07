@@ -1384,6 +1384,8 @@ export type AcademicTerm = {
   end_date: string | null
   registration_open: string | null
   registration_close: string | null
+  payment_due_date: string | null
+  lock_registration_if_overdue: boolean
   status: AcademicTermStatus
   is_visible: boolean
 }
@@ -1462,6 +1464,8 @@ function parseAcademicTermRow(row: Record<string, unknown>): AcademicTerm | null
     end_date: parseNullableIsoDate(row.end_date),
     registration_open: parseNullableIsoDate(row.registration_open),
     registration_close: parseNullableIsoDate(row.registration_close),
+    payment_due_date: parseNullableIsoDate(row.payment_due_date),
+    lock_registration_if_overdue: parseAcademicTermBool(row.lock_registration_if_overdue),
     status: status as AcademicTermStatus,
     is_visible: parseAcademicTermBool(row.is_visible),
   }
@@ -1547,6 +1551,8 @@ export type CreateAcademicTermBody = {
   end_date?: string | null
   registration_open?: string | null
   registration_close?: string | null
+  payment_due_date?: string | null
+  lock_registration_if_overdue?: boolean
   status: AcademicTermStatus
   is_visible?: boolean
 }
