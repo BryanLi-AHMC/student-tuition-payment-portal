@@ -201,6 +201,16 @@
   object-position: left center;
 }
 
+.portal-branding-bar-end {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
 .portal-branding-bar-actions {
   display: flex;
   flex-wrap: nowrap;
@@ -209,6 +219,16 @@
   gap: 0.65rem 1rem;
   flex-shrink: 0;
   min-width: 0;
+}
+
+/* Mobile AI dock when the myAMU strip is hidden (internal module pages). */
+.portal-branding-bar__ai-dock-anchor {
+  flex-shrink: 0;
+  width: 7rem;
+  min-width: 7rem;
+  min-height: 2.5rem;
+  height: 2.5rem;
+  pointer-events: none;
 }
 
 .portal-user-button,
@@ -473,6 +493,99 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+/* Internal module pages: compact sidebar (220px) + wide content (~80–90% of viewport past sidebar). */
+.portal-shell--internal-module {
+  --portal-sidebar-width: 220px;
+}
+
+.portal-shell--internal-module .portal-main {
+  padding-left: 20px;
+  box-sizing: border-box;
+}
+
+.portal-shell--internal-module .portal-main-content {
+  max-width: 1680px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+
+.portal-shell--internal-module .portal-module-page {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .portal-shell--internal-module .portal-main {
+    padding-left: 0;
+  }
+}
+
+/* Internal module sidebar: AMU red, text-only nav (desktop + drawer). */
+.portal-shell--internal-module .portal-sidebar {
+  background: #a6192e;
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 0.5rem 0 0.75rem;
+}
+
+.portal-shell--internal-module .portal-sidebar-nav {
+  padding: 0.125rem 0.5rem 0;
+}
+
+.portal-shell--internal-module .portal-sidebar-nav-list {
+  gap: 0.125rem;
+}
+
+.portal-shell--internal-module .portal-sidebar .portal-nav-link {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #ffffff;
+  min-height: 0;
+  padding: 0.4rem 0.5rem;
+}
+
+.portal-shell--internal-module .portal-sidebar .sidebar-item {
+  color: #ffffff;
+}
+
+.portal-shell--internal-module .portal-sidebar .sidebar-item:hover {
+  color: #ffffff;
+}
+
+.portal-shell--internal-module .portal-sidebar .portal-nav-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.portal-shell--internal-module .portal-sidebar .portal-nav-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.portal-shell--internal-module .portal-sidebar .portal-nav-link--active,
+.portal-shell--internal-module .portal-sidebar .sidebar-item.portal-nav-link--active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-weight: 500;
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.35);
+}
+
+.portal-shell--internal-module .portal-sidebar-drawer-close {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.portal-shell--internal-module .portal-sidebar-drawer-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.portal-shell--internal-module .portal-sidebar-drawer-close:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
 }
 
 /* —— Authenticated shell: student profile strip (below app header) —— */

@@ -14,6 +14,8 @@ type PortalShellProps = {
   showPortalBanner?: boolean
   /** Homepage: content-height layout (no viewport filling / excess bottom gap). */
   dashboardHome?: boolean
+  /** Registration, Finances, Academics, etc.: wide content column + branded red sidebar. */
+  internalModuleLayout?: boolean
   /** Module sidebar / mobile drawer: `internal` text-only vs `dashboard` icon+label. */
   sidebarNavVariant?: SidebarNavVariant
 }
@@ -24,6 +26,7 @@ export function PortalShell({
   showSidebar = true,
   showPortalBanner = false,
   dashboardHome = false,
+  internalModuleLayout = false,
   sidebarNavVariant = 'internal',
 }: PortalShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -73,6 +76,7 @@ export function PortalShell({
   if (showPortalBanner) shellClass.push('portal-shell--with-banner')
   else shellClass.push('portal-shell--without-banner')
   if (dashboardHome) shellClass.push('portal-shell--dashboard-home')
+  if (internalModuleLayout) shellClass.push('portal-shell--internal-module')
 
   return (
     <div className={shellClass.join(' ')}>

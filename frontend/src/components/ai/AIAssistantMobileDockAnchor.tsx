@@ -1,10 +1,15 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useAIAssistantMobileAnchor } from './AIAssistantMobileAnchorContext'
 
+type AIAssistantMobileDockAnchorProps = {
+  /** Defaults to banner grid cell; use branding-bar class when the myAMU strip is hidden. */
+  className?: string
+}
+
 /**
- * Mount in the global myAMU banner (TopBar) on mobile so the cat + launcher align to that strip.
+ * Mount in the global header on mobile so the cat + launcher align to that strip (banner or gold bar).
  */
-export function AIAssistantMobileDockAnchor() {
+export function AIAssistantMobileDockAnchor({ className }: AIAssistantMobileDockAnchorProps) {
   const ref = useRef<HTMLDivElement>(null)
   const { setMobileDockAnchorEl } = useAIAssistantMobileAnchor()
 
@@ -17,7 +22,7 @@ export function AIAssistantMobileDockAnchor() {
   return (
     <div
       ref={ref}
-      className="portal-portal-banner__ai-dock-anchor"
+      className={className ?? 'portal-portal-banner__ai-dock-anchor'}
       aria-hidden
     />
   )

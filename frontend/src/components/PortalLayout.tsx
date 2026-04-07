@@ -15,8 +15,8 @@ export function PortalLayout() {
   const isDashboard = isDashboardRoute(pathname)
   const showStudentBar = pathname.startsWith('/finances')
   const showSidebar = !isDashboard
-  /** White myAMU strip under the gold bar on all portal routes (AI dock anchors here on mobile). */
-  const showPortalBanner = true
+  /** myAMU strip only on the dashboard; internal module pages use the gold bar only (+ compact header height). */
+  const showPortalBanner = isDashboard
 
   const assistantPageContext = deriveAIAssistantPageContext(pathname)
 
@@ -28,6 +28,7 @@ export function PortalLayout() {
           showSidebar={showSidebar}
           showPortalBanner={showPortalBanner}
           dashboardHome={isDashboard}
+          internalModuleLayout={!isDashboard}
           sidebarNavVariant="internal"
         >
           <Outlet />

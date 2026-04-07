@@ -65,27 +65,32 @@ export const TopBar = forwardRef<HTMLButtonElement, TopBarProps>(function TopBar
               />
             </Link>
           </div>
-          <div className="portal-branding-bar-actions portal-user-actions">
-            <Link
-              to="/my-account"
-              className="portal-user-button"
-              title="My account"
-            >
-              <span className="portal-user-icon" aria-hidden>
-                <IconUserCircle width={17} height={17} />
-              </span>
-              <span className="portal-user-button__label">{displayName}</span>
-            </Link>
-            <button
-              type="button"
-              className="portal-logout-button"
-              onClick={handleLogout}
-            >
-              <span className="portal-user-icon" aria-hidden>
-                <IconLogout width={17} height={17} />
-              </span>
-              <span>Logout</span>
-            </button>
+          <div className="portal-branding-bar-end">
+            <div className="portal-branding-bar-actions portal-user-actions">
+              <Link
+                to="/my-account"
+                className="portal-user-button"
+                title="My account"
+              >
+                <span className="portal-user-icon" aria-hidden>
+                  <IconUserCircle width={17} height={17} />
+                </span>
+                <span className="portal-user-button__label">{displayName}</span>
+              </Link>
+              <button
+                type="button"
+                className="portal-logout-button"
+                onClick={handleLogout}
+              >
+                <span className="portal-user-icon" aria-hidden>
+                  <IconLogout width={17} height={17} />
+                </span>
+                <span>Logout</span>
+              </button>
+            </div>
+            {assistantMobile && !showPortalBanner ? (
+              <AIAssistantMobileDockAnchor className="portal-branding-bar__ai-dock-anchor" />
+            ) : null}
           </div>
         </div>
       </div>
