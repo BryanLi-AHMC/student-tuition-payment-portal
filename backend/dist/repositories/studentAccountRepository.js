@@ -46,6 +46,32 @@ function asAdjustmentSource(raw) {
         return "system_late_fee";
     return "manual";
 }
+/** In-process cache: whether `portal_billing_adjustments.adjustment_source` exists (older prod DBs may lack it). */
+let portalBillingAdjustmentsHasAdjustmentSource;
+let portalBillingAdjustmentsAdjustmentSourceDetect = null;
+async function hasPortalBillingAdjustmentsAdjustmentSourceColumn(pool) {
+    if (portalBillingAdjustmentsHasAdjustmentSource !== undefined) {
+        return portalBillingAdjustmentsHasAdjustmentSource;
+    }
+    if (!portalBillingAdjustmentsAdjustmentSourceDetect) {
+        portalBillingAdjustmentsAdjustmentSourceDetect = pool
+            .query(`SELECT 1 AS ok
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'portal_billing_adjustments'
+           AND COLUMN_NAME = 'adjustment_source'
+         LIMIT 1`)
+            .then(([rows]) => {
+            const has = rows.length > 0;
+            portalBillingAdjustmentsHasAdjustmentSource = has;
+            return has;
+        })
+            .finally(() => {
+            portalBillingAdjustmentsAdjustmentSourceDetect = null;
+        });
+    }
+    return portalBillingAdjustmentsAdjustmentSourceDetect;
+}
 /**
  * Latest term/year for which the student has at least one enrollment row.
  * Ordering: highest calendar year first, then Fall > Summer > Spring > Winter within the year.
@@ -106,6 +132,14 @@ async function loadPortalTermBillingContextCore(pool, studentId, term, year, enr
     }));
     const courseIds = [...new Set(enrollments.map((e) => e.courseId))];
     const placeholders = courseIds.length > 0 ? courseIds.map(() => "?").join(",") : "";
+    const adjustmentsSelectHasSource = await hasPortalBillingAdjustmentsAdjustmentSourceColumn(pool);
+    const adjustmentsSql = adjustmentsSelectHasSource
+        ? `SELECT id, description, amount, category, adjustment_source AS adjustmentSource
+       FROM portal_billing_adjustments
+       WHERE student_external_id = ? AND term = ? AND year = ?`
+        : `SELECT id, description, amount, category
+       FROM portal_billing_adjustments
+       WHERE student_external_id = ? AND term = ? AND year = ?`;
     const coursesSql = courseIds.length > 0
         ? `SELECT course_id AS courseId, course_code AS courseCode, title, type,
                 units, hours
@@ -128,9 +162,7 @@ async function loadPortalTermBillingContextCore(pool, studentId, term, year, enr
        FROM portal_payments
        WHERE student_external_id = ? AND term = ? AND year = ?
        ORDER BY paid_at ASC, id ASC`, [studentId, term, year]),
-        pool.query(`SELECT id, description, amount, category, adjustment_source AS adjustmentSource
-       FROM portal_billing_adjustments
-       WHERE student_external_id = ? AND term = ? AND year = ?`, [studentId, term, year]),
+        pool.query(adjustmentsSql, [studentId, term, year]),
     ]);
     const courseRowList = coursesQ[0];
     const prefRowList = prefsQ[0];
@@ -168,7 +200,9 @@ async function loadPortalTermBillingContextCore(pool, studentId, term, year, enr
         description: String(r.description),
         amount: Number(r.amount),
         category: asBillingCategory(r.category),
-        adjustmentSource: asAdjustmentSource(r.adjustmentSource),
+        adjustmentSource: adjustmentsSelectHasSource
+            ? asAdjustmentSource(r.adjustmentSource)
+            : "manual",
     }));
     return {
         studentId,

@@ -1,5 +1,9 @@
 import { type EnrollSectionInput } from "../repositories/studentEnrollmentRepository.js";
 export type { EnrollSectionInput };
+/** Thrown when academic term policy blocks registration (maps to HTTP 400 with this message). */
+export declare class RegistrationLockedOverdueBalanceError extends Error {
+    constructor();
+}
 /**
  * Registers sections under the academic term’s `term_name` and `year`. Those values are the same
  * quarter key used by `portal_enrollments` and by finance (`getAccountingQuartersPayload` /

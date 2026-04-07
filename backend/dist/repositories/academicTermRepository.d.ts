@@ -1,4 +1,14 @@
 import type { AcademicTermDetail } from "../types/academicTerm.js";
+export type AcademicTermSchemaCaps = {
+    selectSql: string;
+    /** True only when both optional columns exist (partial schemas use legacy paths). */
+    hasPaymentPolicyColumns: boolean;
+};
+/**
+ * Detects once per process whether `payment_due_date` and `lock_registration_if_overdue`
+ * exist on `academic_terms`. Drives SELECT/INSERT/UPDATE shape and API hints.
+ */
+export declare function academicTermSchemaCaps(): Promise<AcademicTermSchemaCaps>;
 export declare function listAcademicTerms(): Promise<AcademicTermDetail[]>;
 export declare function listVisibleAcademicTerms(limit?: number): Promise<AcademicTermDetail[]>;
 export declare function listRecentVisibleAcademicTerms(limit?: number): Promise<AcademicTermDetail[]>;

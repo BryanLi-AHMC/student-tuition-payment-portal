@@ -2,7 +2,7 @@ import { env } from "../config/env.js";
 import { getAcademicTermById } from "../repositories/academicTermRepository.js";
 import { listStudentEnrolledSectionRows } from "../repositories/studentEnrollmentRepository.js";
 import { InvalidAcademicTermError } from "../services/courseSectionService.js";
-import { enrollStudentForAcademicTerm, } from "../services/studentEnrollmentService.js";
+import { enrollStudentForAcademicTerm, RegistrationLockedOverdueBalanceError, } from "../services/studentEnrollmentService.js";
 function devMessage(e) {
     return e instanceof Error ? e.message : typeof e === "string" ? e : String(e);
 }
@@ -54,6 +54,10 @@ export async function postStudentEnroll(req, res) {
         res.json({ success: true, insertedCount: result.insertedCount });
     }
     catch (e) {
+        if (e instanceof RegistrationLockedOverdueBalanceError) {
+            res.status(400).json({ error: e.message });
+            return;
+        }
         if (e instanceof InvalidAcademicTermError) {
             res.status(400).json({
                 error: "The selected academic term is not valid or no longer exists. Choose another term.",

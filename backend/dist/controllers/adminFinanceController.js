@@ -72,33 +72,40 @@ export async function getGlobalFinanceQuarters(_req, res) {
  * GET /api/admin/finance/quarter-settings?term=&year=
  */
 export async function getFinanceQuarterSettings(req, res) {
+    const termRaw = req.query.term;
+    const yearRaw = req.query.year;
+    const term = typeof termRaw === "string" && termRaw.trim() !== ""
+        ? termRaw.trim()
+        : "";
+    const yearNum = typeof yearRaw === "string" && yearRaw.trim() !== ""
+        ? Number(yearRaw)
+        : Number.NaN;
+    const year = Number.isFinite(yearNum) ? yearNum : Number.NaN;
+    if (term === "" || !Number.isFinite(year)) {
+        res.status(400).json({
+            error: "Query parameters `term` and `year` are required",
+        });
+        return;
+    }
+    const y = Math.trunc(year);
     try {
-        const termRaw = req.query.term;
-        const yearRaw = req.query.year;
-        const term = typeof termRaw === "string" && termRaw.trim() !== ""
-            ? termRaw.trim()
-            : "";
-        const yearNum = typeof yearRaw === "string" && yearRaw.trim() !== ""
-            ? Number(yearRaw)
-            : Number.NaN;
-        const year = Number.isFinite(yearNum) ? yearNum : Number.NaN;
-        if (term === "" || !Number.isFinite(year)) {
-            res.status(400).json({
-                error: "Query parameters `term` and `year` are required",
-            });
-            return;
-        }
-        const payload = await getQuarterSettingsPayload(term, year);
+        const payload = await getQuarterSettingsPayload(term, y);
         res.json(payload);
     }
     catch (e) {
         console.error("[admin/finance/quarter-settings get]", e);
-        const body = {
-            error: "Failed to load quarter settings",
-        };
-        if (env.nodeEnv === "development")
-            body.message = devMessage(e);
-        res.status(500).json(body);
+        const note = env.nodeEnv === "development"
+            ? `Quarter settings could not be loaded (${devMessage(e)}). Configure payment due dates under Academic Terms.`
+            : "Quarter settings could not be loaded. Configure payment due dates under Academic Terms.";
+        res.status(200).json({
+            term: term.trim(),
+            year: y,
+            paymentDueDate: null,
+            lateFeeEnabled: true,
+            lateFeeAmount: 30,
+            ddlPersistenceAvailable: false,
+            ddlSaveNote: note,
+        });
     }
 }
 /**

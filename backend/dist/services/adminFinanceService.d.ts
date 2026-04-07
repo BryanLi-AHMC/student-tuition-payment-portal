@@ -33,7 +33,7 @@ export declare function putQuarterSettings(input: {
     ok: false;
     message: string;
 }>;
-export declare function listAdminFinanceStudentsForQuarter(term: string, year: number): Promise<AdminFinanceStudentRow[]>;
+export declare function listAdminFinanceStudentsForQuarter(_term: string, _year: number): Promise<AdminFinanceStudentRow[]>;
 export declare function getAdminFinanceQuarters(studentId: string): Promise<{
     studentId: string;
     quarters: import("./studentLedgerService.js").LedgerQuarterOption[];

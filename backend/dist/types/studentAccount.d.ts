@@ -120,7 +120,10 @@ export type BillingAdjustmentRecord = {
     description: string;
     amount: number;
     category: BillingCategory;
-    /** From `portal_billing_adjustments.adjustment_source`; defaults to manual when column absent in old DBs. */
+    /**
+     * From `portal_billing_adjustments.adjustment_source` when present.
+     * When the column is missing (legacy schema), the repository sets `"manual"` for every row.
+     */
     adjustmentSource?: BillingAdjustmentSource;
 };
 /** Raw rows loaded from MySQL for one student term */

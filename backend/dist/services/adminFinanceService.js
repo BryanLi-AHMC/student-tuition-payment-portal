@@ -1,7 +1,7 @@
 import { pool } from "../lib/db.js";
 import { academicTermsPaymentDueDateColumnExists, deleteManualBillingAdjustment, deletePortalPayment, getBillingAdjustmentById, getFinanceQuarterDdlFromAcademicTerms, getPortalPaymentById, hasSystemLateFeeForQuarter, insertPortalBillingAdjustment, insertPortalPayment, insertSystemLateFee, listFinanceRosterRows, listGlobalFinanceQuarters, listStudentIdsWithPortalQuarterActivity, setFinanceQuarterDdlOnAcademicTerms, updateManualBillingAdjustment, updatePortalPayment, } from "../repositories/adminFinanceRepository.js";
 import { loadLegacyAccountingRows } from "../repositories/studentLegacyAccountRepository.js";
-import { getAccountingLedgerPayload, getAccountingQuartersPayload, getStudentQuarterBalance, } from "./studentLedgerService.js";
+import { getAccountingLedgerPayload, getAccountingQuartersPayload, } from "./studentLedgerService.js";
 const CHARGE_CATEGORIES = [
     "fees",
     "other",
@@ -75,33 +75,12 @@ export async function putQuarterSettings(input) {
     }
     return { ok: true };
 }
-async function mapWithConcurrency(items, limit, fn) {
-    const out = new Array(items.length);
-    let i = 0;
-    async function worker() {
-        for (;;) {
-            const idx = i++;
-            if (idx >= items.length)
-                return;
-            out[idx] = await fn(items[idx]);
-        }
-    }
-    const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
-    await Promise.all(workers);
-    return out;
-}
-export async function listAdminFinanceStudentsForQuarter(term, year) {
+export async function listAdminFinanceStudentsForQuarter(_term, _year) {
     const roster = await listFinanceRosterRows(pool);
-    const t = term.trim();
-    const y = Math.trunc(year);
-    const balances = await mapWithConcurrency(roster, 16, async (r) => {
-        const bal = await getStudentQuarterBalance(r.studentId, t, y);
-        return roundMoney(bal);
-    });
-    return roster.map((r, idx) => ({
+    return roster.map((r) => ({
         studentId: r.studentId,
         name: r.name,
-        balance: balances[idx] ?? 0,
+        balance: null,
     }));
 }
 export async function getAdminFinanceQuarters(studentId) {

@@ -1,5 +1,5 @@
 import { env } from "../config/env.js";
-import { createAcademicTerm, getCurrentRegistrationOpenTerm, listAllAcademicTerms, listRecentVisibleTerms, isAcademicTermName, isAcademicTermStatus, updateAcademicTerm, } from "../services/academicTermService.js";
+import { academicTermPaymentPolicyColumnsAvailable, createAcademicTerm, getCurrentRegistrationOpenTerm, listAllAcademicTerms, listRecentVisibleTerms, isAcademicTermName, isAcademicTermStatus, updateAcademicTerm, } from "../services/academicTermService.js";
 function devMessage(e) {
     return e instanceof Error ? e.message : typeof e === "string" ? e : String(e);
 }
@@ -171,9 +171,14 @@ function parsePatchBody(body) {
 function patchHasField(patch) {
     return Object.keys(patch).length > 0;
 }
+async function setAcademicTermPaymentColumnsHeader(res) {
+    const available = await academicTermPaymentPolicyColumnsAvailable();
+    res.setHeader("X-Academic-Terms-Payment-Columns", available ? "1" : "0");
+}
 export async function getAcademicTerms(_req, res) {
     try {
         const terms = await listAllAcademicTerms();
+        await setAcademicTermPaymentColumnsHeader(res);
         res.json(terms);
     }
     catch (e) {
@@ -197,6 +202,7 @@ export async function getAcademicTermsRecent(req, res) {
             limit = n;
         }
         const terms = await listRecentVisibleTerms(limit);
+        await setAcademicTermPaymentColumnsHeader(res);
         res.json(terms);
     }
     catch (e) {
@@ -209,6 +215,7 @@ export async function getAcademicTermsRecent(req, res) {
 export async function getAcademicTermsCurrent(_req, res) {
     try {
         const term = await getCurrentRegistrationOpenTerm();
+        await setAcademicTermPaymentColumnsHeader(res);
         res.json(term);
     }
     catch (e) {
@@ -228,6 +235,7 @@ export async function postAdminAcademicTerm(req, res) {
             return;
         }
         const term = await createAcademicTerm(input);
+        await setAcademicTermPaymentColumnsHeader(res);
         res.status(201).json(term);
     }
     catch (e) {
@@ -268,6 +276,7 @@ export async function patchAdminAcademicTerm(req, res) {
             res.status(404).json({ error: "Academic term not found" });
             return;
         }
+        await setAcademicTermPaymentColumnsHeader(res);
         res.json(term);
     }
     catch (e) {

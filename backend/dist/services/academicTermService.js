@@ -1,4 +1,4 @@
-import { getAcademicTermById, insertAcademicTerm, listAcademicTerms, listRecentVisibleAcademicTerms, listVisibleAcademicTerms, getCurrentRegistrationOpenTerm as repoGetCurrentRegistrationOpenTerm, updateAcademicTermRow, } from "../repositories/academicTermRepository.js";
+import { academicTermSchemaCaps, getAcademicTermById, insertAcademicTerm, listAcademicTerms, listRecentVisibleAcademicTerms, listVisibleAcademicTerms, getCurrentRegistrationOpenTerm as repoGetCurrentRegistrationOpenTerm, updateAcademicTermRow, } from "../repositories/academicTermRepository.js";
 const TERM_NAMES = [
     "Winter",
     "Spring",
@@ -65,6 +65,10 @@ export async function listRecentVisibleTerms(limit = 3) {
 }
 export async function getCurrentRegistrationOpenTerm() {
     return repoGetCurrentRegistrationOpenTerm();
+}
+/** For response headers: whether `academic_terms` persists payment DDL / overdue-lock fields. */
+export async function academicTermPaymentPolicyColumnsAvailable() {
+    return (await academicTermSchemaCaps()).hasPaymentPolicyColumns;
 }
 export async function createAcademicTerm(input) {
     assertValidYear(input.year);

@@ -82,23 +82,40 @@ const TERM_SELECT_WITH_PAYMENT_COLUMNS = `
     is_visible
   FROM academic_terms
 `;
-let cachedTermSelectSql = null;
+let cachedSchemaCaps = null;
 /**
- * Resolves the SELECT fragment once per process: full row when both finance-related
- * columns exist; otherwise a legacy SELECT and defaults in `normalizeRow`.
+ * Detects once per process whether `payment_due_date` and `lock_registration_if_overdue`
+ * exist on `academic_terms`. Drives SELECT/INSERT/UPDATE shape and API hints.
  */
-async function termSelectSql() {
-    if (cachedTermSelectSql !== null) {
-        return cachedTermSelectSql;
+export async function academicTermSchemaCaps() {
+    if (cachedSchemaCaps !== null) {
+        return cachedSchemaCaps;
     }
-    const [rows] = await pool.query(`SELECT COUNT(*) AS c FROM information_schema.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = 'academic_terms'
-       AND COLUMN_NAME IN ('payment_due_date', 'lock_registration_if_overdue')`);
-    const n = Number(rows[0]?.c ?? 0);
-    cachedTermSelectSql =
-        n >= 2 ? TERM_SELECT_WITH_PAYMENT_COLUMNS : TERM_SELECT_BASE;
-    return cachedTermSelectSql;
+    try {
+        const [rows] = await pool.query(`SELECT COUNT(*) AS c FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'academic_terms'
+         AND COLUMN_NAME IN ('payment_due_date', 'lock_registration_if_overdue')`);
+        const n = Number(rows[0]?.c ?? 0);
+        const hasPaymentPolicyColumns = n >= 2;
+        cachedSchemaCaps = {
+            selectSql: hasPaymentPolicyColumns
+                ? TERM_SELECT_WITH_PAYMENT_COLUMNS
+                : TERM_SELECT_BASE,
+            hasPaymentPolicyColumns,
+        };
+    }
+    catch (e) {
+        console.warn("[academic_terms] schema capability probe failed; assuming legacy table shape:", e);
+        cachedSchemaCaps = {
+            selectSql: TERM_SELECT_BASE,
+            hasPaymentPolicyColumns: false,
+        };
+    }
+    return cachedSchemaCaps;
+}
+async function termSelectSql() {
+    return (await academicTermSchemaCaps()).selectSql;
 }
 export async function listAcademicTerms() {
     const sel = await termSelectSql();
@@ -137,7 +154,9 @@ export async function getCurrentRegistrationOpenTerm() {
     return row ? normalizeRow(row) : null;
 }
 export async function insertAcademicTerm(row) {
-    const sql = `
+    const { hasPaymentPolicyColumns } = await academicTermSchemaCaps();
+    if (hasPaymentPolicyColumns) {
+        const sql = `
     INSERT INTO academic_terms (
       id,
       term_label,
@@ -155,23 +174,57 @@ export async function insertAcademicTerm(row) {
       is_visible
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
-    const params = [
-        row.id,
-        row.term_label,
-        row.year,
-        row.term_name,
-        row.quarter_index,
-        row.sequence_no,
-        row.start_date,
-        row.end_date,
-        row.registration_open,
-        row.registration_close,
-        row.payment_due_date,
-        row.lock_registration_if_overdue ? 1 : 0,
-        row.status,
-        row.is_visible ? 1 : 0,
-    ];
-    await pool.query(sql, params);
+        const params = [
+            row.id,
+            row.term_label,
+            row.year,
+            row.term_name,
+            row.quarter_index,
+            row.sequence_no,
+            row.start_date,
+            row.end_date,
+            row.registration_open,
+            row.registration_close,
+            row.payment_due_date,
+            row.lock_registration_if_overdue ? 1 : 0,
+            row.status,
+            row.is_visible ? 1 : 0,
+        ];
+        await pool.query(sql, params);
+    }
+    else {
+        const sql = `
+    INSERT INTO academic_terms (
+      id,
+      term_label,
+      year,
+      term_name,
+      quarter_index,
+      sequence_no,
+      start_date,
+      end_date,
+      registration_open,
+      registration_close,
+      status,
+      is_visible
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+        const params = [
+            row.id,
+            row.term_label,
+            row.year,
+            row.term_name,
+            row.quarter_index,
+            row.sequence_no,
+            row.start_date,
+            row.end_date,
+            row.registration_open,
+            row.registration_close,
+            row.status,
+            row.is_visible ? 1 : 0,
+        ];
+        await pool.query(sql, params);
+    }
     const created = await getAcademicTermById(row.id);
     if (!created) {
         throw new Error("Failed to load academic term after insert");
@@ -185,7 +238,9 @@ export async function updateAcademicTermRow(currentId, row) {
     const existing = await getAcademicTermById(currentId);
     if (!existing)
         return null;
-    const sql = `
+    const { hasPaymentPolicyColumns } = await academicTermSchemaCaps();
+    if (hasPaymentPolicyColumns) {
+        const sql = `
     UPDATE academic_terms SET
       id = ?,
       term_label = ?,
@@ -203,24 +258,59 @@ export async function updateAcademicTermRow(currentId, row) {
       is_visible = ?
     WHERE id = ?
   `;
-    const params = [
-        row.id,
-        row.term_label,
-        row.year,
-        row.term_name,
-        row.quarter_index,
-        row.sequence_no,
-        row.start_date,
-        row.end_date,
-        row.registration_open,
-        row.registration_close,
-        row.payment_due_date,
-        row.lock_registration_if_overdue ? 1 : 0,
-        row.status,
-        row.is_visible ? 1 : 0,
-        currentId,
-    ];
-    await pool.query(sql, params);
+        const params = [
+            row.id,
+            row.term_label,
+            row.year,
+            row.term_name,
+            row.quarter_index,
+            row.sequence_no,
+            row.start_date,
+            row.end_date,
+            row.registration_open,
+            row.registration_close,
+            row.payment_due_date,
+            row.lock_registration_if_overdue ? 1 : 0,
+            row.status,
+            row.is_visible ? 1 : 0,
+            currentId,
+        ];
+        await pool.query(sql, params);
+    }
+    else {
+        const sql = `
+    UPDATE academic_terms SET
+      id = ?,
+      term_label = ?,
+      year = ?,
+      term_name = ?,
+      quarter_index = ?,
+      sequence_no = ?,
+      start_date = ?,
+      end_date = ?,
+      registration_open = ?,
+      registration_close = ?,
+      status = ?,
+      is_visible = ?
+    WHERE id = ?
+  `;
+        const params = [
+            row.id,
+            row.term_label,
+            row.year,
+            row.term_name,
+            row.quarter_index,
+            row.sequence_no,
+            row.start_date,
+            row.end_date,
+            row.registration_open,
+            row.registration_close,
+            row.status,
+            row.is_visible ? 1 : 0,
+            currentId,
+        ];
+        await pool.query(sql, params);
+    }
     return getAcademicTermById(row.id);
 }
 //# sourceMappingURL=academicTermRepository.js.map
