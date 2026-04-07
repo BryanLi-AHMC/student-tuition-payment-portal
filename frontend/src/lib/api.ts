@@ -153,6 +153,8 @@ export type AdminStudentListItem = {
   resolvedEntryDate: string | null
   entryYear: number | null
   latestRegistrationTerm: string | null
+  /** Present when the list is requested with `clinicalSummary=1`. */
+  clinicalProgressSummary?: AdminStudentClinicalProgressSummary
 }
 
 /** One line-item under a term bucket in admin registration history (optional API field). */
@@ -180,6 +182,16 @@ export type ClinicalProgress = {
   completedCourses: string[]
   readiness: 'ready' | 'not_ready'
   missing: string[]
+}
+
+/** Subset of clinical progress on admin student list when `clinicalSummary=1`. */
+export type AdminStudentClinicalProgressSummary = {
+  level: number
+  completedHours: number
+  requiredHours: number
+  readiness: ClinicalProgress['readiness']
+  missingCount: number
+  missingSummary: string | null
 }
 
 /** GET/PUT /api/admin/students/:studentId — admin student detail. */
@@ -298,6 +310,37 @@ function parseOptionalRegistrationHistoryItem(
   }
 }
 
+function parseClinicalProgressSummary(
+  v: unknown,
+): AdminStudentClinicalProgressSummary | undefined {
+  if (v == null || typeof v !== 'object') return undefined
+  const p = v as Record<string, unknown>
+  const level = Number(p.level)
+  const completedHours = Number(p.completedHours)
+  const requiredHours = Number(p.requiredHours)
+  const readinessRaw = String(p.readiness ?? '')
+  const readiness: ClinicalProgress['readiness'] =
+    readinessRaw === 'ready' || readinessRaw === 'not_ready'
+      ? readinessRaw
+      : 'not_ready'
+  const missingCount = Number(p.missingCount)
+  const missingSummaryRaw = p.missingSummary
+  const missingSummary =
+    missingSummaryRaw == null
+      ? null
+      : typeof missingSummaryRaw === 'string'
+        ? missingSummaryRaw
+        : null
+  return {
+    level: Number.isFinite(level) ? level : 0,
+    completedHours: Number.isFinite(completedHours) ? completedHours : 0,
+    requiredHours: Number.isFinite(requiredHours) ? requiredHours : 0,
+    readiness,
+    missingCount: Number.isFinite(missingCount) ? missingCount : 0,
+    missingSummary,
+  }
+}
+
 function parseOptionalClinicalProgress(
   v: unknown,
 ): ClinicalProgress | undefined {
@@ -356,6 +399,9 @@ function parseAdminStudentListRow(o: Record<string, unknown>): AdminStudentListI
   if (typeof o.studentId !== 'string' || typeof o.name !== 'string') {
     throw new Error('Unexpected admin students response')
   }
+  const clinicalProgressSummary = parseClinicalProgressSummary(
+    o.clinicalProgressSummary ?? o.clinical_progress_summary,
+  )
   return {
     studentId: o.studentId,
     division: parseAdminDivision(o.division),
@@ -369,6 +415,9 @@ function parseAdminStudentListRow(o: Record<string, unknown>): AdminStudentListI
     resolvedEntryDate: parseNullableString(o.resolvedEntryDate),
     entryYear: parseNullableNumber(o.entryYear),
     latestRegistrationTerm: parseNullableString(o.latestRegistrationTerm),
+    ...(clinicalProgressSummary != null
+      ? { clinicalProgressSummary }
+      : {}),
   }
 }
 
@@ -411,8 +460,13 @@ function parseAdminStudentDetailPayload(data: unknown): AdminStudentDetail {
 
 export async function fetchAdminStudents(options?: {
   signal?: AbortSignal
+  /** When true, each row may include `clinicalProgressSummary` (same source as admin detail). */
+  clinicalSummary?: boolean
 }): Promise<AdminStudentListItem[]> {
-  const data = (await fetchApiJson('/api/admin/students', {
+  const path = options?.clinicalSummary
+    ? '/api/admin/students?clinicalSummary=1'
+    : '/api/admin/students'
+  const data = (await fetchApiJson(path, {
     signal: options?.signal,
   })) as unknown
   if (data == null || typeof data !== 'object') {

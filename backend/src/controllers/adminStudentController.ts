@@ -107,11 +107,14 @@ function normalizeStudentIdParam(raw: string | undefined): string | null {
 }
 
 export async function getAdminStudents(
-  _req: Request,
+  req: Request,
   res: Response,
 ): Promise<void> {
   try {
-    const students = await listAdminStudents();
+    const raw = req.query.clinicalSummary;
+    const includeClinicalSummary =
+      raw === "1" || raw === "true" || raw === "yes";
+    const students = await listAdminStudents({ includeClinicalSummary });
     res.json({ students });
   } catch (e) {
     console.error(e);

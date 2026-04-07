@@ -5,6 +5,7 @@ import { AdminLayout } from './components/admin/AdminLayout'
 import { AdminLoginPage } from './pages/admin/AdminLoginPage'
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
 import { AdminStudentsPage } from './pages/admin/AdminStudentsPage'
+import { AdminClinicalPage } from './pages/admin/AdminClinicalPage'
 import { AdminStudentDetailPage } from './pages/admin/AdminStudentDetailPage'
 import { AdminStudentCreatePage } from './pages/admin/AdminStudentCreatePage'
 import { AdminStudentEditPage } from './pages/admin/AdminStudentEditPage'
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="students/new" element={<AdminStudentCreatePage />} />
           <Route path="students/:studentId" element={<AdminStudentDetailPage />} />
           <Route path="students" element={<AdminStudentsPage />} />
+          <Route path="clinical" element={<AdminClinicalPage />} />
           <Route path="courses" element={<AdminCoursesPage />} />
           <Route path="academic-terms" element={<AdminAcademicTermsPage />} />
           <Route path="course-sections" element={<AdminCourseSectionsPage />} />

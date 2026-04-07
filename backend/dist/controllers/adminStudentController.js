@@ -96,9 +96,11 @@ function normalizeStudentIdParam(raw) {
         return null;
     return s;
 }
-export async function getAdminStudents(_req, res) {
+export async function getAdminStudents(req, res) {
     try {
-        const students = await listAdminStudents();
+        const raw = req.query.clinicalSummary;
+        const includeClinicalSummary = raw === "1" || raw === "true" || raw === "yes";
+        const students = await listAdminStudents({ includeClinicalSummary });
         res.json({ students });
     }
     catch (e) {

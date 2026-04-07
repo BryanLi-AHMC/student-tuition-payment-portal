@@ -1,5 +1,19 @@
 import type { ClinicalProgress } from "./studentAccount.js";
 
+/**
+ * Clinical roster columns for GET /api/admin/students?clinicalSummary=1.
+ * Derived from the same `buildClinicalProgress` pipeline as admin student detail.
+ */
+export type AdminStudentClinicalProgressSummary = {
+  level: number;
+  completedHours: number;
+  requiredHours: number;
+  readiness: ClinicalProgress["readiness"];
+  missingCount: number;
+  /** Brief text (first missing items) for table cells. */
+  missingSummary: string | null;
+};
+
 /** GET /api/admin/students — normalized roster row for the admin Students table. */
 export type AdminStudentListItem = {
   studentId: string;
@@ -14,6 +28,8 @@ export type AdminStudentListItem = {
   resolvedEntryDate: string | null;
   entryYear: number | null;
   latestRegistrationTerm: string | null;
+  /** Present when the list is requested with `clinicalSummary=1`. */
+  clinicalProgressSummary?: AdminStudentClinicalProgressSummary;
 };
 
 /** GET /api/admin/students/:studentId — full admin read model. */

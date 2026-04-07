@@ -17,11 +17,13 @@ import {
 } from "../repositories/studentLegacyAccountRepository.js";
 import type {
   AdminDivision,
+  AdminStudentClinicalProgressSummary,
   AdminStudentCreateBody,
   AdminStudentDetail,
   AdminStudentListItem,
   AdminStudentUpdateBody,
 } from "../types/adminStudent.js";
+import type { ClinicalProgress } from "../types/studentAccount.js";
 import {
   combineAddressLine,
   legacyDbDateToIso,
@@ -78,6 +80,29 @@ function entryYearFromResolved(iso: string | null): number | null {
   return Number.isFinite(y) ? y : null;
 }
 
+function clinicalProgressToListSummary(
+  cp: ClinicalProgress,
+): AdminStudentClinicalProgressSummary {
+  const missing = cp.missing;
+  const missingCount = missing.length;
+  let missingSummary: string | null = null;
+  if (missingCount > 0) {
+    const parts = missing.slice(0, 2);
+    missingSummary = parts.join("; ");
+    if (missingCount > 2) {
+      missingSummary += ` (+${missingCount - 2} more)`;
+    }
+  }
+  return {
+    level: cp.level,
+    completedHours: cp.completedHours,
+    requiredHours: cp.requiredHours,
+    readiness: cp.readiness,
+    missingCount,
+    missingSummary,
+  };
+}
+
 function mapRowToListItem(r: Record<string, unknown>): AdminStudentListItem {
   const studentId = str(r.id);
   const nameRaw = str(r.name);
@@ -112,9 +137,32 @@ function mapRowToListItem(r: Record<string, unknown>): AdminStudentListItem {
   };
 }
 
-export async function listAdminStudents(): Promise<AdminStudentListItem[]> {
+export async function listAdminStudents(options?: {
+  includeClinicalSummary?: boolean;
+}): Promise<AdminStudentListItem[]> {
   const rows = await listLegacyAdminStudentRows(pool);
-  return rows.map((row) => mapRowToListItem(row as Record<string, unknown>));
+  const base = rows.map((row) => mapRowToListItem(row as Record<string, unknown>));
+  if (!options?.includeClinicalSummary) {
+    return base;
+  }
+  return Promise.all(
+    base.map(async (item) => {
+      try {
+        const cp = await buildClinicalProgress(pool, item.studentId);
+        return {
+          ...item,
+          clinicalProgressSummary: clinicalProgressToListSummary(cp),
+        };
+      } catch (e) {
+        console.error(
+          "[admin] buildClinicalProgress failed (list)",
+          item.studentId,
+          e,
+        );
+        return item;
+      }
+    }),
+  );
 }
 
 function mapProfileRowToAdminDetail(

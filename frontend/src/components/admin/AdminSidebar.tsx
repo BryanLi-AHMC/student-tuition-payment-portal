@@ -10,6 +10,7 @@ type AdminNavItem = {
 
 const links: AdminNavItem[] = [
   { path: '/admin/students', label: 'Students' },
+  { path: '/admin/clinical', label: 'Clinical' },
   { path: '/admin/courses', label: 'Courses' },
   { path: '/admin/academic-terms', label: 'Academic Terms' },
   /** `end` avoids highlighting Course Sections when viewing the timetable sub-route. */
