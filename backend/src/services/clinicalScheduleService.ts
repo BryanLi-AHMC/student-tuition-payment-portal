@@ -5,6 +5,14 @@ import {
   type InsertClinicalAssignmentPayload,
 } from "../repositories/clinicalScheduleRepository.js";
 
+/** Thrown when `getStudentClinicalSchedule` receives an invalid student id (maps to HTTP 400). */
+export class ClinicalScheduleValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClinicalScheduleValidationError";
+  }
+}
+
 export type ClinicalScheduleSessionDto = {
   id: number;
   studentId: string;
@@ -32,7 +40,11 @@ function rowToDto(r: ClinicalAssignmentDbRow): ClinicalScheduleSessionDto {
 export async function getStudentClinicalSchedule(
   studentId: string,
 ): Promise<ClinicalScheduleSessionDto[]> {
-  const rows = await listStudentClinicalAssignments(studentId);
+  const sid = String(studentId ?? "").trim();
+  if (sid === "") {
+    throw new ClinicalScheduleValidationError("Student id is required");
+  }
+  const rows = await listStudentClinicalAssignments(sid);
   return rows.map(rowToDto);
 }
 
@@ -53,9 +65,10 @@ export type AssignClinicalSessionBody = {
   studentId: string;
   courseCode: string;
   sessionDate: string;
-  sessionName?: string;
-  site?: string;
-  faculty?: string;
+  sessionName?: string | null;
+  site?: string | null;
+  faculty?: string | null;
+  status?: string | null;
 };
 
 export type AssignClinicalSessionResult =
@@ -86,10 +99,19 @@ export async function assignClinicalSession(
   }
 
   const opt = (v: unknown): string | null => {
-    if (v == null) return null;
+    if (v === undefined) return null;
+    if (v === null) return null;
     const s = String(v).trim();
     return s === "" ? null : s;
   };
+
+  let statusForDb: string | undefined;
+  if (body.status !== undefined && body.status !== null) {
+    const t = String(body.status).trim();
+    if (t !== "") {
+      statusForDb = t;
+    }
+  }
 
   const payload: InsertClinicalAssignmentPayload = {
     studentId,
@@ -98,6 +120,7 @@ export async function assignClinicalSession(
     sessionName: opt(body.sessionName),
     site: opt(body.site),
     faculty: opt(body.faculty),
+    ...(statusForDb !== undefined ? { status: statusForDb } : {}),
   };
 
   try {

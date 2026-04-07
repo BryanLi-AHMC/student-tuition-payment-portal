@@ -1354,6 +1354,41 @@ export async function fetchStudentClinicalSchedule(
   return data
 }
 
+export type AdminClinicalAssignPayload = {
+  studentId: string
+  courseCode: string
+  sessionDate: string
+  sessionName?: string | null
+  site?: string | null
+  faculty?: string | null
+  status?: string | null
+}
+
+/** POST /api/admin/clinical/assign — creates a `clinical_assignments` row. */
+export async function postAdminClinicalAssign(
+  body: AdminClinicalAssignPayload,
+  options?: { signal?: AbortSignal },
+): Promise<{ ok: boolean; id: number }> {
+  const data = (await fetchApiJson('/api/admin/clinical/assign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: options?.signal,
+  })) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected admin clinical assign response')
+  }
+  const o = data as Record<string, unknown>
+  if (
+    o.ok !== true ||
+    typeof o.id !== 'number' ||
+    !Number.isFinite(o.id)
+  ) {
+    throw new Error('Unexpected admin clinical assign response')
+  }
+  return { ok: true, id: o.id }
+}
+
 export type CourseFeedbackApiItem = {
   id: number
   courseCode: string

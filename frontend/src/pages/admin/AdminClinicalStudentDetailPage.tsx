@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   fetchAdminStudentDetail,
+  fetchStudentClinicalSchedule,
+  postAdminClinicalAssign,
   type AdminStudentDetail,
   type ClinicalProgress,
+  type ClinicalScheduleSession,
 } from '../../lib/api'
 
 function dashText(value: string | null | undefined): string {
@@ -22,6 +25,35 @@ function clinicalHoursProgressPct(cp: ClinicalProgress): number {
   return cp.completedHours > 0 ? 100 : 0
 }
 
+function formatScheduleDate(isoYmd: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoYmd.trim())
+  if (!m) return isoYmd
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  const dt = new Date(y, mo - 1, d)
+  if (
+    dt.getFullYear() !== y ||
+    dt.getMonth() !== mo - 1 ||
+    dt.getDate() !== d
+  ) {
+    return isoYmd
+  }
+  return dt.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function clinicalAssignmentStatusClass(status: string): string {
+  const t = status.trim() || 'Scheduled'
+  if (t === 'Confirmed') return 'portal-status portal-status--paid'
+  if (t === 'Tentative') return 'portal-status portal-status--upcoming'
+  return 'portal-status portal-status--pending'
+}
+
 export function AdminClinicalStudentDetailPage() {
   const { studentId: studentIdParam } = useParams<{ studentId: string }>()
   const studentId = studentIdParam ?? ''
@@ -30,6 +62,22 @@ export function AdminClinicalStudentDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+
+  const [courseCode, setCourseCode] = useState('')
+  const [sessionDate, setSessionDate] = useState('')
+  const [sessionName, setSessionName] = useState('')
+  const [site, setSite] = useState('')
+  const [faculty, setFaculty] = useState('')
+  const [assignSubmitting, setAssignSubmitting] = useState(false)
+  const [assignError, setAssignError] = useState<string | null>(null)
+  const [assignSuccess, setAssignSuccess] = useState<string | null>(null)
+
+  const [scheduleSessions, setScheduleSessions] = useState<
+    ClinicalScheduleSession[]
+  >([])
+  const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const [scheduleReloadKey, setScheduleReloadKey] = useState(0)
 
   useEffect(() => {
     if (!studentId.trim()) {
@@ -68,8 +116,80 @@ export function AdminClinicalStudentDetailPage() {
     return () => ac.abort()
   }, [studentId, reloadKey])
 
+  useEffect(() => {
+    if (!studentId.trim()) {
+      setScheduleSessions([])
+      setScheduleLoading(false)
+      setScheduleError(null)
+      return
+    }
+
+    const ac = new AbortController()
+    setScheduleLoading(true)
+    setScheduleError(null)
+
+    ;(async () => {
+      try {
+        const sessions = await fetchStudentClinicalSchedule(studentId, {
+          signal: ac.signal,
+        })
+        if (ac.signal.aborted) return
+        setScheduleSessions(sessions)
+      } catch (e) {
+        if (ac.signal.aborted) return
+        setScheduleSessions([])
+        setScheduleError(
+          e instanceof Error
+            ? e.message
+            : 'Could not load assigned clinical sessions.',
+        )
+      } finally {
+        if (!ac.signal.aborted) {
+          setScheduleLoading(false)
+        }
+      }
+    })()
+
+    return () => ac.abort()
+  }, [studentId, scheduleReloadKey])
+
   const sectionLoading = loading && detail === null && error === null
   const cp = detail?.clinicalProgress
+
+  async function onAssignSubmit(ev: FormEvent) {
+    ev.preventDefault()
+    setAssignError(null)
+    setAssignSuccess(null)
+    const sid = studentId.trim()
+    if (!sid) {
+      setAssignError('Missing student id.')
+      return
+    }
+    setAssignSubmitting(true)
+    try {
+      await postAdminClinicalAssign({
+        studentId: sid,
+        courseCode: courseCode.trim(),
+        sessionDate: sessionDate.trim(),
+        sessionName: sessionName.trim() === '' ? null : sessionName.trim(),
+        site: site.trim() === '' ? null : site.trim(),
+        faculty: faculty.trim() === '' ? null : faculty.trim(),
+      })
+      setCourseCode('')
+      setSessionDate('')
+      setSessionName('')
+      setSite('')
+      setFaculty('')
+      setAssignSuccess('Session assigned.')
+      setScheduleReloadKey((k) => k + 1)
+    } catch (e) {
+      setAssignError(
+        e instanceof Error ? e.message : 'Could not assign clinical session.',
+      )
+    } finally {
+      setAssignSubmitting(false)
+    }
+  }
 
   return (
     <main className="admin-page">
@@ -144,108 +264,312 @@ export function AdminClinicalStudentDetailPage() {
       ) : null}
 
       {!sectionLoading && !error && detail ? (
-        <section
-          className={`portal-card portal-stack${cp ? ' portal-academics-progress-card' : ''}`}
-          aria-labelledby="admin-clinical-student-progress"
-        >
-          <h2
-            id="admin-clinical-student-progress"
-            className="portal-section-heading"
+        <>
+          <section
+            className={`portal-card portal-stack${cp ? ' portal-academics-progress-card' : ''}`}
+            aria-labelledby="admin-clinical-student-progress"
           >
-            Clinical progress
-          </h2>
-          {cp == null ? (
-            <p
-              className="portal-card-note admin-detail-empty"
-              role="status"
+            <h2
+              id="admin-clinical-student-progress"
+              className="portal-section-heading"
             >
-              Clinical progress is not available for this student record.
-            </p>
-          ) : (
-            <>
-              <div className="portal-grid-4">
-                <div>
-                  <p className="portal-card-label">Current level</p>
-                  <p className="portal-card-value">{cp.level}</p>
-                </div>
-                <div>
-                  <p className="portal-card-label">Hours</p>
-                  <p className="portal-card-value">
-                    {cp.completedHours} / {cp.requiredHours}
-                  </p>
-                </div>
-                <div>
-                  <p className="portal-card-label">Readiness</p>
-                  <p className="portal-card-value">
-                    <span
-                      className={
-                        cp.readiness === 'ready'
-                          ? 'portal-status portal-status--paid'
-                          : 'portal-status portal-status--pending'
-                      }
-                    >
-                      {clinicalReadinessLabel(cp.readiness)}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              <div
-                className="portal-academics-progress-track"
-                role="progressbar"
-                aria-valuenow={clinicalHoursProgressPct(cp)}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Clinical hours progress"
+              Clinical progress
+            </h2>
+            {cp == null ? (
+              <p
+                className="portal-card-note admin-detail-empty"
+                role="status"
               >
-                <div
-                  className="portal-academics-progress-fill"
-                  style={{
-                    width: `${clinicalHoursProgressPct(cp)}%`,
-                  }}
-                />
-              </div>
-              <p className="portal-academics-progress-caption portal-inline-note portal-inline-note--flush">
-                {cp.completedHours} of {cp.requiredHours} required hours in
-                clinical records.
+                Clinical progress is not available for this student record.
               </p>
-              <div className="portal-stack" style={{ gap: '0.75rem' }}>
-                <div>
-                  <p className="portal-card-label">Completed courses</p>
-                  {cp.completedCourses.length === 0 ? (
-                    <p className="portal-inline-note portal-inline-note--flush">
-                      No clinical course rows on file yet.
+            ) : (
+              <>
+                <div className="portal-grid-4">
+                  <div>
+                    <p className="portal-card-label">Current level</p>
+                    <p className="portal-card-value">{cp.level}</p>
+                  </div>
+                  <div>
+                    <p className="portal-card-label">Hours</p>
+                    <p className="portal-card-value">
+                      {cp.completedHours} / {cp.requiredHours}
                     </p>
-                  ) : (
-                    <p
-                      className="portal-card-value"
-                      style={{ marginTop: '0.25rem' }}
-                    >
-                      {cp.completedCourses.join(', ')}
+                  </div>
+                  <div>
+                    <p className="portal-card-label">Readiness</p>
+                    <p className="portal-card-value">
+                      <span
+                        className={
+                          cp.readiness === 'ready'
+                            ? 'portal-status portal-status--paid'
+                            : 'portal-status portal-status--pending'
+                        }
+                      >
+                        {clinicalReadinessLabel(cp.readiness)}
+                      </span>
                     </p>
-                  )}
+                  </div>
                 </div>
-                <div>
-                  <p className="portal-card-label">Missing</p>
-                  {cp.missing.length === 0 ? (
-                    <p className="portal-inline-note portal-inline-note--flush">
-                      No open items listed.
-                    </p>
-                  ) : (
-                    <ul className="portal-module-list">
-                      {cp.missing.map((item) => (
-                        <li key={item} className="portal-module-list-item">
-                          <span className="portal-module-list-label">
-                            {item}
+                <div
+                  className="portal-academics-progress-track"
+                  role="progressbar"
+                  aria-valuenow={clinicalHoursProgressPct(cp)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Clinical hours progress"
+                >
+                  <div
+                    className="portal-academics-progress-fill"
+                    style={{
+                      width: `${clinicalHoursProgressPct(cp)}%`,
+                    }}
+                  />
+                </div>
+                <p className="portal-academics-progress-caption portal-inline-note portal-inline-note--flush">
+                  {cp.completedHours} of {cp.requiredHours} required hours in
+                  clinical records.
+                </p>
+                <div className="portal-stack" style={{ gap: '0.75rem' }}>
+                  <div>
+                    <p className="portal-card-label">Completed courses</p>
+                    {cp.completedCourses.length === 0 ? (
+                      <p className="portal-inline-note portal-inline-note--flush">
+                        No clinical course rows on file yet.
+                      </p>
+                    ) : (
+                      <p
+                        className="portal-card-value"
+                        style={{ marginTop: '0.25rem' }}
+                      >
+                        {cp.completedCourses.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="portal-card-label">Missing</p>
+                    {cp.missing.length === 0 ? (
+                      <p className="portal-inline-note portal-inline-note--flush">
+                        No open items listed.
+                      </p>
+                    ) : (
+                      <ul className="portal-module-list">
+                        {cp.missing.map((item) => (
+                          <li key={item} className="portal-module-list-item">
+                            <span className="portal-module-list-label">
+                              {item}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section
+            className="portal-card portal-stack"
+            style={{ gap: '1rem' }}
+            aria-labelledby="admin-clinical-assign-heading"
+          >
+            <h2
+              id="admin-clinical-assign-heading"
+              className="portal-section-heading"
+            >
+              Assign clinical session
+            </h2>
+            <form className="portal-stack" style={{ gap: '1rem' }} onSubmit={onAssignSubmit}>
+              {assignError ? (
+                <p
+                  className="portal-profile-state__detail portal-profile-state--error"
+                  role="alert"
+                  style={{ margin: 0 }}
+                >
+                  {assignError}
+                </p>
+              ) : null}
+              {assignSuccess ? (
+                <p
+                  className="portal-inline-note portal-inline-note--flush"
+                  role="status"
+                  style={{ margin: 0 }}
+                >
+                  {assignSuccess}
+                </p>
+              ) : null}
+              <fieldset
+                disabled={assignSubmitting}
+                className="portal-stack"
+                style={{
+                  gap: '0.85rem',
+                  border: 'none',
+                  margin: 0,
+                  padding: 0,
+                }}
+              >
+                <div className="admin-detail-field-row">
+                  <label
+                    htmlFor="admin-clinical-assign-course"
+                    className="admin-detail-field-label"
+                  >
+                    Course code
+                  </label>
+                  <input
+                    id="admin-clinical-assign-course"
+                    className="admin-input"
+                    type="text"
+                    autoComplete="off"
+                    value={courseCode}
+                    onChange={(e) => setCourseCode(e.target.value)}
+                    required
+                    aria-required="true"
+                  />
+                </div>
+                <div className="admin-detail-field-row">
+                  <label
+                    htmlFor="admin-clinical-assign-date"
+                    className="admin-detail-field-label"
+                  >
+                    Session date
+                  </label>
+                  <input
+                    id="admin-clinical-assign-date"
+                    className="admin-input"
+                    type="date"
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                    required
+                    aria-required="true"
+                  />
+                </div>
+                <div className="admin-detail-field-row">
+                  <label
+                    htmlFor="admin-clinical-assign-session-name"
+                    className="admin-detail-field-label"
+                  >
+                    Session name
+                  </label>
+                  <input
+                    id="admin-clinical-assign-session-name"
+                    className="admin-input"
+                    type="text"
+                    autoComplete="off"
+                    value={sessionName}
+                    onChange={(e) => setSessionName(e.target.value)}
+                  />
+                </div>
+                <div className="admin-detail-field-row">
+                  <label
+                    htmlFor="admin-clinical-assign-site"
+                    className="admin-detail-field-label"
+                  >
+                    Site
+                  </label>
+                  <input
+                    id="admin-clinical-assign-site"
+                    className="admin-input"
+                    type="text"
+                    autoComplete="off"
+                    value={site}
+                    onChange={(e) => setSite(e.target.value)}
+                  />
+                </div>
+                <div className="admin-detail-field-row">
+                  <label
+                    htmlFor="admin-clinical-assign-faculty"
+                    className="admin-detail-field-label"
+                  >
+                    Faculty
+                  </label>
+                  <input
+                    id="admin-clinical-assign-faculty"
+                    className="admin-input"
+                    type="text"
+                    autoComplete="off"
+                    value={faculty}
+                    onChange={(e) => setFaculty(e.target.value)}
+                  />
+                </div>
+                <div className="portal-actions" style={{ marginTop: '0.25rem' }}>
+                  <button
+                    type="submit"
+                    className="portal-btn portal-btn--primary"
+                    disabled={assignSubmitting}
+                  >
+                    {assignSubmitting ? 'Assigning…' : 'Assign session'}
+                  </button>
+                </div>
+              </fieldset>
+            </form>
+          </section>
+
+          <section
+            className="portal-card portal-stack"
+            style={{ gap: '0.75rem' }}
+            aria-labelledby="admin-clinical-assigned-heading"
+          >
+            <h2
+              id="admin-clinical-assigned-heading"
+              className="portal-section-heading"
+            >
+              Assigned clinical sessions
+            </h2>
+            {scheduleError ? (
+              <p
+                className="portal-profile-state__detail portal-profile-state--error"
+                role="alert"
+                style={{ margin: 0 }}
+              >
+                {scheduleError}
+              </p>
+            ) : null}
+            {scheduleLoading && scheduleSessions.length === 0 && !scheduleError ? (
+              <p className="portal-inline-note portal-inline-note--flush" aria-live="polite">
+                Loading assigned sessions…
+              </p>
+            ) : null}
+            {!scheduleLoading && !scheduleError && scheduleSessions.length === 0 ? (
+              <p className="portal-card-note admin-detail-empty" role="status">
+                No clinical sessions assigned yet.
+              </p>
+            ) : null}
+            {!scheduleError && scheduleSessions.length > 0 ? (
+              <div className="portal-table-wrap">
+                <table className="portal-table portal-table--clinical-schedule">
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Course code</th>
+                      <th scope="col">Session</th>
+                      <th scope="col">Site</th>
+                      <th scope="col">Faculty</th>
+                      <th scope="col">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleSessions.map((row) => (
+                      <tr key={row.id}>
+                        <td>{formatScheduleDate(row.sessionDate)}</td>
+                        <td>{dashText(row.courseCode)}</td>
+                        <td>{dashText(row.sessionName)}</td>
+                        <td>{dashText(row.site)}</td>
+                        <td>{dashText(row.faculty)}</td>
+                        <td>
+                          <span
+                            className={clinicalAssignmentStatusClass(row.status)}
+                          >
+                            {row.status.trim() || 'Scheduled'}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </>
-          )}
-        </section>
+            ) : null}
+          </section>
+        </>
       ) : null}
     </main>
   )

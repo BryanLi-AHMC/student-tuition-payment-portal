@@ -1,8 +1,26 @@
 import type { Request, Response } from "express";
 import {
   assignClinicalSession,
+  ClinicalScheduleValidationError,
   getStudentClinicalSchedule,
 } from "../services/clinicalScheduleService.js";
+
+function readOptionalStringField(
+  body: Record<string, unknown>,
+  key: string,
+): string | null | undefined {
+  if (!Object.prototype.hasOwnProperty.call(body, key)) {
+    return undefined;
+  }
+  const v = body[key];
+  if (v === null) {
+    return null;
+  }
+  if (typeof v === "string") {
+    return v;
+  }
+  return String(v);
+}
 
 function pathStudentId(req: Request): string {
   const v = req.params.studentId;
@@ -26,6 +44,10 @@ export async function getStudentClinicalScheduleHandler(
     const sessions = await getStudentClinicalSchedule(sid);
     res.json(sessions);
   } catch (e) {
+    if (e instanceof ClinicalScheduleValidationError) {
+      res.status(400).json({ error: e.message });
+      return;
+    }
     console.error(e);
     res.status(500).json({ error: "Failed to load clinical schedule" });
   }
@@ -49,13 +71,10 @@ export async function postAdminClinicalAssignHandler(
       studentId: String(body.studentId ?? ""),
       courseCode: String(body.courseCode ?? ""),
       sessionDate: String(body.sessionDate ?? ""),
-      sessionName:
-        body.sessionName === undefined
-          ? undefined
-          : String(body.sessionName),
-      site: body.site === undefined ? undefined : String(body.site),
-      faculty:
-        body.faculty === undefined ? undefined : String(body.faculty),
+      sessionName: readOptionalStringField(body, "sessionName"),
+      site: readOptionalStringField(body, "site"),
+      faculty: readOptionalStringField(body, "faculty"),
+      status: readOptionalStringField(body, "status"),
     });
     if (!result.ok) {
       res.status(result.status).json({ error: result.error });
