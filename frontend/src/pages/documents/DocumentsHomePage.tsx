@@ -127,6 +127,9 @@ export function DocumentsHomePage() {
 
   return (
     <main className="portal-page portal-documents-home">
+      <p className="portal-inline-note portal-inline-note--flush" data-docs-build-marker>
+        Documents build marker: docs-debug-2026-04-07
+      </p>
       {!isAuthenticated ? (
         <p className="portal-page-lede">Sign in to view documents and forms for your account.</p>
       ) : null}

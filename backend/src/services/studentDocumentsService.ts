@@ -6,7 +6,7 @@ import {
   getStudentDocumentRequirement,
   createStudentDocumentRequirementAttempt,
   listStudentDocumentRequirements,
-  portalStudentExists,
+  ensurePortalStudentRowFromLegacyStudents,
   resetAllStudentDocumentRequirementsForTerm,
   resetStudentDocumentRequirement,
   seedMissingPortalDocumentRequirements,
@@ -115,8 +115,9 @@ async function assertAcademicTermExists(academicTermId: string): Promise<void> {
   if (!row) throw new InvalidAcademicTermError();
 }
 
-async function assertPortalStudentExists(studentExternalId: string): Promise<void> {
-  const ok = await portalStudentExists(pool, normId(studentExternalId));
+async function assertStudentExistsForDocuments(studentExternalId: string): Promise<void> {
+  const sid = normId(studentExternalId);
+  const ok = await ensurePortalStudentRowFromLegacyStudents(pool, sid);
   if (!ok) throw new StudentDocumentsNotFoundError("Student not found");
 }
 
@@ -189,7 +190,7 @@ export async function listStudentDocumentRequirementsForTerm(
     throw new StudentDocumentsValidationError("Missing academicTermId");
   }
   await assertAcademicTermExists(tid);
-  await assertPortalStudentExists(sid);
+  await assertStudentExistsForDocuments(sid);
   await seedMissingPortalDocumentRequirements(pool, sid, tid);
   const rows = sortByRequirementType(
     await listStudentDocumentRequirements(pool, sid, tid),
@@ -221,7 +222,7 @@ export async function submitStudentAgreement(
     throw new StudentDocumentsValidationError("Missing academicTermId");
   }
   await assertAcademicTermExists(tid);
-  await assertPortalStudentExists(sid);
+  await assertStudentExistsForDocuments(sid);
 
   const existing = await getStudentDocumentRequirement(
     pool,
@@ -296,7 +297,7 @@ export async function submitStudentQuizAttempt(
   const qid = quizId;
 
   await assertAcademicTermExists(tid);
-  await assertPortalStudentExists(sid);
+  await assertStudentExistsForDocuments(sid);
 
   const existing = await getStudentDocumentRequirement(pool, sid, tid, qid);
   if (existing?.status === "completed") {
@@ -361,7 +362,7 @@ export async function resetAdminStudentDocumentRequirement(
     throw new StudentDocumentsValidationError("Missing academicTermId");
   }
   await assertAcademicTermExists(tid);
-  await assertPortalStudentExists(sid);
+  await assertStudentExistsForDocuments(sid);
   await seedMissingPortalDocumentRequirements(pool, sid, tid);
   await resetStudentDocumentRequirement(
     pool,
@@ -391,7 +392,7 @@ export async function resetAdminStudentDocumentRequirementsForTerm(
     throw new StudentDocumentsValidationError("Missing academicTermId");
   }
   await assertAcademicTermExists(tid);
-  await assertPortalStudentExists(sid);
+  await assertStudentExistsForDocuments(sid);
   await seedMissingPortalDocumentRequirements(pool, sid, tid);
   await resetAllStudentDocumentRequirementsForTerm(
     pool,
