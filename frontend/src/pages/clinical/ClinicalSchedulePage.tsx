@@ -259,22 +259,17 @@ export function ClinicalSchedulePage() {
 
   return (
     <main className="portal-page">
-      <h2 className="portal-section-heading">Clinic schedule</h2>
-      <p className="portal-page-lede">
-        Your published clinic and rotation assignments appear below. Supervisors and sites may update as
-        the term approaches—check back for the official schedule released by the clinical affairs office.
-      </p>
       {showEmptyAccount ? (
         <p className="portal-page-lede" role="status">
           Sign in to view your clinic schedule.
         </p>
       ) : null}
-      {error ? (
+      {!showEmptyAccount && error ? (
         <p className="portal-page-lede" role="alert">
           {error}
         </p>
       ) : null}
-      {sectionLoading ? (
+      {!showEmptyAccount && sectionLoading ? (
         <p className="portal-page-lede" aria-live="polite">
           Loading schedule…
         </p>
@@ -283,19 +278,9 @@ export function ClinicalSchedulePage() {
       {!showEmptyAccount ? (
         <section
           className="portal-module-panel"
-          aria-labelledby="clinical-request-heading"
-          style={{ marginBottom: '1.5rem' }}
+          aria-label="Request a clinical session slot"
+          style={{ marginBottom: '1rem' }}
         >
-          <h3
-            id="clinical-request-heading"
-            className="portal-module-panel-heading"
-          >
-            Request clinical session
-          </h3>
-          <p className="portal-card-note" style={{ marginBottom: '1rem' }}>
-            Choose an open timetable slot and submit a request. Staff will review pending requests and
-            approved slots appear in your assignments below.
-          </p>
           {timetableLoading ? (
             <p className="portal-page-lede" aria-live="polite">
               Loading timetable…
@@ -307,86 +292,97 @@ export function ClinicalSchedulePage() {
             </p>
           ) : null}
           {!timetableLoading && !timetableError ? (
-            <div
-              className="portal-actions"
-              style={{
-                flexWrap: 'wrap',
-                alignItems: 'flex-end',
-                gap: '0.75rem 1rem',
-                marginBottom: '1rem',
-              }}
-            >
-              <label className="portal-card-note" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span>Term</span>
-                <select
-                  className="portal-account-ledger__select"
-                  value={filterTerm}
-                  onChange={(e) => setFilterTerm(e.target.value)}
-                  aria-label="Filter timetable by term"
-                >
-                  <option value="">All terms</option>
-                  {availableTerms.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="portal-card-note" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span>Year</span>
-                <select
-                  className="portal-account-ledger__select"
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  aria-label="Filter timetable by year"
-                >
-                  <option value="">All years</option>
-                  {availableYears.map((y) => (
-                    <option key={y} value={String(y)}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label
-                className="portal-card-note"
+            <>
+              <div
+                className="portal-actions"
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.25rem',
-                  minWidth: 'min(100%, 22rem)',
-                  flex: '1 1 14rem',
+                  flexWrap: 'wrap',
+                  alignItems: 'flex-end',
+                  gap: '0.5rem 1rem',
+                  marginBottom: '0.5rem',
                 }}
               >
-                <span>Weekly slot</span>
-                <select
-                  className="portal-account-ledger__select"
-                  value={selectedSlotId}
-                  onChange={(e) => setSelectedSlotId(e.target.value)}
-                  aria-label="Select clinic timetable slot"
+                <label
+                  className="portal-card-note"
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
                 >
-                  <option value="">Select a slot…</option>
-                  {filteredTimetableSlots.map((s) => (
-                    <option key={s.id} value={String(s.id)}>
-                      {s.slotLabel} ({s.term} {s.year})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                className="portal-btn portal-btn--primary"
-                disabled={
-                  requestSubmitting ||
-                  !selectedSlot ||
-                  Boolean(selectedPending) ||
-                  selectedInSchedule
-                }
-                onClick={() => void handleRequestSlot()}
-              >
-                {requestSubmitting ? 'Submitting…' : 'Request slot'}
-              </button>
-            </div>
+                  <span>Term</span>
+                  <select
+                    className="portal-account-ledger__select"
+                    value={filterTerm}
+                    onChange={(e) => setFilterTerm(e.target.value)}
+                    aria-label="Filter timetable by term"
+                  >
+                    <option value="">All terms</option>
+                    {availableTerms.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="portal-card-note"
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+                >
+                  <span>Year</span>
+                  <select
+                    className="portal-account-ledger__select"
+                    value={filterYear}
+                    onChange={(e) => setFilterYear(e.target.value)}
+                    aria-label="Filter timetable by year"
+                  >
+                    <option value="">All years</option>
+                    {availableYears.map((y) => (
+                      <option key={y} value={String(y)}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="portal-card-note"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                    minWidth: 'min(100%, 22rem)',
+                    flex: '1 1 14rem',
+                  }}
+                >
+                  <span>Weekly slot</span>
+                  <select
+                    className="portal-account-ledger__select"
+                    value={selectedSlotId}
+                    onChange={(e) => setSelectedSlotId(e.target.value)}
+                    aria-label="Select clinic timetable slot"
+                  >
+                    <option value="">Select a slot…</option>
+                    {filteredTimetableSlots.map((s) => (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.slotLabel} ({s.term} {s.year})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="portal-btn portal-btn--primary"
+                  disabled={
+                    requestSubmitting ||
+                    !selectedSlot ||
+                    Boolean(selectedPending) ||
+                    selectedInSchedule
+                  }
+                  onClick={() => void handleRequestSlot()}
+                >
+                  {requestSubmitting ? 'Submitting…' : 'Request slot'}
+                </button>
+              </div>
+              <p className="portal-card-note" style={{ margin: '0 0 0.75rem', opacity: 0.85 }}>
+                Staff review requests; approved slots appear in the table below.
+              </p>
+            </>
           ) : null}
           {selectedSlot && selectedPending ? (
             <p className="portal-page-lede" role="status">
