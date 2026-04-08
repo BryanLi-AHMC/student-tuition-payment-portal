@@ -415,10 +415,25 @@ export function DashboardCoursesWidget() {
 
   const resolvedWeekTerm = calendarWeekTerm ?? defaultTermFromAccount
 
-  const usePayloadRowsForWeek = Boolean(
+  const resolvedAcademicTermId = useMemo((): string | null => {
+    if (!resolvedWeekTerm) return null
+    const fromOpt = weekTermSelectOptionsResolved.find((x) =>
+      termKeysEqual(x, resolvedWeekTerm),
+    )
+    const id = fromOpt?.academicTermId?.trim()
+    if (id) return id
+    return resolveAcademicTermIdForPortalTerm(
+      academicTerms,
+      resolvedWeekTerm.term,
+      resolvedWeekTerm.year,
+    )
+  }, [resolvedWeekTerm, weekTermSelectOptionsResolved, academicTerms])
+
+  const useAccountPayloadForWeek = Boolean(
     resolvedWeekTerm &&
       defaultTermFromAccount &&
-      termKeysEqual(resolvedWeekTerm, defaultTermFromAccount),
+      termKeysEqual(resolvedWeekTerm, defaultTermFromAccount) &&
+      resolvedAcademicTermId == null,
   )
 
   useEffect(() => {
@@ -428,15 +443,15 @@ export function DashboardCoursesWidget() {
       setWeekFetchError(false)
       return
     }
-    if (resolvedWeekTerm == null || defaultTermFromAccount == null) {
+    if (resolvedWeekTerm == null) {
       setWeekTermRows(null)
       setWeekFetchLoading(false)
       return
     }
-    if (termKeysEqual(resolvedWeekTerm, defaultTermFromAccount)) {
-      setWeekTermRows(null)
-      setWeekFetchLoading(false)
+    if (accountHasScheduleTermOptions && academicTermsLoading) {
+      setWeekFetchLoading(true)
       setWeekFetchError(false)
+      setWeekTermRows(null)
       return
     }
 
@@ -444,6 +459,45 @@ export function DashboardCoursesWidget() {
     const cached = weekTermRowsCacheRef.current.get(cacheKey)
     if (cached) {
       setWeekTermRows(cached)
+      setWeekFetchLoading(false)
+      setWeekFetchError(false)
+      return
+    }
+
+    const termId = resolvedAcademicTermId
+
+    if (termId) {
+      const ac = new AbortController()
+      setWeekFetchLoading(true)
+      setWeekFetchError(false)
+      setWeekTermRows(null)
+      ;(async () => {
+        try {
+          const sections = await fetchStudentEnrolledSections(
+            currentStudentId.trim(),
+            termId,
+            { signal: ac.signal },
+          )
+          if (ac.signal.aborted) return
+          const rows = enrolledSectionsToScheduleRows(sections)
+          weekTermRowsCacheRef.current.set(cacheKey, rows)
+          setWeekTermRows(rows)
+        } catch {
+          if (ac.signal.aborted) return
+          setWeekTermRows([])
+          setWeekFetchError(true)
+        } finally {
+          if (!ac.signal.aborted) setWeekFetchLoading(false)
+        }
+      })()
+      return () => ac.abort()
+    }
+
+    if (
+      defaultTermFromAccount != null &&
+      termKeysEqual(resolvedWeekTerm, defaultTermFromAccount)
+    ) {
+      setWeekTermRows(null)
       setWeekFetchLoading(false)
       setWeekFetchError(false)
       return
@@ -476,10 +530,13 @@ export function DashboardCoursesWidget() {
 
     return () => ac.abort()
   }, [
+    academicTermsLoading,
+    accountHasScheduleTermOptions,
     currentStudentId,
     defaultTermFromAccount?.term,
     defaultTermFromAccount?.year,
     isAuthenticated,
+    resolvedAcademicTermId,
     resolvedWeekTerm?.term,
     resolvedWeekTerm?.year,
     view,
@@ -489,19 +546,21 @@ export function DashboardCoursesWidget() {
     isAuthenticated &&
     view === 'week' &&
     resolvedWeekTerm != null &&
-    defaultTermFromAccount != null &&
-    !termKeysEqual(resolvedWeekTerm, defaultTermFromAccount) &&
     weekFetchLoading
 
   const effectiveWeekRows: ScheduleRow[] = weekScheduleLoading
     ? []
-    : usePayloadRowsForWeek
-      ? account.scheduleRows
-      : (weekTermRows ?? [])
+    : resolvedAcademicTermId != null
+      ? (weekTermRows ?? [])
+      : useAccountPayloadForWeek
+        ? account.scheduleRows
+        : (weekTermRows ?? [])
 
   const weekTermDisplayLabel =
     resolvedWeekTerm != null
-      ? weekTermSelectOptions.find((x) => termKeysEqual(x, resolvedWeekTerm))?.label?.trim() ||
+      ? weekTermSelectOptionsResolved
+          .find((x) => termKeysEqual(x, resolvedWeekTerm))
+          ?.label?.trim() ||
         currentTermLabel({ term: resolvedWeekTerm.term, year: resolvedWeekTerm.year })
       : ''
 
@@ -555,7 +614,7 @@ export function DashboardCoursesWidget() {
                   setCalendarWeekTerm({ term, year })
                 }}
               >
-                {weekTermSelectOptions.map((opt) => (
+                {weekTermSelectOptionsResolved.map((opt) => (
                   <option
                     key={scheduleTermOptionValue(opt.term, opt.year)}
                     value={scheduleTermOptionValue(opt.term, opt.year)}
