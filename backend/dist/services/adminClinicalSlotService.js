@@ -1,0 +1,348 @@
+import { getAcademicTermById } from "../repositories/academicTermRepository.js";
+import { countClinicTimetableReferences, createClinicTimetableSlot, deleteClinicTimetableSlot, getClinicTimetableById, listClinicTimetableSlotsForAdmin, updateClinicTimetableSlot, } from "../repositories/clinicalTimetableRepository.js";
+import { formatClinicTimeHm } from "./clinicalScheduleService.js";
+const WEEKDAYS = new Set([
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]);
+export class AdminClinicalSlotError extends Error {
+    status;
+    name = "AdminClinicalSlotError";
+    constructor(message, status = 400) {
+        super(message);
+        this.status = status;
+    }
+}
+function rowToDto(row) {
+    const tf = formatClinicTimeHm(row.time_from) ?? "";
+    const tt = formatClinicTimeHm(row.time_to) ?? "";
+    return {
+        id: row.id,
+        academicTermId: row.academic_term_id,
+        year: row.year,
+        term: row.term,
+        weekday: row.weekday,
+        timeFrom: tf,
+        timeTo: tt,
+        slot: row.slot,
+        instructorId: row.instructor_id,
+        instructor: row.instructor,
+        cap100: row.cap_100,
+        cap200: row.cap_200,
+        cap300: row.cap_300,
+        cap123: row.cap_123,
+    };
+}
+function trimStr(v, fallback = "") {
+    if (v == null)
+        return fallback;
+    return String(v).trim();
+}
+/**
+ * Parse a cap from admin JSON: empty → 0; otherwise must be a non‑negative integer.
+ */
+function parseAdminCap(v, label) {
+    if (v === undefined || v === null || v === "") {
+        return 0;
+    }
+    if (typeof v === "number") {
+        if (!Number.isFinite(v) || !Number.isInteger(v) || v < 0) {
+            throw new AdminClinicalSlotError(`${label} must be a non-negative integer.`);
+        }
+        return v;
+    }
+    const s = String(v).trim();
+    if (s === "") {
+        return 0;
+    }
+    if (!/^\d+$/.test(s)) {
+        throw new AdminClinicalSlotError(`${label} must be a non-negative integer.`);
+    }
+    const n = Number(s);
+    if (!Number.isSafeInteger(n) || n < 0) {
+        throw new AdminClinicalSlotError(`${label} must be a non-negative integer.`);
+    }
+    return n;
+}
+function requireNonNegativeCap(n, label) {
+    if (!Number.isInteger(n) || n < 0) {
+        throw new AdminClinicalSlotError(`${label} must be a non-negative integer.`);
+    }
+}
+/**
+ * Parse admin time input to MySQL TIME `HH:MM:SS`.
+ */
+function normalizeClinicalTimeToSql(v) {
+    const s = trimStr(v);
+    if (s === "") {
+        return null;
+    }
+    const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+    if (!m) {
+        return null;
+    }
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    const sec = m[3] != null ? Number(m[3]) : 0;
+    if (!Number.isInteger(h) ||
+        h < 0 ||
+        h > 23 ||
+        !Number.isInteger(min) ||
+        min < 0 ||
+        min > 59 ||
+        !Number.isInteger(sec) ||
+        sec < 0 ||
+        sec > 59) {
+        return null;
+    }
+    return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+function assertValidTimeRange(timeFromSql, timeToSql) {
+    if (timeFromSql === "00:00:00" && timeToSql === "00:00:00") {
+        return;
+    }
+    if (timeFromSql >= timeToSql) {
+        throw new AdminClinicalSlotError("Time From must be before Time To (or use 00:00–00:00 only for a legacy placeholder row).");
+    }
+}
+function normalizeWeekday(v) {
+    const d = trimStr(v);
+    if (d === "") {
+        throw new AdminClinicalSlotError("Weekday is required.");
+    }
+    if (!WEEKDAYS.has(d)) {
+        throw new AdminClinicalSlotError("Weekday must be a full English name (Monday … Sunday).");
+    }
+    return d;
+}
+function normalizeSlot(v) {
+    const s = trimStr(v);
+    if (s === "") {
+        throw new AdminClinicalSlotError("Slot is required.");
+    }
+    return s;
+}
+function normalizeInstructor(v) {
+    const s = trimStr(v);
+    if (s === "") {
+        return "TBA";
+    }
+    return s;
+}
+function normalizeInstructorId(v) {
+    if (v === undefined || v === null) {
+        return "";
+    }
+    return trimStr(v);
+}
+async function resolveTermYear(academicTermId) {
+    const id = trimStr(academicTermId);
+    if (id === "") {
+        throw new AdminClinicalSlotError("academicTermId is required.");
+    }
+    const row = await getAcademicTermById(id);
+    if (!row) {
+        throw new AdminClinicalSlotError("The selected academic term is not valid or no longer exists.");
+    }
+    return { year: row.year, term: row.term_name };
+}
+function buildWritePayload(input) {
+    return {
+        year: input.year,
+        term: input.term.trim(),
+        day: input.weekday,
+        time_from: input.timeFromSql,
+        time_to: input.timeToSql,
+        slot: input.slot,
+        instructor_id: input.instructorId,
+        instructor: input.instructor,
+        cap_100: input.cap100,
+        cap_200: input.cap200,
+        cap_300: input.cap300,
+        cap_123: input.cap123,
+    };
+}
+export async function listAdminClinicalSlots(options) {
+    const rawId = options?.academicTermId;
+    if (rawId != null && String(rawId).trim() !== "") {
+        const { year, term } = await resolveTermYear(String(rawId));
+        const rows = await listClinicTimetableSlotsForAdmin({ year, term });
+        return rows.map(rowToDto);
+    }
+    const rows = await listClinicTimetableSlotsForAdmin({});
+    return rows.map(rowToDto);
+}
+export async function createAdminClinicalSlot(input) {
+    const { year, term } = await resolveTermYear(input.academicTermId);
+    const weekday = normalizeWeekday(input.weekday);
+    const timeFromSql = normalizeClinicalTimeToSql(input.timeFrom);
+    const timeToSql = normalizeClinicalTimeToSql(input.timeTo);
+    if (timeFromSql == null || timeToSql == null) {
+        throw new AdminClinicalSlotError("Time From and Time To are required (use HH:MM or HH:MM:SS).");
+    }
+    assertValidTimeRange(timeFromSql, timeToSql);
+    const slot = normalizeSlot(input.slot);
+    const instructor = normalizeInstructor(input.instructor);
+    const instructorId = normalizeInstructorId(input.instructorId);
+    const cap100 = parseAdminCap(input.cap100, "100 level cap");
+    const cap200 = parseAdminCap(input.cap200, "200 level cap");
+    const cap300 = parseAdminCap(input.cap300, "300 level cap");
+    const cap123 = parseAdminCap(input.cap123, "All levels cap");
+    requireNonNegativeCap(cap100, "100 level cap");
+    requireNonNegativeCap(cap200, "200 level cap");
+    requireNonNegativeCap(cap300, "300 level cap");
+    requireNonNegativeCap(cap123, "All levels cap");
+    const payload = buildWritePayload({
+        year,
+        term,
+        weekday,
+        timeFromSql,
+        timeToSql,
+        slot,
+        instructorId,
+        instructor,
+        cap100,
+        cap200,
+        cap300,
+        cap123,
+    });
+    const id = await createClinicTimetableSlot(payload);
+    const created = await getClinicTimetableById(id);
+    if (!created) {
+        throw new AdminClinicalSlotError("Failed to load slot after create.", 500);
+    }
+    const adminRows = await listClinicTimetableSlotsForAdmin({
+        year: created.year,
+        term: created.term,
+    });
+    const withJoin = adminRows.find((r) => r.id === id);
+    return rowToDto(withJoin ?? {
+        ...created,
+        academic_term_id: null,
+    });
+}
+export async function updateAdminClinicalSlot(seqNum, patch) {
+    if (!Number.isFinite(seqNum) || seqNum <= 0) {
+        throw new AdminClinicalSlotError("Invalid slot id.");
+    }
+    const existing = await getClinicTimetableById(seqNum);
+    if (!existing) {
+        return null;
+    }
+    const keys = Object.keys(patch);
+    if (keys.length === 0) {
+        throw new AdminClinicalSlotError("No updatable fields provided.");
+    }
+    let year = existing.year;
+    let term = existing.term.trim();
+    if (patch.academicTermId !== undefined) {
+        const resolved = await resolveTermYear(patch.academicTermId);
+        year = resolved.year;
+        term = resolved.term;
+    }
+    const weekday = patch.weekday !== undefined
+        ? normalizeWeekday(patch.weekday)
+        : existing.weekday;
+    let timeFromSql;
+    let timeToSql;
+    if (patch.timeFrom !== undefined || patch.timeTo !== undefined) {
+        const tfRaw = patch.timeFrom !== undefined ? patch.timeFrom : existing.time_from;
+        const ttRaw = patch.timeTo !== undefined ? patch.timeTo : existing.time_to;
+        const tf = normalizeClinicalTimeToSql(tfRaw);
+        const tt = normalizeClinicalTimeToSql(ttRaw);
+        if (tf == null || tt == null) {
+            throw new AdminClinicalSlotError("Time From and Time To are required (use HH:MM or HH:MM:SS).");
+        }
+        timeFromSql = tf;
+        timeToSql = tt;
+    }
+    else {
+        timeFromSql = normalizeClinicalTimeToSql(existing.time_from) ?? existing.time_from;
+        timeToSql = normalizeClinicalTimeToSql(existing.time_to) ?? existing.time_to;
+    }
+    assertValidTimeRange(timeFromSql, timeToSql);
+    const slot = patch.slot !== undefined ? normalizeSlot(patch.slot) : existing.slot;
+    const instructor = patch.instructor !== undefined
+        ? normalizeInstructor(patch.instructor)
+        : existing.instructor.trim() === ""
+            ? "TBA"
+            : existing.instructor;
+    const instructorId = patch.instructorId !== undefined
+        ? normalizeInstructorId(patch.instructorId)
+        : existing.instructor_id;
+    const cap100 = patch.cap100 !== undefined
+        ? parseAdminCap(patch.cap100, "100 level cap")
+        : existing.cap_100;
+    const cap200 = patch.cap200 !== undefined
+        ? parseAdminCap(patch.cap200, "200 level cap")
+        : existing.cap_200;
+    const cap300 = patch.cap300 !== undefined
+        ? parseAdminCap(patch.cap300, "300 level cap")
+        : existing.cap_300;
+    const cap123 = patch.cap123 !== undefined
+        ? parseAdminCap(patch.cap123, "All levels cap")
+        : existing.cap_123;
+    requireNonNegativeCap(cap100, "100 level cap");
+    requireNonNegativeCap(cap200, "200 level cap");
+    requireNonNegativeCap(cap300, "300 level cap");
+    requireNonNegativeCap(cap123, "All levels cap");
+    const payload = buildWritePayload({
+        year,
+        term,
+        weekday,
+        timeFromSql,
+        timeToSql,
+        slot,
+        instructorId,
+        instructor,
+        cap100,
+        cap200,
+        cap300,
+        cap123,
+    });
+    const ok = await updateClinicTimetableSlot(seqNum, payload);
+    if (!ok) {
+        return null;
+    }
+    const updated = await getClinicTimetableById(seqNum);
+    if (!updated) {
+        return null;
+    }
+    const adminRows = await listClinicTimetableSlotsForAdmin({
+        year: updated.year,
+        term: updated.term,
+    });
+    const withJoin = adminRows.find((r) => r.id === seqNum);
+    return rowToDto(withJoin ?? {
+        ...updated,
+        academic_term_id: null,
+    });
+}
+export async function deleteAdminClinicalSlot(seqNum) {
+    if (!Number.isFinite(seqNum) || seqNum <= 0) {
+        return { ok: false, error: "Invalid slot id." };
+    }
+    const existing = await getClinicTimetableById(seqNum);
+    if (!existing) {
+        return { ok: false, error: "Clinical slot not found." };
+    }
+    const refs = await countClinicTimetableReferences(seqNum);
+    const total = refs.enrollments + refs.requests + refs.assignments;
+    if (total > 0) {
+        return {
+            ok: false,
+            error: `This slot cannot be deleted because it is still referenced (${refs.enrollments} enrollment(s), ${refs.requests} request(s), ${refs.assignments} assignment(s)). Remove or reassign those records first.`,
+        };
+    }
+    const deleted = await deleteClinicTimetableSlot(seqNum);
+    if (!deleted) {
+        return { ok: false, error: "Clinical slot not found." };
+    }
+    return { ok: true };
+}
+//# sourceMappingURL=adminClinicalSlotService.js.map

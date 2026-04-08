@@ -1,3 +1,10 @@
+/**
+ * Legacy **financial registration** and accounting (`registration`, `accounting`, `students` profile slices).
+ *
+ * Domain boundary: these queries anchor **billing term** and ledger rows — not academic attempts (`marks`),
+ * not portal course registration (`portal_enrollments`), not transcript or degree audit. Do not treat
+ * `registration` as authoritative for grades or earned units.
+ */
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 /** Pool or a single connection (for transactions). */
 export type LegacyMysqlClient = Pool | PoolConnection;
@@ -10,8 +17,7 @@ export type LegacyMysqlClient = Pool | PoolConnection;
  * - `accounting.id` — same student key as `students.id` / `registration.id`
  * - `accounting.seqNumber` — row PK; `date` is YYYYMMDD int; signed `debit`/`credit` (e.g. refunds as negative debit)
  *
- * Domain: **`registration`** rows anchor the student’s enrolled term for billing snapshot (`loadLegacyAccountSnapshot`);
- * they are **not** the same as `marks` attempts or `portal_enrollments`. Accounting quarters list ledger activity only.
+ * `registration` here = legacy **tuition / enrollment term** snapshot for finance, distinct from portal enrollments and marks.
  */
 export type LegacyAccountSnapshot = {
     studentId: string;

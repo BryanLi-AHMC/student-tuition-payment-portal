@@ -154,7 +154,12 @@ export async function getStudentClinicalSchedule(studentId) {
         throw new ClinicalScheduleValidationError("Student id is required");
     }
     const rows = await listStudentClinicalAssignments(sid);
-    return rows.map(assignmentRowToScheduleDto);
+    return rows
+        .filter((r) => {
+        const st = (r.status ?? "").trim().toLowerCase();
+        return st !== "dropped" && st !== "cancelled";
+    })
+        .map(assignmentRowToScheduleDto);
 }
 export async function listAdminClinicalTimetable(query) {
     let yearNum = null;

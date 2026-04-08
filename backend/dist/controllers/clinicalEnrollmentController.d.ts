@@ -1,0 +1,19 @@
+import type { Request, Response } from "express";
+/**
+ * GET /api/students/:studentId/clinical-enrollments/open
+ */
+export declare function getStudentOpenClinicalEnrollmentSlotsHandler(req: Request, res: Response): Promise<void>;
+/**
+ * GET /api/students/:studentId/clinical-enrollments
+ */
+export declare function getStudentClinicalEnrollmentsHandler(req: Request, res: Response): Promise<void>;
+/**
+ * POST /api/students/:studentId/clinical-enrollments
+ * Body: { timetableId: number }
+ */
+export declare function postStudentClinicalEnrollmentHandler(req: Request, res: Response): Promise<void>;
+/**
+ * DELETE /api/students/:studentId/clinical-enrollments/:enrollmentId
+ */
+export declare function deleteStudentClinicalEnrollmentHandler(req: Request, res: Response): Promise<void>;
+//# sourceMappingURL=clinicalEnrollmentController.d.ts.map

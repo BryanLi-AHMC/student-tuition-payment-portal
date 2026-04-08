@@ -1,18 +1,17 @@
 /**
- * Canonical domain shapes for student academics, registration, transcript display, degree audit, and clinical progress.
+ * Canonical domain shapes for student registration, academic attempts, transcript display, degree audit, and clinical progress.
  *
  * ## Source of truth (read path)
  *
  * - **AcademicAttempt** — legacy `marks` (primary didactic outcomes); legacy `clinic` rows may appear as
  *   attempts for **transcript display only**. Clinic rows must not be folded into **earned academic units**
  *   for degree audit (use `attemptsFromMarks` only in {@link computeDegreeAudit}).
- * - **RegistrationRecord** — `portal_enrollments` joined to catalog + one deterministic `course_sections` row
- *   per course/term/year (see `listPortalEnrollmentRowsForStudentAcademics`).
+ * - **RegistrationRecord** — `portal_enrollments` + `course_sections` (and catalog titles); not a `marks` grade outcome.
  * - **DegreeAudit** — program `requirements` (with fallbacks when null) plus **cleaned** marks-based attempts;
- *   clinic hours are tracked separately from academic units.
- * - **TranscriptRecord** — presentation-only history (sorted, normalized titles). Not authoritative for
- *   registration state or degree progress.
- * - **ClinicalProgressDomain** — `clinic` + `requirements.clinic_hours`; independent of {@link AcademicAttempt}.
+ *   clinic hours are tracked separately from academic units (never merge clinical hours into academic units here).
+ * - **TranscriptRecord** — presentation-only history (sorted, normalized titles). **Not** authoritative for
+ *   registration state or degree progress; transcript services must not compute degree progress.
+ * - **ClinicalProgress** — `clinic` + `requirements.clinic_hours`; independent of {@link AcademicAttempt}.
  */
 export function isAcademicAttemptRow(r) {
     return r.source === "marks" || r.source === "clinic";
@@ -41,10 +40,12 @@ export function academicCourseRecordToAcademicAttempt(r) {
  * Skeleton for future degree audit. Transcript and preview services must **not** embed this logic.
  *
  * TODO:
- * - Dedupe attempts by course code (pick best / latest per program rules).
+ * - Dedupe attempts by course code.
  * - Exclude AUD / NP / null grades from earned academic units.
  * - Sum earned units from eligible marks attempts only.
- * - Apply fallback requirements when `requirements` row is missing.
+ * - Fallback requirements when the `requirements` row is missing or incomplete.
+ *
+ * @remarks Hard rules: do not treat transcript as source of truth; do not merge clinical hours into academic units.
  */
 export function computeDegreeAudit(input) {
     return {

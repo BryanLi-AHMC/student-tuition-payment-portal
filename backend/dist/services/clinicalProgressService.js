@@ -1,6 +1,6 @@
 /**
- * **Clinical progress** domain: legacy `clinic` rows + `requirements.clinic_hours`. Independent of academic attempts
- * and transcript display rows — do not derive this from `marks` or merge clinic transcript lines into academic units.
+ * ClinicalProgress = clinic ladder + completed hours vs `requirements.clinic_hours`.
+ * Not an academic course attempt (marks/clinic grade rows); not transcript UI rows; do not merge into didactic unit totals.
  */
 /** When `requirements.clinic_hours` is missing, null, or non-positive, avoid implying 0 required / "ready". */
 const DEFAULT_CLINIC_REQUIRED_HOURS = 960;

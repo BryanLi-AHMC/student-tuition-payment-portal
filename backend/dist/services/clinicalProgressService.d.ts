@@ -1,16 +1,16 @@
 /**
- * **Clinical progress** domain: legacy `clinic` rows + `requirements.clinic_hours`. Independent of academic attempts
- * and transcript display rows — do not derive this from `marks` or merge clinic transcript lines into academic units.
+ * ClinicalProgress = clinic ladder + completed hours vs `requirements.clinic_hours`.
+ * Not an academic course attempt (marks/clinic grade rows); not transcript UI rows; do not merge into didactic unit totals.
  */
 import type { Pool } from "mysql2/promise";
-import type { ClinicalProgressDomain } from "../domain/studentDomainModels.js";
+import type { ClinicalProgress } from "../domain/studentDomainModels.js";
 /**
  * Two queries total: clinic rows for all ids, then required hours per student.
  * Same rules as {@link buildClinicalProgress}; map keys are trimmed student ids.
  */
-export declare function batchBuildClinicalProgressForStudentIds(pool: Pool, studentIds: string[]): Promise<Map<string, ClinicalProgressDomain>>;
+export declare function batchBuildClinicalProgressForStudentIds(pool: Pool, studentIds: string[]): Promise<Map<string, ClinicalProgress>>;
 /**
  * Legacy clinical progress from `clinic`, `students`, and `requirements` (real students only).
  */
-export declare function buildClinicalProgress(pool: Pool, studentId: string): Promise<ClinicalProgressDomain>;
+export declare function buildClinicalProgress(pool: Pool, studentId: string): Promise<ClinicalProgress>;
 //# sourceMappingURL=clinicalProgressService.d.ts.map

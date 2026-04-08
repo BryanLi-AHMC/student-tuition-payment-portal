@@ -1,3 +1,10 @@
+/**
+ * Legacy **financial registration** and accounting (`registration`, `accounting`, `students` profile slices).
+ *
+ * Domain boundary: these queries anchor **billing term** and ledger rows — not academic attempts (`marks`),
+ * not portal course registration (`portal_enrollments`), not transcript or degree audit. Do not treat
+ * `registration` as authoritative for grades or earned units.
+ */
 import { createHash } from "node:crypto";
 function normalizeTerm(raw) {
     return String(raw ?? "").trim();
