@@ -33,6 +33,8 @@ export type QuizSubmitPayload = {
     isPassed: boolean;
     status: DocumentRequirementStatus;
     submittedAt: string | null;
+    /** Question ids the student answered incorrectly; empty when `isPassed` is true. */
+    incorrectQuestionIds: string[];
 };
 export type RequirementResetPayload = {
     ok: true;

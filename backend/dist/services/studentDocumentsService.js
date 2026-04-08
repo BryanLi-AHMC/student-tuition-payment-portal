@@ -66,18 +66,28 @@ function assignmentFieldsFromExisting(existing) {
 function gradeQuizAnswers(quizId, answers) {
     const def = getDocumentQuizDefinition(quizId);
     let scoreCorrect = 0;
+    const incorrectQuestionIds = [];
     for (const questionId of Object.keys(def.correctAnswers)) {
         const expected = def.correctAnswers[questionId];
         if (expected === undefined)
             continue;
         const raw = answers[questionId];
         const given = typeof raw === "string" ? raw.trim() : "";
-        if (given === expected.trim())
+        if (given === expected.trim()) {
             scoreCorrect += 1;
+        }
+        else {
+            incorrectQuestionIds.push(questionId);
+        }
     }
     const totalQuestions = def.totalQuestions;
     const isPassed = scoreCorrect === totalQuestions && totalQuestions > 0;
-    return { scoreCorrect, totalQuestions, isPassed };
+    return {
+        scoreCorrect,
+        totalQuestions,
+        isPassed,
+        incorrectQuestionIds: isPassed ? [] : incorrectQuestionIds,
+    };
 }
 async function runInTransaction(fn) {
     const conn = await pool.getConnection();
@@ -154,7 +164,7 @@ export async function submitStudentAgreement(studentExternalId, academicTermId) 
             status: "completed",
             scoreCorrect: null,
             totalQuestions: null,
-            isPassed: false,
+            isPassed: true,
             submittedAt,
             ...assignPreserve,
         });
@@ -184,7 +194,7 @@ export async function submitStudentQuizAttempt(studentExternalId, academicTermId
     if (existing?.status === "completed") {
         throw new StudentDocumentsValidationError("This training is already marked complete for this term.");
     }
-    const { scoreCorrect, totalQuestions, isPassed } = gradeQuizAnswers(qid, answers);
+    const { scoreCorrect, totalQuestions, isPassed, incorrectQuestionIds } = gradeQuizAnswers(qid, answers);
     const assignPreserve = assignmentFieldsFromExisting(existing);
     const status = isPassed ? "completed" : "assigned";
     const submittedAt = isPassed ? new Date().toISOString() : null;
@@ -220,6 +230,7 @@ export async function submitStudentQuizAttempt(studentExternalId, academicTermId
         isPassed,
         status,
         submittedAt,
+        incorrectQuestionIds,
     };
 }
 export async function resetAdminStudentDocumentRequirement(studentExternalId, academicTermId, requirementType, reassignedBy) {
