@@ -63,6 +63,7 @@ export async function getStudentAccount(req, res) {
         console.debug("[account-debug] getStudentAccount", JSON.stringify({ studentId: sid, termYear }));
         const payload = await getStudentAccountPayload(sid, termYear);
         if (!payload) {
+            console.warn("[account] student_term_not_found", JSON.stringify({ studentId: sid, termYear }));
             res.status(404).json({ error: "Student term account not found" });
             return;
         }

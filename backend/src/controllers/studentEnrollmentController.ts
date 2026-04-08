@@ -3,7 +3,7 @@ import { env } from "../config/env.js";
 import { removeAdminPortalEnrollment } from "../services/adminEnrollmentService.js";
 import { getAcademicTermById } from "../repositories/academicTermRepository.js";
 import type { CourseSectionDetail } from "../repositories/courseSectionRepository.js";
-import { listStudentEnrolledSectionRows } from "../repositories/studentEnrollmentRepository.js";
+import { listStudentEnrolledSectionsForTerm } from "../repositories/studentEnrollmentRepository.js";
 import { InvalidAcademicTermError } from "../services/courseSectionService.js";
 import {
   enrollStudentForAcademicTerm,
@@ -161,12 +161,22 @@ export async function getStudentEnrolledSections(
     }
 
     let sections: CourseSectionDetail[];
+    let scheduleMeta: {
+      activePortalEnrollmentCount: number;
+      matchedSectionCount: number;
+      scheduleQueryFailed: boolean;
+    };
     try {
-      sections = await listStudentEnrolledSectionRows(
+      const result = await listStudentEnrolledSectionsForTerm(
         studentId,
         row.term_name,
         row.year,
       );
+      sections = result.sections;
+      scheduleMeta = {
+        ...result.meta,
+        scheduleQueryFailed: false,
+      };
     } catch (queryErr) {
       console.warn(
         "[student/enrolled-sections] query_soft_fail",
@@ -180,6 +190,11 @@ export async function getStudentEnrolledSections(
         }),
       );
       sections = [];
+      scheduleMeta = {
+        activePortalEnrollmentCount: 0,
+        matchedSectionCount: 0,
+        scheduleQueryFailed: true,
+      };
     }
 
     console.warn(
@@ -190,9 +205,11 @@ export async function getStudentEnrolledSections(
         resolvedTerm: row.term_name,
         resolvedYear: row.year,
         sectionCount: sections.length,
+        activePortalEnrollmentCount: scheduleMeta.activePortalEnrollmentCount,
+        scheduleQueryFailed: scheduleMeta.scheduleQueryFailed,
       }),
     );
-    res.json(sections);
+    res.json({ sections, scheduleMeta });
   } catch (e) {
     console.error("[student/enrolled-sections] failed:", e);
     const body: { error: string; message?: string } = {

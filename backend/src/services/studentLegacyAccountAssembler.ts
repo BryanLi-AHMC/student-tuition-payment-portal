@@ -161,30 +161,33 @@ export function assembleLegacyStudentAccountPayload(
     (r) => r.year === browseTerm.year && termsMatch(r.term, browseTerm.term),
   );
 
-  const portalBrowseRecords = portalRows
-    .filter(
-      (p) =>
-        p.year === browseTerm.year &&
-        termsMatch(p.term, browseTerm.term) &&
-        !legacyCompletedBlocksPortalRow(
-          courseRecords,
-          p.course_code,
-          p.term,
-          p.year,
-        ),
-    )
-    .map((p) =>
-      portalEnrollmentRowToAcademicCourseRecord(
-        snap.studentId,
-        p,
-        resolveCourseDisplayTitle(
-          p.course_code,
-          p.course_title_raw.length > 0 ? p.course_title_raw : p.course_code,
-          courseLookup,
-        ),
-        portalActiveTerm,
+  const portalRowsForBrowseTerm = portalRows.filter(
+    (p) =>
+      p.year === browseTerm.year &&
+      termsMatch(p.term, browseTerm.term) &&
+      !legacyCompletedBlocksPortalRow(
+        courseRecords,
+        p.course_code,
+        p.term,
+        p.year,
       ),
-    );
+  );
+  const activePortalEnrollmentCountForBrowseTerm = portalRowsForBrowseTerm.filter(
+    (p) => p.status !== "withdrawn",
+  ).length;
+
+  const portalBrowseRecords = portalRowsForBrowseTerm.map((p) =>
+    portalEnrollmentRowToAcademicCourseRecord(
+      snap.studentId,
+      p,
+      resolveCourseDisplayTitle(
+        p.course_code,
+        p.course_title_raw.length > 0 ? p.course_title_raw : p.course_code,
+        courseLookup,
+      ),
+      portalActiveTerm,
+    ),
+  );
 
   const scheduleSourceRecords =
     portalBrowseRecords.length > 0
@@ -241,6 +244,7 @@ export function assembleLegacyStudentAccountPayload(
       outstandingBalance,
     },
     scheduleRows,
+    activePortalEnrollmentCountForBrowseTerm,
     currentTerm,
     availableScheduleTerms,
     registration,

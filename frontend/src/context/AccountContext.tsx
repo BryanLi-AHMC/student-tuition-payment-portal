@@ -391,6 +391,12 @@ function normalizeApiStudentAccount(raw: unknown): MahmAccountMock {
     browseLabel,
   )
 
+  const apCountRaw = o.activePortalEnrollmentCountForBrowseTerm
+  const activePortalEnrollmentCountForBrowseTerm =
+    typeof apCountRaw === 'number' && Number.isFinite(apCountRaw)
+      ? Math.trunc(apCountRaw)
+      : undefined
+
   return ensureAccountDashboardFields({
     program,
     student,
@@ -407,6 +413,9 @@ function normalizeApiStudentAccount(raw: unknown): MahmAccountMock {
     recentActivity,
     statements: [],
     clinicalProgress: parseClinicalProgressFromApi(o.clinicalProgress),
+    ...(activePortalEnrollmentCountForBrowseTerm != null
+      ? { activePortalEnrollmentCountForBrowseTerm }
+      : {}),
   })
 }
 

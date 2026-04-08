@@ -1,7 +1,7 @@
 import { env } from "../config/env.js";
 import { removeAdminPortalEnrollment } from "../services/adminEnrollmentService.js";
 import { getAcademicTermById } from "../repositories/academicTermRepository.js";
-import { listStudentEnrolledSectionRows } from "../repositories/studentEnrollmentRepository.js";
+import { listStudentEnrolledSectionsForTerm } from "../repositories/studentEnrollmentRepository.js";
 import { InvalidAcademicTermError } from "../services/courseSectionService.js";
 import { enrollStudentForAcademicTerm, RegistrationLockedOverdueBalanceError, } from "../services/studentEnrollmentService.js";
 function devMessage(e) {
@@ -121,13 +121,49 @@ export async function getStudentEnrolledSections(req, res) {
         }
         const row = await getAcademicTermById(academicTermId);
         if (!row) {
-            res.status(400).json({
+            console.warn("[student/enrolled-sections] unknown_academic_term", JSON.stringify({ studentId, academic_term_id: academicTermId }));
+            res.status(404).json({
                 error: "The selected academic term is not valid or no longer exists. Choose another term.",
+                code: "UNKNOWN_ACADEMIC_TERM",
+                academic_term_id: academicTermId,
             });
             return;
         }
-        const sections = await listStudentEnrolledSectionRows(studentId, row.term_name, row.year);
-        res.json(sections);
+        let sections;
+        let scheduleMeta;
+        try {
+            const result = await listStudentEnrolledSectionsForTerm(studentId, row.term_name, row.year);
+            sections = result.sections;
+            scheduleMeta = {
+                ...result.meta,
+                scheduleQueryFailed: false,
+            };
+        }
+        catch (queryErr) {
+            console.warn("[student/enrolled-sections] query_soft_fail", JSON.stringify({
+                studentId,
+                academic_term_id: academicTermId,
+                resolvedTerm: row.term_name,
+                resolvedYear: row.year,
+                message: queryErr instanceof Error ? queryErr.message : String(queryErr),
+            }));
+            sections = [];
+            scheduleMeta = {
+                activePortalEnrollmentCount: 0,
+                matchedSectionCount: 0,
+                scheduleQueryFailed: true,
+            };
+        }
+        console.warn("[student/enrolled-sections] ok", JSON.stringify({
+            studentId,
+            academic_term_id: academicTermId,
+            resolvedTerm: row.term_name,
+            resolvedYear: row.year,
+            sectionCount: sections.length,
+            activePortalEnrollmentCount: scheduleMeta.activePortalEnrollmentCount,
+            scheduleQueryFailed: scheduleMeta.scheduleQueryFailed,
+        }));
+        res.json({ sections, scheduleMeta });
     }
     catch (e) {
         console.error("[student/enrolled-sections] failed:", e);

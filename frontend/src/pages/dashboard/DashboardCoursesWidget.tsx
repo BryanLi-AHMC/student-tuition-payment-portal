@@ -8,6 +8,7 @@ import {
   fetchStudentEnrolledSections,
   fetchStudentRegisteredScheduleRowsForTerm,
   type AcademicTerm,
+  type StudentEnrolledSectionsScheduleMeta,
 } from '../../lib/api'
 import { enrolledSectionsToScheduleRows } from '../../lib/enrolledSectionsToScheduleRows'
 import { resolveAcademicTermIdForPortalTerm } from '../../lib/resolveAcademicTermIdForPortalTerm'
@@ -51,6 +52,17 @@ function termKeysEqual(a: CalendarWeekTermKey, b: CalendarWeekTermKey): boolean 
 /** One cache entry per browse term+year regardless of enrolled-sections vs legacy account source. */
 function normalizedWeekTermCacheKey(t: CalendarWeekTermKey): string {
   return `${t.term.trim().toLowerCase()}|${t.year}`
+}
+
+function errorIndicatesHttp404(e: unknown): boolean {
+  return e instanceof Error && /\bHTTP\s+404\b/i.test(e.message)
+}
+
+type WeekTimetableCacheEntry = {
+  rows: ScheduleRow[]
+  /** From enrolled-sections when `academic_term_id` fetch; null when rows came from legacy account only. */
+  scheduleMeta: StudentEnrolledSectionsScheduleMeta | null
+  loadFailed: boolean
 }
 
 /**
@@ -294,7 +306,9 @@ export function DashboardCoursesWidget() {
   const [weekTermRows, setWeekTermRows] = useState<ScheduleRow[] | null>(null)
   const [weekFetchLoading, setWeekFetchLoading] = useState(false)
   const [weekFetchError, setWeekFetchError] = useState(false)
-  const weekTermRowsCacheRef = useRef<Map<string, ScheduleRow[]>>(new Map())
+  const [weekScheduleMeta, setWeekScheduleMeta] =
+    useState<StudentEnrolledSectionsScheduleMeta | null>(null)
+  const weekTermRowsCacheRef = useRef<Map<string, WeekTimetableCacheEntry>>(new Map())
   /** Same merge as registration layout when account `availableScheduleTerms` is empty. */
   const [registrationMergedScheduleTerms, setRegistrationMergedScheduleTerms] = useState<
     Array<{ term: string; year: number; label: string; academicTermId: string }>
@@ -309,6 +323,7 @@ export function DashboardCoursesWidget() {
     setWeekTermRows(null)
     setWeekFetchLoading(false)
     setWeekFetchError(false)
+    setWeekScheduleMeta(null)
     weekTermRowsCacheRef.current.clear()
   }, [currentStudentId])
 
@@ -450,17 +465,20 @@ export function DashboardCoursesWidget() {
       setWeekTermRows(null)
       setWeekFetchLoading(false)
       setWeekFetchError(false)
+      setWeekScheduleMeta(null)
       return
     }
     if (resolvedWeekTerm == null) {
       setWeekTermRows(null)
       setWeekFetchLoading(false)
+      setWeekScheduleMeta(null)
       return
     }
     if (accountHasScheduleTermOptions && academicTermsLoading) {
       setWeekFetchLoading(true)
       setWeekFetchError(false)
       setWeekTermRows(null)
+      setWeekScheduleMeta(null)
       return
     }
 
@@ -468,9 +486,10 @@ export function DashboardCoursesWidget() {
     const cacheKey = normalizedWeekTermCacheKey(resolvedWeekTerm)
     const cached = weekTermRowsCacheRef.current.get(cacheKey)
     if (cached) {
-      setWeekTermRows(cached)
+      setWeekTermRows(cached.rows)
+      setWeekScheduleMeta(cached.scheduleMeta)
       setWeekFetchLoading(false)
-      setWeekFetchError(false)
+      setWeekFetchError(cached.loadFailed)
       return
     }
 
@@ -479,6 +498,7 @@ export function DashboardCoursesWidget() {
       setWeekFetchLoading(true)
       setWeekFetchError(false)
       setWeekTermRows(null)
+      setWeekScheduleMeta(null)
       ;(async () => {
         const sid = currentStudentId.trim()
         const qs = new URLSearchParams()
@@ -490,13 +510,16 @@ export function DashboardCoursesWidget() {
           { portalTerm: resolvedWeekTerm.term, portalYear: resolvedWeekTerm.year, academicTermId: termId },
         )
         let rows: ScheduleRow[] = []
-        let hardFailure = false
+        let scheduleMeta: StudentEnrolledSectionsScheduleMeta | null = null
+        let loadFailed = false
         try {
-          const sections = await fetchStudentEnrolledSections(sid, termId, {
+          const { sections, scheduleMeta: meta } = await fetchStudentEnrolledSections(sid, termId, {
             signal: ac.signal,
           })
           if (ac.signal.aborted) return
+          scheduleMeta = meta
           rows = enrolledSectionsToScheduleRows(sections)
+          loadFailed = meta.scheduleQueryFailed === true
         } catch {
           if (ac.signal.aborted) return
           console.debug(
@@ -511,15 +534,20 @@ export function DashboardCoursesWidget() {
               { signal: ac.signal },
             )
             if (ac.signal.aborted) return
+            scheduleMeta = null
+            loadFailed = false
           } catch {
             if (ac.signal.aborted) return
-            hardFailure = true
+            loadFailed = true
             rows = []
+            scheduleMeta = null
           }
         }
-        weekTermRowsCacheRef.current.set(cacheKey, rows)
+        const entry: WeekTimetableCacheEntry = { rows, scheduleMeta, loadFailed }
+        weekTermRowsCacheRef.current.set(cacheKey, entry)
         setWeekTermRows(rows)
-        setWeekFetchError(hardFailure)
+        setWeekScheduleMeta(scheduleMeta)
+        setWeekFetchError(loadFailed)
         if (!ac.signal.aborted) setWeekFetchLoading(false)
       })()
       return () => ac.abort()
@@ -532,6 +560,7 @@ export function DashboardCoursesWidget() {
       setWeekTermRows(null)
       setWeekFetchLoading(false)
       setWeekFetchError(false)
+      setWeekScheduleMeta(null)
       return
     }
 
@@ -539,6 +568,7 @@ export function DashboardCoursesWidget() {
     setWeekFetchLoading(true)
     setWeekFetchError(false)
     setWeekTermRows(null)
+    setWeekScheduleMeta(null)
 
     ;(async () => {
       const sid = currentStudentId.trim()
@@ -554,12 +584,27 @@ export function DashboardCoursesWidget() {
           { signal: ac.signal },
         )
         if (ac.signal.aborted) return
-        weekTermRowsCacheRef.current.set(cacheKey, rows)
+        const entry: WeekTimetableCacheEntry = {
+          rows,
+          scheduleMeta: null,
+          loadFailed: false,
+        }
+        weekTermRowsCacheRef.current.set(cacheKey, entry)
         setWeekTermRows(rows)
-      } catch {
+        setWeekScheduleMeta(null)
+        setWeekFetchError(false)
+      } catch (e) {
         if (ac.signal.aborted) return
+        const soft404 = errorIndicatesHttp404(e)
+        const entry: WeekTimetableCacheEntry = {
+          rows: [],
+          scheduleMeta: null,
+          loadFailed: !soft404,
+        }
+        weekTermRowsCacheRef.current.set(cacheKey, entry)
         setWeekTermRows([])
-        setWeekFetchError(true)
+        setWeekScheduleMeta(null)
+        setWeekFetchError(!soft404)
       } finally {
         if (!ac.signal.aborted) setWeekFetchLoading(false)
       }
@@ -605,6 +650,32 @@ export function DashboardCoursesWidget() {
     resolvedWeekTerm == null ? [] : weekScheduleLoading ? [] : effectiveWeekRows
   const weekTimetableModel = buildWeekTimetableFromScheduleRows(weekGridSourceRows)
   const weekHasParsableMeetings = accountScheduleRowsHaveWeekGridData(effectiveWeekRows)
+
+  /** Known active portal enrollment count for the selected week term when the API exposes it; null if unknown. */
+  const portalEnrollmentHintCount = useMemo((): number | null => {
+    if (resolvedWeekTerm == null) return null
+    if (resolvedAcademicTermId != null) {
+      if (weekScheduleMeta?.scheduleQueryFailed) return null
+      if (weekFetchLoading) return null
+      if (weekScheduleMeta == null) return null
+      return weekScheduleMeta.activePortalEnrollmentCount
+    }
+    if (
+      defaultTermFromAccount != null &&
+      termKeysEqual(resolvedWeekTerm, defaultTermFromAccount)
+    ) {
+      const n = account.activePortalEnrollmentCountForBrowseTerm
+      return typeof n === 'number' ? n : null
+    }
+    return null
+  }, [
+    resolvedWeekTerm,
+    resolvedAcademicTermId,
+    weekScheduleMeta,
+    weekFetchLoading,
+    defaultTermFromAccount,
+    account.activePortalEnrollmentCountForBrowseTerm,
+  ])
 
   const selectValue =
     resolvedWeekTerm != null
@@ -809,7 +880,20 @@ export function DashboardCoursesWidget() {
           {resolvedWeekTerm != null &&
           !weekScheduleLoading &&
           !weekFetchError &&
-          effectiveWeekRows.length === 0 ? (
+          effectiveWeekRows.length === 0 &&
+          portalEnrollmentHintCount != null &&
+          portalEnrollmentHintCount > 0 ? (
+            <p className="portal-text-muted portal-dashboard-courses-week-status" role="status">
+              You are enrolled in courses for this term, but no scheduled section times are available
+              yet.
+            </p>
+          ) : null}
+
+          {resolvedWeekTerm != null &&
+          !weekScheduleLoading &&
+          !weekFetchError &&
+          effectiveWeekRows.length === 0 &&
+          !(portalEnrollmentHintCount != null && portalEnrollmentHintCount > 0) ? (
             <p className="portal-text-muted portal-dashboard-courses-week-status" role="status">
               No scheduled classes for this term.
             </p>

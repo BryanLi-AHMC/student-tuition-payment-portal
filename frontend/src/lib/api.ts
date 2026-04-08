@@ -2968,6 +2968,68 @@ function parseAdminCourseSectionList(data: unknown): AdminCourseSection[] {
   return out
 }
 
+export type StudentEnrolledSectionsScheduleMeta = {
+  activePortalEnrollmentCount: number
+  matchedSectionCount: number
+  scheduleQueryFailed?: boolean
+}
+
+function parseStudentEnrolledSectionsScheduleMeta(
+  raw: unknown,
+): StudentEnrolledSectionsScheduleMeta {
+  if (raw == null || typeof raw !== 'object') {
+    return {
+      activePortalEnrollmentCount: 0,
+      matchedSectionCount: 0,
+      scheduleQueryFailed: false,
+    }
+  }
+  const o = raw as Record<string, unknown>
+  const activePortalEnrollmentCount = Math.trunc(
+    Number(o.activePortalEnrollmentCount ?? 0),
+  )
+  const matchedSectionCount = Math.trunc(Number(o.matchedSectionCount ?? 0))
+  const scheduleQueryFailed = o.scheduleQueryFailed === true
+  return {
+    activePortalEnrollmentCount: Number.isFinite(activePortalEnrollmentCount)
+      ? activePortalEnrollmentCount
+      : 0,
+    matchedSectionCount: Number.isFinite(matchedSectionCount)
+      ? matchedSectionCount
+      : 0,
+    ...(scheduleQueryFailed ? { scheduleQueryFailed: true } : {}),
+  }
+}
+
+/** Normalizes GET /api/student/enrolled-sections (object with `sections` + `scheduleMeta`) or legacy array-only body. */
+function parseStudentEnrolledSectionsResponse(data: unknown): {
+  sections: AdminCourseSection[]
+  scheduleMeta: StudentEnrolledSectionsScheduleMeta
+} {
+  if (Array.isArray(data)) {
+    const sections = parseAdminCourseSectionList(data)
+    return {
+      sections,
+      scheduleMeta: {
+        activePortalEnrollmentCount: sections.length,
+        matchedSectionCount: sections.length,
+      },
+    }
+  }
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected enrolled-sections response')
+  }
+  const o = data as Record<string, unknown>
+  const sectionsRaw = o.sections
+  if (!Array.isArray(sectionsRaw)) {
+    throw new Error('Unexpected enrolled-sections response')
+  }
+  return {
+    sections: parseAdminCourseSectionList(sectionsRaw),
+    scheduleMeta: parseStudentEnrolledSectionsScheduleMeta(o.scheduleMeta),
+  }
+}
+
 export type PostStudentEnrollBody = {
   studentId: string
   academic_term_id: string
@@ -3016,12 +3078,15 @@ export async function postStudentEnroll(
   }
 }
 
-/** GET /api/student/enrolled-sections — section rows derived from portal enrollments for the term. */
+/** GET /api/student/enrolled-sections — section rows + meta (active portal enrollment count vs matched timetable rows). */
 export async function fetchStudentEnrolledSections(
   studentId: string,
   academicTermId: string,
   options?: { signal?: AbortSignal },
-): Promise<AdminCourseSection[]> {
+): Promise<{
+  sections: AdminCourseSection[]
+  scheduleMeta: StudentEnrolledSectionsScheduleMeta
+}> {
   const qs = new URLSearchParams()
   qs.set('studentId', studentId.trim())
   qs.set('academic_term_id', academicTermId.trim())
@@ -3029,7 +3094,7 @@ export async function fetchStudentEnrolledSections(
     `/api/student/enrolled-sections?${qs.toString()}`,
     { signal: options?.signal },
   )) as unknown
-  return parseAdminCourseSectionList(data)
+  return parseStudentEnrolledSectionsResponse(data)
 }
 
 /** POST /api/student/withdraw — soft-withdraws one didactic portal enrollment for the term. */

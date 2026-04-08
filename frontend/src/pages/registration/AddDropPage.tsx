@@ -105,7 +105,9 @@ export function AddDropPage() {
       const [current, allTerms, enrolled, catalog] = await Promise.all([
         fetchCurrentAcademicTerm({ signal: ac.signal }),
         fetchAcademicTerms({ signal: ac.signal }),
-        fetchStudentEnrolledSections(studentKey, termKey, { signal: ac.signal }),
+        fetchStudentEnrolledSections(studentKey, termKey, { signal: ac.signal }).then(
+          (r) => r.sections,
+        ),
         fetchCourses({ signal: ac.signal }),
       ])
       if (ac.signal.aborted) return
@@ -127,7 +129,7 @@ export function AddDropPage() {
   const refetchEnrolledSectionsOnly = useCallback(async () => {
     if (termKey === '' || studentKey === '' || !isAuthenticated) return
     try {
-      const enrolled = await fetchStudentEnrolledSections(studentKey, termKey)
+      const { sections: enrolled } = await fetchStudentEnrolledSections(studentKey, termKey)
       setSections(enrolled)
     } catch {
       /* keep existing table; user can Retry for full reload */

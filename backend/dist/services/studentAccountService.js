@@ -2,6 +2,10 @@
  * Account / billing layer: may **merge** legacy academic schedule views and clinical progress (`buildClinicalProgress`)
  * for the dashboard. Upstream services keep registration, attempts, transcript, and clinic progress separate.
  * Degree audit: `computeDegreeAudit` in `domain/studentDomainModels.ts` when wired — not inside transcript services.
+ *
+ * Portal schedule truth: `portal_enrollments` (by `student_external_id`, calendar `term`/`year`, `status`) maps through
+ * `portal_courses` to timetable `course_sections` — see `listStudentEnrolledSectionsForTerm`. `academic_terms.id`
+ * values (e.g. `2026-FAL`) are metadata for API routing only; calendar term names come from `academic_terms.term_name`.
  */
 import { DEMO_STUDENT_ID } from "../config/constants.js";
 import { pool } from "../lib/db.js";
@@ -11,7 +15,8 @@ import { findLatestTermYearForStudent, listPortalScheduleTermsForStudent, loadAc
 import { findLatestPortalEnrollmentTermYear, listPortalEnrollmentRowsForStudentAcademics, } from "../repositories/studentEnrollmentRepository.js";
 import { loadCoursesTranscriptLookup } from "../repositories/studentTranscriptRepository.js";
 import { getCatalogDemoAccountPayload } from "./demoAccountService.js";
-import { pickNewerRegistrationAnchor, resolveRegistrationAnchoredAcademicTermConsideringPortal, termSortOrder, } from "./studentAcademicCourseRecords.js";
+import { pickNewerRegistrationAnchor, resolveRegistrationAnchoredAcademicTermConsideringPortal, termSortOrder, termsMatch, } from "./studentAcademicCourseRecords.js";
+import { listAcademicTerms } from "../repositories/academicTermRepository.js";
 import { buildClinicalProgress } from "./clinicalProgressService.js";
 import { assembleLegacyStudentAccountPayload } from "./studentLegacyAccountAssembler.js";
 import { buildAccountCurrentTerm } from "./studentAccountDashboard.js";
@@ -37,6 +42,96 @@ function mergeScheduleTermOptionLists(primary, browseTerm, browseYear) {
             return b.year - a.year;
         return termSortOrder(b.term) - termSortOrder(a.term);
     });
+}
+/** Map portal/legacy calendar term + year → `academic_terms.id` when names or labels align. */
+function academicTermIdForCalendarTerm(catalog, calendarTerm, calendarYear) {
+    const y = Number(calendarYear);
+    if (!Number.isFinite(y))
+        return undefined;
+    const raw = calendarTerm.trim();
+    if (raw === "")
+        return undefined;
+    const want = raw.toLowerCase();
+    const compact = want.replace(/[\s_-]+/g, "");
+    const aliasToCanon = {
+        spr1: "spring",
+        spring1: "spring",
+        sum1: "summer",
+        summer1: "summer",
+        fal: "fall",
+        fall1: "fall",
+        win: "winter",
+        winter1: "winter",
+    };
+    const canonFromAlias = aliasToCanon[compact];
+    for (const a of catalog) {
+        if (a.year !== y)
+            continue;
+        if (a.term_name.toLowerCase() === want)
+            return a.id;
+    }
+    if (canonFromAlias) {
+        for (const a of catalog) {
+            if (a.year === y && a.term_name.toLowerCase() === canonFromAlias) {
+                return a.id;
+            }
+        }
+    }
+    for (const a of catalog) {
+        if (a.year !== y)
+            continue;
+        const lbl = a.term_label.trim().toLowerCase();
+        if (lbl === want || lbl.startsWith(`${want} `) || lbl.includes(` ${want}`)) {
+            return a.id;
+        }
+    }
+    return undefined;
+}
+async function enrichScheduleTermsWithAcademicIds(terms) {
+    if (terms.length === 0)
+        return terms;
+    try {
+        const catalog = await listAcademicTerms();
+        return terms.map((t) => {
+            if (t.academicTermId != null && t.academicTermId.trim() !== "") {
+                return t;
+            }
+            const id = academicTermIdForCalendarTerm(catalog, t.term, t.year);
+            return id != null ? { ...t, academicTermId: id } : t;
+        });
+    }
+    catch (e) {
+        console.warn("[account] enrichScheduleTermsWithAcademicIds skipped:", e instanceof Error ? e.message : e);
+        return terms;
+    }
+}
+/**
+ * Legacy `registration` may be absent for a browse term even when the student has portal
+ * enrollments or `marks` rows — avoid 404 on GET /account?term=&year= for those cases.
+ */
+async function resolveBrowseAccountSnapshot(snap, dbPool, studentId, term, year, termYearMode, portalEnrollmentRows, allMarksRows) {
+    if (snap != null)
+        return snap;
+    if (termYearMode !== "explicit")
+        return null;
+    const hasPortal = portalEnrollmentRows.some((p) => p.year === year && termsMatch(p.term, term));
+    const hasMarks = allMarksRows.some((m) => m.year === year && termsMatch(m.term, term));
+    if (!hasPortal && !hasMarks)
+        return null;
+    const [[studentRow]] = await dbPool.query(`SELECT TRIM(name) AS name FROM students WHERE id = ? LIMIT 1`, [studentId]);
+    if (studentRow == null)
+        return null;
+    const rawName = studentRow.name != null && String(studentRow.name).trim() !== ""
+        ? String(studentRow.name).trim()
+        : "";
+    const displayName = rawName !== "" ? rawName : studentId;
+    return {
+        studentId,
+        displayName,
+        term: term.trim(),
+        year,
+        totalFees: 0,
+    };
 }
 function augmentPayloadScheduleMeta(payload, args) {
     const availableScheduleTerms = mergeScheduleTermOptionLists(args.availableScheduleTerms, payload.term, payload.year);
@@ -110,20 +205,21 @@ async function getRealStudentAccountPayload(studentId, termYear) {
         year = latest.year;
     }
     console.debug("[account-debug] getStudentAccountPayload (legacy) input", JSON.stringify({ studentId, term, year, mode: termYear.mode }));
-    const [snap, listedPairs, portalEnrollmentRows, latestPortalTermYear, portalScheduleTermList, latestLegacyTermYear,] = await Promise.all([
+    const [snap, listedPairs, portalEnrollmentRows, latestPortalTermYear, portalScheduleTermList, latestLegacyTermYear, allMarksRows,] = await Promise.all([
         loadLegacyAccountSnapshot(pool, studentId, term, year),
         listLegacyRegistrationTermsForStudent(pool, studentId),
         listPortalEnrollmentRowsForStudentAcademics(studentId),
         findLatestPortalEnrollmentTermYear(studentId),
         listPortalScheduleTermsForStudent(pool, studentId).catch(() => []),
         findLatestLegacyTermYear(pool, studentId),
+        listMarksForStudent(pool, studentId),
     ]);
-    if (!snap) {
+    const effectiveSnap = await resolveBrowseAccountSnapshot(snap, pool, studentId, term, year, termYear.mode, portalEnrollmentRows, allMarksRows);
+    if (!effectiveSnap) {
         return null;
     }
-    const [accountingRows, allMarksRows, courseLookup, clinicalProgress] = await Promise.all([
-        loadLegacyAccountingRows(pool, studentId, term, year),
-        listMarksForStudent(pool, studentId),
+    const [accountingRows, courseLookup, clinicalProgress] = await Promise.all([
+        loadLegacyAccountingRows(pool, studentId, effectiveSnap.term, effectiveSnap.year),
         loadCoursesTranscriptLookup(pool),
         buildClinicalProgress(pool, studentId),
     ]);
@@ -135,8 +231,10 @@ async function getRealStudentAccountPayload(studentId, termYear) {
     for (const p of portalScheduleTermList) {
         availableScheduleTerms = mergeScheduleTermOptionLists(availableScheduleTerms, p.term, p.year);
     }
-    availableScheduleTerms = mergeScheduleTermOptionLists(availableScheduleTerms, snap.term, snap.year);
-    return assembleLegacyStudentAccountPayload(snap, accountingRows, allMarksRows, courseLookup, {
+    availableScheduleTerms = mergeScheduleTermOptionLists(availableScheduleTerms, effectiveSnap.term, effectiveSnap.year);
+    availableScheduleTerms =
+        await enrichScheduleTermsWithAcademicIds(availableScheduleTerms);
+    return assembleLegacyStudentAccountPayload(effectiveSnap, accountingRows, allMarksRows, courseLookup, {
         portalActiveTerm,
         availableScheduleTerms,
         clinicalProgress,

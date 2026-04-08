@@ -114,6 +114,11 @@ export type StudentAccountPayload = {
   summary: StudentAccountSummary;
   scheduleRows: ScheduleRow[];
   /**
+   * Count of **active** `portal_enrollments` rows for this payload’s browse `term`/`year` (withdrawn excluded).
+   * Lets the dashboard distinguish “enrolled, timetable not published yet” from “no enrollments” without guessing.
+   */
+  activePortalEnrollmentCountForBrowseTerm?: number;
+  /**
    * True active enrollment term for the student (legacy: latest `registration` row still open on `marks`).
    * Independent of `term`/`year`, which reflect the selected account browse term.
    */

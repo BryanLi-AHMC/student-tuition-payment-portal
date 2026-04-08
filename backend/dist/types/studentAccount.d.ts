@@ -42,6 +42,8 @@ export type AccountScheduleTermOption = {
     term: string;
     year: number;
     label: string;
+    /** When this calendar term maps to a row in `academic_terms` (portal registration / enrolled-sections). */
+    academicTermId?: string;
 };
 export type AccountRegistrationStatus = "registered" | "not_registered" | "in_progress" | "unknown";
 export type AccountRegistration = {
@@ -95,6 +97,11 @@ export type StudentAccountPayload = {
     lineItems: BillingLineItem[];
     summary: StudentAccountSummary;
     scheduleRows: ScheduleRow[];
+    /**
+     * Count of **active** `portal_enrollments` rows for this payload’s browse `term`/`year` (withdrawn excluded).
+     * Lets the dashboard distinguish “enrolled, timetable not published yet” from “no enrollments” without guessing.
+     */
+    activePortalEnrollmentCountForBrowseTerm?: number;
     /**
      * True active enrollment term for the student (legacy: latest `registration` row still open on `marks`).
      * Independent of `term`/`year`, which reflect the selected account browse term.

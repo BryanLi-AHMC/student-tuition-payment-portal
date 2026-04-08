@@ -90,6 +90,8 @@ export type MahmAccountMock = {
     /** `academic_terms.id` when provided by GET /account (avoids fragile client-only term matching). */
     academicTermId?: string
   }>
+  /** Active `portal_enrollments` count for the account browse term (legacy + portal payloads). */
+  activePortalEnrollmentCountForBrowseTerm?: number
   recentActivity: MahmRecentActivityEntry[]
   statements: MahmStatementEntry[]
   clinicalProgress?: MahmClinicalProgress

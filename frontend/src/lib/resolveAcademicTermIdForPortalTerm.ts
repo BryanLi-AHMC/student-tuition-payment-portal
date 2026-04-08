@@ -28,6 +28,9 @@ function canonicalSeasonFromPortalTerm(portalTerm: string): string | null {
 /**
  * Match portal account/browse `term` + calendar year to an academic term row (for enrolled-sections API).
  * Uses exact `term_name`, compact aliases (e.g. SPR1 → Spring), and `term_label` overlap for mismatched legacy strings.
+ *
+ * Canonical term **ids** in `academic_terms` look like `2026-FAL` / `2026-SPR` / `2026-SUM` — never guess variants such as
+ * `2026-FALL` or `2026-SPR1`. This helper resolves **ids** from human-readable `term_name` + `year` only.
  */
 export function resolveAcademicTermIdForPortalTerm(
   terms: AcademicTerm[],

@@ -75,6 +75,7 @@ export function assembleStudentAccountPayload(ctx, options) {
         lineItems,
         summary,
         scheduleRows,
+        activePortalEnrollmentCountForBrowseTerm: enrollments.length,
         currentTerm,
         availableScheduleTerms,
         registration,

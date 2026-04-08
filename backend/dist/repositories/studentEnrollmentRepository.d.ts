@@ -16,10 +16,26 @@ export declare function enrollStudentInSections(studentExternalId: string, term:
     ok: false;
     error: string;
 }>;
+export type StudentEnrolledSectionsQueryMeta = {
+    activePortalEnrollmentCount: number;
+    matchedSectionCount: number;
+};
+export type StudentEnrolledSectionsQueryResult = {
+    sections: CourseSectionDetail[];
+    meta: StudentEnrolledSectionsQueryMeta;
+};
 /**
- * One `course_sections` row per enrolled course (same term/year), chosen deterministically when
- * multiple sections exist for a course (lowest `id`). Timetable display for course-only portal enrollments.
+ * Scheduled section rows for a student's **active** `portal_enrollments` in one calendar term/year.
+ *
+ * Source chain (production): `portal_enrollments.course_id` → `portal_courses` (maps legacy ids like
+ * LEGACY29 to timetable `course_code` e.g. AC100) → `course_sections.course_code` + matching term/year.
+ * `portal_enrollments.course_id` is never joined directly to `course_sections.course_code`.
+ *
+ * One `course_sections` row per enrolled catalog course (`MIN(id)` when multiple sections exist).
+ * String joins use `utf8mb4_unicode_ci` to avoid collation mismatch errors across tables.
  */
+export declare function listStudentEnrolledSectionsForTerm(studentExternalId: string, term: string, year: number): Promise<StudentEnrolledSectionsQueryResult>;
+/** @deprecated Prefer {@link listStudentEnrolledSectionsForTerm} for schedule metadata. */
 export declare function listStudentEnrolledSectionRows(studentExternalId: string, term: string, year: number): Promise<CourseSectionDetail[]>;
 export type PortalEnrollmentAcademicStatus = "active" | "withdrawn" | "completed" | "dropped" | "unknown";
 /** Admin section roster: same `portal_enrollments` + joins as student Academics, all statuses. */

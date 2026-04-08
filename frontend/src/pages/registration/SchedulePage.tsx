@@ -41,11 +41,11 @@ export function SchedulePage() {
     const ac = new AbortController()
     ;(async () => {
       try {
-        const rows = await fetchStudentEnrolledSections(studentKey, termKey, {
+        const { sections } = await fetchStudentEnrolledSections(studentKey, termKey, {
           signal: ac.signal,
         })
         if (ac.signal.aborted) return
-        setEnrolledItems(rows.map((r) => adminSectionToCourseBinItem(r, undefined)))
+        setEnrolledItems(sections.map((r) => adminSectionToCourseBinItem(r, undefined)))
         setEnrolledError(null)
       } catch (e) {
         if (ac.signal.aborted) return
