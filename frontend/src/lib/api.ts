@@ -2842,6 +2842,8 @@ export async function fetchCourses(options?: {
 export type AdminCourseSection = {
   id: number
   course_code: string
+  /** `portal_courses.title` when returned by enrolled-sections; otherwise null. */
+  course_title: string | null
   term: string
   year: number
   section_code: string
@@ -2923,9 +2925,15 @@ function parseAdminCourseSectionRow(
     }
     if (list.length > 0) enrolled_students = list
   }
+  const ctRaw = row.course_title ?? row.courseTitle
+  const course_title =
+    ctRaw == null || String(ctRaw).trim() === ''
+      ? null
+      : String(ctRaw).trim()
   return {
     id,
     course_code: course_code.trim(),
+    course_title,
     term: term.trim(),
     year: Math.trunc(year),
     section_code: section_code.trim(),
@@ -3237,6 +3245,40 @@ export async function deleteAdminCourseSection(
 export type AdminPortalEnrollmentDeleteResponse = {
   success: boolean
   removedCount: number
+}
+
+/**
+ * POST /api/admin/marks/set-grade — writes legacy `marks` only (grade / grade2); never portal_enrollments.
+ */
+export async function postAdminMarksSetGrade(params: {
+  studentId: string
+  courseCode: string
+  /** Portal `academic_terms.id` (same as roster URL `term` query). */
+  term: string
+  grade: string
+  numeric: number | null
+  signal?: AbortSignal
+}): Promise<{ ok: boolean }> {
+  const data = (await fetchApiJson('/api/admin/marks/set-grade', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studentId: params.studentId.trim(),
+      courseCode: params.courseCode.trim(),
+      term: params.term.trim(),
+      grade: params.grade.trim(),
+      numeric: params.numeric,
+    }),
+    signal: params.signal,
+  })) as unknown
+  if (
+    data == null ||
+    typeof data !== 'object' ||
+    typeof (data as { ok?: unknown }).ok !== 'boolean'
+  ) {
+    throw new Error('Unexpected admin marks set-grade response')
+  }
+  return data as { ok: boolean }
 }
 
 /**

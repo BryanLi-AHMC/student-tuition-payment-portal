@@ -5,6 +5,7 @@ import {
   deleteAdminPortalEnrollment,
   fetchAcademicTerms,
   fetchAdminCourseSectionEnrollments,
+  postAdminMarksSetGrade,
   type AcademicTerm,
   type AdminCourseSectionEnrollmentRow,
 } from '../../lib/api'
@@ -12,6 +13,22 @@ import {
   normalizeScheduleTrackValue,
   scheduleTrackTableLabel,
 } from '../../lib/scheduleTrack'
+
+const GRADE_SCALE: Record<string, number | null> = {
+  A: 4,
+  'A-': 3.75,
+  'B+': 3.5,
+  B: 3,
+  'B-': 2.75,
+  'C+': 2.5,
+  C: 2,
+  'C-': 1.75,
+  D: 1,
+  F: 0,
+  P: null,
+  NP: null,
+  INC: null,
+}
 
 function academicStatusLabel(status: string): string {
   const s = status.trim().toLowerCase()
@@ -57,6 +74,8 @@ export function AdminCourseSectionRosterPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [busyGradeId, setBusyGradeId] = useState<string | null>(null)
+  const [gradeDraft, setGradeDraft] = useState<Record<string, string>>({})
   const [reloadNonce, setReloadNonce] = useState(0)
 
   const termLabel = useMemo(() => {
@@ -125,6 +144,36 @@ export function AdminCourseSectionRosterPage() {
   const bumpRoster = useCallback(() => {
     setReloadNonce((n) => n + 1)
   }, [])
+
+  const onSaveGrade = async (studentId: string) => {
+    const row = students.find((x) => x.studentId === studentId)
+    const grade = (gradeDraft[studentId] ?? row?.grade ?? '').trim()
+    if (!grade || grade === 'W') return
+
+    const numeric = GRADE_SCALE[grade] ?? null
+
+    setActionError(null)
+    setBusyGradeId(studentId)
+    try {
+      await postAdminMarksSetGrade({
+        studentId,
+        courseCode,
+        term: termId,
+        grade,
+        numeric,
+      })
+      setGradeDraft((prev) => {
+        const next = { ...prev }
+        delete next[studentId]
+        return next
+      })
+      bumpRoster()
+    } catch {
+      setActionError('Save grade failed')
+    } finally {
+      setBusyGradeId(null)
+    }
+  }
 
   const onRemove = async (studentId: string) => {
     setActionError(null)
@@ -277,35 +326,81 @@ export function AdminCourseSectionRosterPage() {
                     <th scope="col">Student ID</th>
                     <th scope="col">Status</th>
                     <th scope="col">Grade</th>
+                    <th scope="col">Save</th>
                     <th scope="col">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((s) => (
-                    <tr key={s.studentId}>
-                      <td>{s.name?.trim() ? s.name.trim() : '—'}</td>
-                      <td>
-                        <code className="admin-code">{s.studentId}</code>
-                      </td>
-                      <td>{academicStatusLabel(s.status)}</td>
-                      <td>{rosterGradeDisplay(s)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="portal-btn portal-btn--secondary portal-btn--compact"
-                          disabled={
-                            busyId != null ||
-                            s.status.trim().toLowerCase() === 'withdrawn'
-                          }
-                          onClick={() => void onRemove(s.studentId)}
-                        >
-                          {busyId === s.studentId
-                            ? 'Removing…'
-                            : 'Remove registration'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {students.map((s) => {
+                    const withdrawn =
+                      s.status.trim().toLowerCase() === 'withdrawn'
+                    return (
+                      <tr key={s.studentId}>
+                        <td>{s.name?.trim() ? s.name.trim() : '—'}</td>
+                        <td>
+                          <code className="admin-code">{s.studentId}</code>
+                        </td>
+                        <td>{academicStatusLabel(s.status)}</td>
+                        <td>
+                          {withdrawn ? (
+                            rosterGradeDisplay(s)
+                          ) : (
+                            <select
+                              className="admin-input"
+                              aria-label={`Grade for ${s.studentId}`}
+                              value={
+                                gradeDraft[s.studentId] ?? (s.grade ?? '')
+                              }
+                              onChange={(e) =>
+                                setGradeDraft((prev) => ({
+                                  ...prev,
+                                  [s.studentId]: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">—</option>
+                              {Object.keys(GRADE_SCALE).map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </td>
+                        <td>
+                          {withdrawn ? (
+                            <span className="portal-text-muted">—</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="portal-btn portal-btn--primary portal-btn--compact"
+                              disabled={busyGradeId != null || busyId != null}
+                              onClick={() => void onSaveGrade(s.studentId)}
+                            >
+                              {busyGradeId === s.studentId
+                                ? 'Saving…'
+                                : 'Save'}
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="portal-btn portal-btn--secondary portal-btn--compact"
+                            disabled={
+                              busyId != null ||
+                              withdrawn
+                            }
+                            onClick={() => void onRemove(s.studentId)}
+                          >
+                            {busyId === s.studentId
+                              ? 'Removing…'
+                              : 'Remove registration'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
