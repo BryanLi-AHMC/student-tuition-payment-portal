@@ -5978,9 +5978,8 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
   min-height: 0;
-  padding: 0.3125rem 0.375rem 0.375rem;
+  padding: 0;
   border-radius: 0.25rem;
   border: 1px solid color-mix(in srgb, var(--portal-border-subtle) 80%, #94a3b8);
   background: #ffffff;
@@ -5989,25 +5988,44 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   z-index: 1;
 }
 
-.portal-dashboard-courses-timetable-code {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--portal-accent);
-  line-height: 1.25;
+.portal-timetable-block-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  text-align: center;
+  padding: 4px;
 }
 
-.portal-dashboard-courses-timetable-subtitle {
-  font-size: 0.5625rem;
-  font-weight: 500;
-  line-height: 1.3;
-  color: var(--portal-text-muted);
+.portal-timetable-block-code {
+  font-weight: 600;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--portal-accent);
+  line-height: 1.2;
+}
+
+.portal-timetable-block-title {
+  font-size: 11px;
+  opacity: 0.85;
+  line-height: 1.2;
+  color: var(--portal-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+.portal-timetable-block-time {
+  font-size: 10px;
+  opacity: 0.7;
+  color: var(--portal-text-muted);
+  line-height: 1.2;
 }
 
 /* Tablet week grid: narrower time rail, smaller day min for seven columns + horizontal scroll */
@@ -6033,33 +6051,31 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
     font-size: 0.5625rem;
   }
 
-  .portal-dashboard-courses-timetable-block {
-    padding: 0.25rem 0.3125rem 0.3125rem;
+  .portal-timetable-block-code {
+    font-size: 11px;
   }
 
-  .portal-dashboard-courses-timetable-code {
-    font-size: 0.625rem;
+  .portal-timetable-block-title {
+    font-size: 10px;
   }
 
-  .portal-dashboard-courses-timetable-subtitle {
-    font-size: 0.53125rem;
-    line-height: 1.3;
+  .portal-timetable-block-time {
+    font-size: 9px;
   }
 }
 
-/* Desktop week grid: larger type and padding for readability */
+/* Desktop week grid: larger type for readability */
 @media (min-width: 1200px) {
-  .portal-dashboard-courses-timetable-code {
-    font-size: 0.75rem;
+  .portal-timetable-block-code {
+    font-size: 13px;
   }
 
-  .portal-dashboard-courses-timetable-subtitle {
-    font-size: 0.625rem;
-    line-height: 1.35;
+  .portal-timetable-block-title {
+    font-size: 12px;
   }
 
-  .portal-dashboard-courses-timetable-block {
-    padding: 0.375rem 0.4375rem 0.4375rem;
+  .portal-timetable-block-time {
+    font-size: 11px;
   }
 }
 

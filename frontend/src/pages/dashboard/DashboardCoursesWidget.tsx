@@ -268,14 +268,17 @@ function DashboardWeekTimetableGrid({ model }: { model: WeekTimetableModel }) {
                   key={`${day}-${block.courseCode}-${block.startMinutes}-${bi}`}
                   className="portal-dashboard-courses-timetable-block"
                   style={{ top: pos.top, height: pos.height }}
-                  aria-label={`${block.courseCode}, ${formatHourLabel(block.startMinutes)} to ${formatHourLabel(
-                    block.endMinutes,
-                  )}`}
+                  aria-label={`${block.courseCode}${
+                    block.subtitle ? `, ${block.subtitle}` : ''
+                  }, ${formatBlockTimeRange24(block)}`}
                 >
-                  <span className="portal-dashboard-courses-timetable-code">{block.courseCode}</span>
-                  {block.subtitle ? (
-                    <span className="portal-dashboard-courses-timetable-subtitle">{block.subtitle}</span>
-                  ) : null}
+                  <div className="portal-timetable-block-content">
+                    <div className="portal-timetable-block-code">{block.courseCode}</div>
+                    {block.subtitle ? (
+                      <div className="portal-timetable-block-title">{block.subtitle}</div>
+                    ) : null}
+                    <div className="portal-timetable-block-time">{formatBlockTimeRange24(block)}</div>
+                  </div>
                 </div>
               )
             })}
