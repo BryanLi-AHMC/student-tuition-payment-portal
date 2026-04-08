@@ -48,8 +48,10 @@ function termKeysEqual(a: CalendarWeekTermKey, b: CalendarWeekTermKey): boolean 
   )
 }
 
-function normalizedWeekTermCacheKey(t: CalendarWeekTermKey): string {
-  return `${t.term.trim().toLowerCase()}|${t.year}`
+type WeekRowsCacheKind = 'enrolled' | 'legacy'
+
+function normalizedWeekTermCacheKey(t: CalendarWeekTermKey, kind: WeekRowsCacheKind): string {
+  return `${t.term.trim().toLowerCase()}|${t.year}|${kind}`
 }
 
 /**
@@ -455,7 +457,9 @@ export function DashboardCoursesWidget() {
       return
     }
 
-    const cacheKey = normalizedWeekTermCacheKey(resolvedWeekTerm)
+    const termId = resolvedAcademicTermId
+    const cacheKind: WeekRowsCacheKind = termId ? 'enrolled' : 'legacy'
+    const cacheKey = normalizedWeekTermCacheKey(resolvedWeekTerm, cacheKind)
     const cached = weekTermRowsCacheRef.current.get(cacheKey)
     if (cached) {
       setWeekTermRows(cached)
@@ -463,8 +467,6 @@ export function DashboardCoursesWidget() {
       setWeekFetchError(false)
       return
     }
-
-    const termId = resolvedAcademicTermId
 
     if (termId) {
       const ac = new AbortController()
@@ -578,14 +580,16 @@ export function DashboardCoursesWidget() {
     !isLoadingAccount && view === 'week' && weekTermSelectOptions.length > 0
 
   const showListCourseTable =
-    !isLoadingAccount &&
-    registration.status === 'registered' &&
-    view === 'list' &&
-    listScheduleRows.length > 0
+    !isLoadingAccount && view === 'list' && listScheduleRows.length > 0
 
   const showWeekPanel = !isLoadingAccount && view === 'week'
 
-  const showGlobalEmptyState = !isLoadingAccount && registration.status !== 'registered'
+  /** Large banner only on Courses tab when the account says not registered and there is no schedule table to show. */
+  const showGlobalEmptyState =
+    !isLoadingAccount &&
+    view === 'list' &&
+    registration.status !== 'registered' &&
+    listScheduleRows.length === 0
 
   return (
     <section className="portal-dashboard-courses" aria-labelledby="portal-dashboard-courses-heading">
