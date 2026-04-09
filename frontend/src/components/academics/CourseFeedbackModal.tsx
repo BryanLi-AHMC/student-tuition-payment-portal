@@ -60,17 +60,23 @@ function RatingScaleRow({
   value,
   onChange,
   labelledBy,
+  showLegend,
+  onRatingGroupInteract,
 }: {
   name: string
   value: number
   onChange: (n: number) => void
   labelledBy: string
+  showLegend: boolean
+  onRatingGroupInteract: () => void
 }) {
   return (
     <div
       className="portal-course-feedback-modal__rating-scale"
       role="radiogroup"
       aria-labelledby={labelledBy}
+      onPointerDown={onRatingGroupInteract}
+      onFocusCapture={onRatingGroupInteract}
     >
       <div className="portal-course-feedback-modal__rating-scale-row">
         {[1, 2, 3, 4, 5].map((n) => (
@@ -96,7 +102,9 @@ function RatingScaleRow({
           </label>
         ))}
       </div>
-      <p className="portal-course-feedback-modal__rating-scale-legend portal-text-muted">{RATING_SCALE_LEGEND}</p>
+      {showLegend ? (
+        <p className="portal-course-feedback-modal__rating-scale-legend portal-text-muted">{RATING_SCALE_LEGEND}</p>
+      ) : null}
     </div>
   )
 }
@@ -127,6 +135,11 @@ export function CourseFeedbackModal({
   const [viewLoading, setViewLoading] = useState(mode === 'view')
   const [viewError, setViewError] = useState<string | null>(null)
   const [viewItem, setViewItem] = useState<CourseFeedbackApiItem | null>(null)
+  const [ratingLegendByKey, setRatingLegendByKey] = useState<Record<string, boolean>>({})
+
+  const revealRatingLegend = (key: string) => {
+    setRatingLegendByKey((prev) => (prev[key] ? prev : { ...prev, [key]: true }))
+  }
 
   useEffect(() => {
     if (mode !== 'view') return
@@ -221,7 +234,7 @@ export function CourseFeedbackModal({
       role="presentation"
     >
       <div
-        className="portal-course-feedback-modal"
+        className="portal-course-feedback-modal portal-course-feedback-modal--student-eval"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -237,15 +250,14 @@ export function CourseFeedbackModal({
             </h2>
           )}
           <p className="portal-course-feedback-modal__header-course">{courseLine}</p>
-          <p className="portal-course-feedback-modal__header-term portal-text-muted">{termLine}</p>
+          {mode === 'view' ? (
+            <p className="portal-course-feedback-modal__header-term portal-text-muted">{termLine}</p>
+          ) : null}
         </header>
         <div className="portal-course-feedback-modal__section-divider" aria-hidden="true" />
 
         {mode === 'submit' ? (
           <form onSubmit={handleSubmit}>
-            <p className="portal-course-feedback-modal__intro portal-text-muted">
-              Please rate each item using the scale below.
-            </p>
             <div className="portal-course-feedback-modal__feedback-block">
               <p className="portal-course-feedback-modal__question" id="cfb-q1-text">
                 {COURSE_FEEDBACK_QUESTIONS[0]}
@@ -255,6 +267,8 @@ export function CourseFeedbackModal({
                 value={q1}
                 onChange={setQ1}
                 labelledBy="cfb-q1-text"
+                showLegend={!!ratingLegendByKey.q1}
+                onRatingGroupInteract={() => revealRatingLegend('q1')}
               />
             </div>
             <div className="portal-course-feedback-modal__feedback-block">
@@ -266,6 +280,8 @@ export function CourseFeedbackModal({
                 value={q2}
                 onChange={setQ2}
                 labelledBy="cfb-q2-text"
+                showLegend={!!ratingLegendByKey.q2}
+                onRatingGroupInteract={() => revealRatingLegend('q2')}
               />
             </div>
             <div className="portal-course-feedback-modal__feedback-block">
@@ -277,6 +293,8 @@ export function CourseFeedbackModal({
                 value={q3}
                 onChange={setQ3}
                 labelledBy="cfb-q3-text"
+                showLegend={!!ratingLegendByKey.q3}
+                onRatingGroupInteract={() => revealRatingLegend('q3')}
               />
             </div>
             <div className="portal-course-feedback-modal__feedback-block">
@@ -288,6 +306,8 @@ export function CourseFeedbackModal({
                 value={q4}
                 onChange={setQ4}
                 labelledBy="cfb-q4-text"
+                showLegend={!!ratingLegendByKey.q4}
+                onRatingGroupInteract={() => revealRatingLegend('q4')}
               />
             </div>
             <div className="portal-course-feedback-modal__feedback-block">
@@ -299,6 +319,8 @@ export function CourseFeedbackModal({
                 value={q5}
                 onChange={setQ5}
                 labelledBy="cfb-q5-text"
+                showLegend={!!ratingLegendByKey.q5}
+                onRatingGroupInteract={() => revealRatingLegend('q5')}
               />
             </div>
             <div className="portal-course-feedback-modal__feedback-block portal-course-feedback-modal__feedback-block--overall">
@@ -310,6 +332,8 @@ export function CourseFeedbackModal({
                 value={overall}
                 onChange={setOverall}
                 labelledBy="cfb-overall-text"
+                showLegend={!!ratingLegendByKey.overall}
+                onRatingGroupInteract={() => revealRatingLegend('overall')}
               />
             </div>
             <div className="portal-course-feedback-modal__comment-block">

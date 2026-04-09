@@ -3044,6 +3044,8 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
   justify-content: center;
   padding: 24px;
   box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: rgba(15, 23, 42, 0.45);
 }
 
@@ -3062,10 +3064,21 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
     0 16px 40px rgba(15, 23, 42, 0.12);
 }
 
+/* Student course evaluation / view: wider, no inner scroll on the card */
+.portal-course-feedback-modal--student-eval {
+  width: min(950px, calc(100vw - 48px));
+  max-width: 980px;
+  max-height: none;
+  margin: auto;
+  overflow: visible;
+  padding: 1.5rem 2.25rem 1.5rem;
+}
+
 /* —— Branded header —— */
 .portal-course-feedback-modal__header {
   margin: 0;
-  padding: 0 0 1rem;
+  padding: 0 0 0.85rem;
+  text-align: center;
 }
 
 .portal-course-feedback-modal__header-title {
@@ -3094,31 +3107,25 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
 
 .portal-course-feedback-modal__section-divider {
   height: 0;
-  margin: 0 0 1.25rem;
+  margin: 0 0 0.95rem;
   border: 0;
   border-top: 1px solid var(--portal-border-subtle);
   box-shadow: 0 1px 0 0 rgba(242, 195, 0, 0.35);
 }
 
-.portal-course-feedback-modal__intro {
-  margin: 0 0 1.1rem;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-}
-
 /* —— Submit: question + rating scale —— */
 .portal-course-feedback-modal__feedback-block {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.85rem;
 }
 
 .portal-course-feedback-modal__feedback-block--overall {
-  padding-top: 0.35rem;
-  margin-top: 0.15rem;
+  padding-top: 0.3rem;
+  margin-top: 0.1rem;
   border-top: 1px dashed var(--portal-border-subtle);
 }
 
 .portal-course-feedback-modal__question {
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.45rem;
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.45;
@@ -3127,21 +3134,25 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
 }
 
 .portal-course-feedback-modal__rating-scale {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   margin: 0;
+  width: 100%;
 }
 
 .portal-course-feedback-modal__rating-scale-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: stretch;
-  gap: 0.4rem 0.35rem;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .portal-course-feedback-modal__rating-option {
   position: relative;
-  flex: 1 1 2.25rem;
-  min-width: 2.25rem;
-  max-width: 4.5rem;
+  flex: 0 0 auto;
+  width: 2.5rem;
   margin: 0;
   cursor: pointer;
   border-radius: 999px;
@@ -3153,6 +3164,7 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  width: 100%;
   min-height: 2.375rem;
   padding: 0.35rem 0.5rem;
   font-size: 0.875rem;
@@ -3193,14 +3205,20 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
 }
 
 .portal-course-feedback-modal__rating-scale-legend {
-  margin: 0.45rem 0 0;
-  font-size: 0.6875rem;
-  line-height: 1.4;
+  align-self: center;
+  max-width: 36rem;
+  margin: 0.35rem 0 0;
+  padding: 0 0.5rem;
+  font-size: 0.625rem;
+  line-height: 1.45;
+  text-align: center;
+  letter-spacing: 0.01em;
+  opacity: 0.78;
 }
 
 /* —— Comment —— */
 .portal-course-feedback-modal__comment-block {
-  margin: 0.25rem 0 0.5rem;
+  margin: 0.15rem 0 0.4rem;
 }
 
 .portal-course-feedback-modal__comment-label {
@@ -3214,7 +3232,7 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
 .portal-course-feedback-modal__comment-textarea {
   box-sizing: border-box;
   width: 100%;
-  min-height: 5.5rem;
+  min-height: 4.75rem;
   padding: 0.55rem 0.65rem;
   font: inherit;
   font-size: 0.875rem;
@@ -3241,8 +3259,8 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
   flex-wrap: wrap;
   gap: 0.5rem 0.65rem;
   justify-content: flex-end;
-  margin-top: 1.35rem;
-  padding-top: 0.15rem;
+  margin-top: 1rem;
+  padding-top: 0.1rem;
 }
 
 /* —— Read-only definition list —— */
@@ -3296,6 +3314,16 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
 @media (max-width: 520px) {
   .portal-course-feedback-modal {
     padding: 1.35rem 1.25rem 1.25rem;
+  }
+
+  .portal-course-feedback-modal--student-eval {
+    padding: 1.35rem 1.25rem 1.25rem;
+  }
+
+  .portal-course-feedback-modal__rating-scale-row {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.4rem;
   }
 
   .portal-course-feedback-modal__readonly-row {
