@@ -358,6 +358,8 @@ function formatIssueDate(): string {
 const GRADES_TABLE_CLASS =
   'portal-table portal-table--grades portal-academics-portal-grades-table'
 
+const REGISTRATION_HISTORY_TABLE_CLASS = `${GRADES_TABLE_CLASS} portal-academics-registration-history-table`
+
 function instructorCell(v: string | null | undefined): string {
   const s = v?.trim()
   return s && s.length > 0 ? s : '—'
@@ -565,7 +567,7 @@ export function AcademicsPortalPage() {
                       {g.term} {g.year}
                     </h2>
                     <div className="portal-table-wrap">
-                      <table className={GRADES_TABLE_CLASS}>
+                      <table className={REGISTRATION_HISTORY_TABLE_CLASS}>
                         <thead>
                           <tr>
                             <th scope="col">Course code</th>
