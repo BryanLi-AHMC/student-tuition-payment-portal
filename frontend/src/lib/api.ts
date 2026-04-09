@@ -1959,11 +1959,19 @@ export type CourseFeedbackApiItem = {
   courseCode: string
   term: string
   year: number
-  rating: number
-  workloadRating: number
-  difficultyRating: number
-  comments: string | null
+  q1Rating: number
+  q2Rating: number
+  q3Rating: number
+  q4Rating: number
+  q5Rating: number
+  overallRating: number
+  comment: string | null
   submittedAt: string
+  /** Legacy responses only; used for read fallbacks in the UI. */
+  rating?: number
+  workloadRating?: number
+  difficultyRating?: number
+  comments?: string | null
 }
 
 export type CourseFeedbackListResponse = {
@@ -1992,18 +2000,21 @@ export type PostCourseFeedbackBody = {
   courseCode: string
   term: string
   year: number
-  rating: number
-  workloadRating: number
-  difficultyRating: number
-  comments?: string | null
+  q1Rating: number
+  q2Rating: number
+  q3Rating: number
+  q4Rating: number
+  q5Rating: number
+  overallRating: number
+  comment?: string | null
 }
 
-/** POST /api/students/:studentId/course-feedback — 201 { id, ok: true } */
+/** POST /api/students/:studentId/course-feedback — { ok: true } (optional id) */
 export async function postStudentCourseFeedback(
   studentId: string,
   body: PostCourseFeedbackBody,
   options?: { signal?: AbortSignal },
-): Promise<{ id: number; ok: boolean }> {
+): Promise<{ ok: true; id?: number }> {
   const path = `/api/students/${encodeURIComponent(studentId)}/course-feedback`
   const data = (await fetchApiJson(path, {
     method: 'POST',
@@ -2011,13 +2022,8 @@ export async function postStudentCourseFeedback(
     body: JSON.stringify(body),
     signal: options?.signal,
   })) as unknown
-  if (
-    data != null &&
-    typeof data === 'object' &&
-    typeof (data as { id?: unknown }).id === 'number' &&
-    (data as { ok?: unknown }).ok === true
-  ) {
-    return data as { id: number; ok: boolean }
+  if (data != null && typeof data === 'object' && (data as { ok?: unknown }).ok === true) {
+    return data as { ok: true; id?: number }
   }
   throw new Error('Unexpected course feedback submit response')
 }

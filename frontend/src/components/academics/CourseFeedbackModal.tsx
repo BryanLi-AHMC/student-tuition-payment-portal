@@ -23,6 +23,27 @@ function findFeedbackItemForRow(
   )
 }
 
+function ratingSelectField(
+  id: string,
+  label: string,
+  value: number,
+  onChange: (n: number) => void,
+) {
+  return (
+    <div className="portal-course-feedback-modal__field">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))}>
+        <option value={0}>Select…</option>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 export function CourseFeedbackModal({
   mode,
   row,
@@ -36,9 +57,12 @@ export function CourseFeedbackModal({
   onClose: () => void
   onSubmitted: () => void
 }) {
-  const [rating, setRating] = useState(0)
-  const [workload, setWorkload] = useState(0)
-  const [difficulty, setDifficulty] = useState(0)
+  const [q1, setQ1] = useState(0)
+  const [q2, setQ2] = useState(0)
+  const [q3, setQ3] = useState(0)
+  const [q4, setQ4] = useState(0)
+  const [q5, setQ5] = useState(0)
+  const [overall, setOverall] = useState(0)
   const [comment, setComment] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -86,7 +110,7 @@ export function CourseFeedbackModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!rating || !workload || !difficulty) {
+    if (!q1 || !q2 || !q3 || !q4 || !q5 || !overall) {
       setFormError('Please complete all ratings')
       return
     }
@@ -96,10 +120,13 @@ export function CourseFeedbackModal({
         courseCode: row.courseCode,
         term: row.term,
         year: row.year,
-        rating,
-        workloadRating: workload,
-        difficultyRating: difficulty,
-        comments: comment.trim() || null,
+        q1Rating: q1,
+        q2Rating: q2,
+        q3Rating: q3,
+        q4Rating: q4,
+        q5Rating: q5,
+        overallRating: overall,
+        comment: comment.trim() || null,
       })
       onClose()
       onSubmitted()
@@ -136,51 +163,32 @@ export function CourseFeedbackModal({
               {row.term} {row.year}
             </p>
             <form onSubmit={handleSubmit}>
-              <div className="portal-course-feedback-modal__field">
-                <label htmlFor="cfb-rating">Overall Rating (1–5)</label>
-                <select
-                  id="cfb-rating"
-                  value={rating}
-                  onChange={(e) => setRating(Number(e.target.value))}
-                >
-                  <option value={0}>Select…</option>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="portal-course-feedback-modal__field">
-                <label htmlFor="cfb-workload">Workload (1–5)</label>
-                <select
-                  id="cfb-workload"
-                  value={workload}
-                  onChange={(e) => setWorkload(Number(e.target.value))}
-                >
-                  <option value={0}>Select…</option>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="portal-course-feedback-modal__field">
-                <label htmlFor="cfb-difficulty">Difficulty (1–5)</label>
-                <select
-                  id="cfb-difficulty"
-                  value={difficulty}
-                  onChange={(e) => setDifficulty(Number(e.target.value))}
-                >
-                  <option value={0}>Select…</option>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {ratingSelectField(
+                'cfb-q1',
+                'Course Content Quality (1–5)',
+                q1,
+                setQ1,
+              )}
+              {ratingSelectField(
+                'cfb-q2',
+                'Instructor Effectiveness (1–5)',
+                q2,
+                setQ2,
+              )}
+              {ratingSelectField(
+                'cfb-q3',
+                'Workload Appropriateness (1–5)',
+                q3,
+                setQ3,
+              )}
+              {ratingSelectField(
+                'cfb-q4',
+                'Clarity & Organization (1–5)',
+                q4,
+                setQ4,
+              )}
+              {ratingSelectField('cfb-q5', 'Practical Value (1–5)', q5, setQ5)}
+              {ratingSelectField('cfb-overall', 'Overall Rating (1–5)', overall, setOverall)}
               <div className="portal-course-feedback-modal__field">
                 <label htmlFor="cfb-comment">Comment</label>
                 <textarea
@@ -238,20 +246,36 @@ export function CourseFeedbackModal({
             {viewItem && !viewLoading ? (
               <dl className="portal-course-feedback-modal__readonly-dl">
                 <div>
-                  <dt>Overall</dt>
-                  <dd>{viewItem.rating}</dd>
+                  <dt>Course Content Quality</dt>
+                  <dd>{viewItem.q1Rating ?? viewItem.rating ?? '—'}</dd>
                 </div>
                 <div>
-                  <dt>Workload</dt>
-                  <dd>{viewItem.workloadRating}</dd>
+                  <dt>Instructor Effectiveness</dt>
+                  <dd>{viewItem.q2Rating ?? viewItem.workloadRating ?? '—'}</dd>
                 </div>
                 <div>
-                  <dt>Difficulty</dt>
-                  <dd>{viewItem.difficultyRating}</dd>
+                  <dt>Workload Appropriateness</dt>
+                  <dd>{viewItem.q3Rating ?? viewItem.difficultyRating ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>Clarity & Organization</dt>
+                  <dd>{viewItem.q4Rating ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>Practical Value</dt>
+                  <dd>{viewItem.q5Rating ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt>Overall Rating</dt>
+                  <dd>{viewItem.overallRating ?? viewItem.rating ?? '—'}</dd>
                 </div>
                 <div>
                   <dt>Comment</dt>
-                  <dd>{viewItem.comments?.trim() ? viewItem.comments : '—'}</dd>
+                  <dd>
+                    {(viewItem.comment ?? viewItem.comments)?.trim()
+                      ? (viewItem.comment ?? viewItem.comments)
+                      : '—'}
+                  </dd>
                 </div>
               </dl>
             ) : null}
