@@ -46,14 +46,14 @@ function formatSubmittedAt(iso: string | null | undefined): string {
   try {
     const d = new Date(iso)
     if (Number.isNaN(d.getTime())) return '—'
-    return new Intl.DateTimeFormat(undefined, {
-      weekday: 'short',
+    return d.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-    }).format(d)
+      hour12: true,
+    })
   } catch {
     return '—'
   }
@@ -399,7 +399,7 @@ export function CourseFeedbackModal({
                       {isRating(view.q5Rating) ? formatRatingDisplay(view.q5Rating) : '—'}
                     </dd>
                   </div>
-                  <div className="portal-course-feedback-modal__readonly-row">
+                  <div className="portal-course-feedback-modal__readonly-row portal-course-feedback-modal__readonly-row--summary-first">
                     <dt className="portal-course-feedback-modal__readonly-label">Overall rating</dt>
                     <dd className="portal-course-feedback-modal__readonly-value">
                       {isRating(view.overallRating) ? formatRatingDisplay(view.overallRating) : '—'}
@@ -411,13 +411,17 @@ export function CourseFeedbackModal({
                       {view.comment != null && view.comment.trim() !== '' ? view.comment : '—'}
                     </dd>
                   </div>
-                  <div className="portal-course-feedback-modal__readonly-row portal-course-feedback-modal__readonly-row--submitted">
-                    <dt className="portal-course-feedback-modal__readonly-label">Submitted</dt>
-                    <dd className="portal-course-feedback-modal__readonly-value">
-                      {formatSubmittedAt(view.submittedAt)}
-                    </dd>
-                  </div>
                 </dl>
+                <div
+                  className="portal-course-feedback-modal__submitted-row"
+                  role="group"
+                  aria-label="Submitted at"
+                >
+                  <span className="portal-course-feedback-modal__submitted-label">Submitted:</span>
+                  <span className="portal-course-feedback-modal__submitted-value">
+                    {formatSubmittedAt(view.submittedAt)}
+                  </span>
+                </div>
               </div>
             ) : null}
             <div className="portal-course-feedback-modal__actions">

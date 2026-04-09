@@ -3364,9 +3364,41 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
   font-weight: 400;
 }
 
-.portal-course-feedback-modal__readonly-row--submitted .portal-course-feedback-modal__readonly-value {
-  font-size: 0.8125rem;
+/* Summary block: overall + comments (submitted timestamp is a sibling row below the dl) */
+.portal-course-feedback-modal__readonly-row--summary-first {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--portal-border-subtle);
+}
+
+.portal-course-feedback-modal__submitted-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--portal-border-subtle);
+}
+
+.portal-course-feedback-modal__submitted-label {
+  flex: 0 0 auto;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--portal-text-muted);
+}
+
+.portal-course-feedback-modal__submitted-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--portal-text);
   white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 @media (max-width: 520px) {
@@ -3395,8 +3427,14 @@ table.portal-academics-registration-history-table.portal-academics-portal-grades
     text-align: left;
   }
 
-  .portal-course-feedback-modal__readonly-row--submitted .portal-course-feedback-modal__readonly-value {
-    white-space: normal;
+  .portal-course-feedback-modal__submitted-row {
+    align-items: baseline;
+  }
+
+  .portal-course-feedback-modal__submitted-value {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
   }
 }
 

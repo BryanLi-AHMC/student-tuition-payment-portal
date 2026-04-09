@@ -19,6 +19,24 @@ function backdropMouseDown(
   if (e.target === e.currentTarget) onClose()
 }
 
+function formatSubmittedAt(iso: string | null | undefined): string {
+  if (iso == null || iso === '') return '—'
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return '—'
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  } catch {
+    return '—'
+  }
+}
+
 export function AdminCourseFeedbackModal({
   studentId,
   courseCode,
@@ -91,13 +109,6 @@ export function AdminCourseFeedbackModal({
         <h2 id={titleId} className="portal-course-feedback-modal__title">
           Course feedback
         </h2>
-        <p className="portal-course-feedback-modal__meta">
-          <code className="admin-code">{studentId}</code>
-          <br />
-          <code className="admin-code">{courseCode.trim()}</code>
-          <br />
-          {term.trim()} {year}
-        </p>
         {loading ? (
           <p className="portal-card-note">Loading…</p>
         ) : error ? (
@@ -107,49 +118,50 @@ export function AdminCourseFeedbackModal({
         ) : !f ? (
           <p className="portal-card-note">No feedback submitted yet</p>
         ) : (
-          <dl className="portal-course-feedback-modal__readonly-dl">
-            <div>
-              <dt>{COURSE_FEEDBACK_QUESTIONS[0]}</dt>
-              <dd>{f.q1Rating}</dd>
+          <>
+            <dl className="portal-course-feedback-modal__readonly-dl">
+              <div className="portal-course-feedback-modal__readonly-row">
+                <dt className="portal-course-feedback-modal__readonly-label">{COURSE_FEEDBACK_QUESTIONS[0]}</dt>
+                <dd className="portal-course-feedback-modal__readonly-value">{f.q1Rating}</dd>
+              </div>
+              <div className="portal-course-feedback-modal__readonly-row">
+                <dt className="portal-course-feedback-modal__readonly-label">{COURSE_FEEDBACK_QUESTIONS[1]}</dt>
+                <dd className="portal-course-feedback-modal__readonly-value">{f.q2Rating}</dd>
+              </div>
+              <div className="portal-course-feedback-modal__readonly-row">
+                <dt className="portal-course-feedback-modal__readonly-label">{COURSE_FEEDBACK_QUESTIONS[2]}</dt>
+                <dd className="portal-course-feedback-modal__readonly-value">{f.q3Rating}</dd>
+              </div>
+              <div className="portal-course-feedback-modal__readonly-row">
+                <dt className="portal-course-feedback-modal__readonly-label">{COURSE_FEEDBACK_QUESTIONS[3]}</dt>
+                <dd className="portal-course-feedback-modal__readonly-value">{f.q4Rating}</dd>
+              </div>
+              <div className="portal-course-feedback-modal__readonly-row">
+                <dt className="portal-course-feedback-modal__readonly-label">{COURSE_FEEDBACK_QUESTIONS[4]}</dt>
+                <dd className="portal-course-feedback-modal__readonly-value">{f.q5Rating}</dd>
+              </div>
+              <div className="portal-course-feedback-modal__readonly-row portal-course-feedback-modal__readonly-row--summary-first">
+                <dt className="portal-course-feedback-modal__readonly-label">Overall rating</dt>
+                <dd className="portal-course-feedback-modal__readonly-value">{f.overallRating}</dd>
+              </div>
+              <div className="portal-course-feedback-modal__readonly-row portal-course-feedback-modal__readonly-row--multiline">
+                <dt className="portal-course-feedback-modal__readonly-label">Additional comments</dt>
+                <dd className="portal-course-feedback-modal__readonly-value">
+                  {f.comment != null && f.comment.trim() !== '' ? f.comment : '—'}
+                </dd>
+              </div>
+            </dl>
+            <div
+              className="portal-course-feedback-modal__submitted-row"
+              role="group"
+              aria-label="Submitted at"
+            >
+              <span className="portal-course-feedback-modal__submitted-label">Submitted:</span>
+              <span className="portal-course-feedback-modal__submitted-value">
+                {formatSubmittedAt(submittedAt)}
+              </span>
             </div>
-            <div>
-              <dt>{COURSE_FEEDBACK_QUESTIONS[1]}</dt>
-              <dd>{f.q2Rating}</dd>
-            </div>
-            <div>
-              <dt>{COURSE_FEEDBACK_QUESTIONS[2]}</dt>
-              <dd>{f.q3Rating}</dd>
-            </div>
-            <div>
-              <dt>{COURSE_FEEDBACK_QUESTIONS[3]}</dt>
-              <dd>{f.q4Rating}</dd>
-            </div>
-            <div>
-              <dt>{COURSE_FEEDBACK_QUESTIONS[4]}</dt>
-              <dd>{f.q5Rating}</dd>
-            </div>
-            <div>
-              <dt>Overall rating</dt>
-              <dd>{f.overallRating}</dd>
-            </div>
-            <div>
-              <dt>Additional comments</dt>
-              <dd>
-                {f.comment != null && f.comment.trim() !== '' ? f.comment : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt>Submitted</dt>
-              <dd>
-                {submittedAt
-                  ? new Date(submittedAt).toLocaleString(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })
-                  : '—'}
-              </dd>
-            </div>
-          </dl>
+          </>
         )}
         <div className="portal-course-feedback-modal__actions">
           <button
