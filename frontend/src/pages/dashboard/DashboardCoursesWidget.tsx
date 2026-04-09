@@ -723,10 +723,17 @@ export function DashboardCoursesWidget() {
             <button
               type="button"
               className="portal-dashboard-gcal-add-all"
+              aria-label="Add all classes to Google Calendar"
               disabled={gcalAddAllDisabled}
               onClick={() => setGcalModalOpen(true)}
             >
-              Add all to Google Calendar
+              <span>Add to</span>
+              <img
+                src="/googlecalendar.gif"
+                alt=""
+                className="portal-dashboard-gcal-add-all__icon"
+                decoding="async"
+              />
             </button>
           </div>
         ) : null}
