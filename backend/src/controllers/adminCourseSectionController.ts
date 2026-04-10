@@ -77,7 +77,7 @@ function parseQueryString(req: Request, key: string): string | null {
 
 /**
  * GET /api/admin/course-sections/course-meta?course_code=
- * Chinese-first title from `courses` + optional single-confidence instructor hint from timetables/marks.
+ * Chinese-first title from `courses` + optional instructor hint from timetables/marks (stable pick when multiple).
  */
 export async function getAdminCourseSectionCourseMeta(
   req: Request,

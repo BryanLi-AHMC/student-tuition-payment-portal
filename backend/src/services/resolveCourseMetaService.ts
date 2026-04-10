@@ -1,8 +1,8 @@
 import {
   selectCourseNamesByCode,
   selectDistinctMarksInstructorsForCourse,
-  selectDistinctTimetableInstructorIdsForCourse,
-  selectInstructorNamesByInstructorId,
+  selectDistinctTimetableInstructorPairsForCourse,
+  selectInstructorNamesMapForInstructorIds,
 } from "../repositories/adminCourseMetaRepository.js";
 
 export type InstructorSuggestion = {
@@ -59,8 +59,90 @@ function buildMeta(
 }
 
 /**
- * Admin course-section helper: authoritative Chinese-first title from `courses`, and a single
- * high-confidence instructor suggestion from legacy timetables or marks (never ambiguous).
+ * Stable pick from non-empty strings (deterministic across runs).
+ */
+function pickStableDisplay(candidates: string[]): string | null {
+  const unique = [...new Set(candidates.map((s) => s.trim()).filter((s) => s !== ""))];
+  if (unique.length === 0) return null;
+  unique.sort((a, b) => a.localeCompare(b));
+  return unique[0]!;
+}
+
+/**
+ * Resolve instructor hint from timetable / timetable2 / daim_timetable / daim_timetable2:
+ * mapped name_eng → name_chi → raw `instructor` column → instructor_id string.
+ * When multiple historical values exist, pick one stable display (lexicographic).
+ */
+async function instructorSuggestionFromTimetable(
+  course_code: string,
+): Promise<InstructorSuggestion | null> {
+  const pairs = await selectDistinctTimetableInstructorPairsForCourse(course_code);
+  if (pairs.length === 0) return null;
+
+  const nonEmptyIds = [
+    ...new Set(
+      pairs.map((p) => p.instructor_id.trim()).filter((id) => id !== ""),
+    ),
+  ];
+  const nameMap = await selectInstructorNamesMapForInstructorIds(nonEmptyIds);
+
+  const rowDisplays: string[] = [];
+  for (const p of pairs) {
+    const id = p.instructor_id.trim();
+    const rawCol = p.instructor.trim();
+    if (id !== "") {
+      const row = nameMap.get(id);
+      const eng = row != null ? trimOrNull(row.name_eng) : null;
+      const chi = row != null ? trimOrNull(row.name_chi) : null;
+      if (eng != null) rowDisplays.push(eng);
+      else if (chi != null) rowDisplays.push(chi);
+      else if (rawCol !== "") rowDisplays.push(rawCol);
+      else rowDisplays.push(id);
+    } else if (rawCol !== "") {
+      rowDisplays.push(rawCol);
+    }
+  }
+
+  const chosen = pickStableDisplay(rowDisplays);
+  if (chosen == null) return null;
+
+  if (nonEmptyIds.length === 1) {
+    const onlyId = nonEmptyIds[0]!;
+    const row = nameMap.get(onlyId);
+    const nameEng = row != null ? trimOrNull(row.name_eng) : null;
+    const nameChi = row != null ? trimOrNull(row.name_chi) : null;
+    let rawText: string | null = null;
+    if (nameEng == null && nameChi == null) {
+      const rawFromTable = pickStableDisplay(
+        pairs
+          .filter((p) => p.instructor_id.trim() === onlyId)
+          .map((p) => p.instructor.trim())
+          .filter((s) => s !== ""),
+      );
+      const fallback = trimOrNull(onlyId);
+      rawText = rawFromTable ?? fallback;
+    }
+    return {
+      source: "timetable",
+      instructorId: onlyId,
+      nameEng,
+      nameChi,
+      rawText,
+    };
+  }
+
+  return {
+    source: "timetable",
+    instructorId: null,
+    nameEng: null,
+    nameChi: null,
+    rawText: chosen,
+  };
+}
+
+/**
+ * Admin course-section helper: authoritative Chinese-first title from `courses`, and an instructor
+ * hint from legacy timetables (any available name) or marks (first stable string when multiple).
  */
 export async function resolveCourseMeta(
   courseCodeRaw: string,
@@ -71,37 +153,20 @@ export async function resolveCourseMeta(
   const courseRow = await selectCourseNamesByCode(course_code);
   const title = titleFromCourseRow(courseRow, course_code);
 
-  const timetableIds = await selectDistinctTimetableInstructorIdsForCourse(
-    course_code,
-  );
-  if (timetableIds.length === 1) {
-    const instructorId = timetableIds[0]!;
-    const row = await selectInstructorNamesByInstructorId(instructorId);
-    const nameChi = row != null ? trimOrNull(row.name_chi) : null;
-    const nameEng = row != null ? trimOrNull(row.name_eng) : null;
-    const rawText =
-      nameChi == null && nameEng == null ? instructorId.trim() || null : null;
-    const suggestion: InstructorSuggestion = {
-      source: "timetable",
-      instructorId,
-      nameEng,
-      nameChi,
-      rawText,
-    };
-    if (nameChi != null || nameEng != null || rawText != null) {
-      return buildMeta(title, suggestion);
-    }
+  const fromTimetable = await instructorSuggestionFromTimetable(course_code);
+  if (fromTimetable != null) {
+    return buildMeta(title, fromTimetable);
   }
 
   const marksNames = await selectDistinctMarksInstructorsForCourse(course_code);
-  if (marksNames.length === 1) {
-    const raw = marksNames[0]!.trim();
+  const marksPick = pickStableDisplay(marksNames);
+  if (marksPick != null) {
     const suggestion: InstructorSuggestion = {
       source: "marks",
       instructorId: null,
       nameEng: null,
       nameChi: null,
-      rawText: raw !== "" ? raw : null,
+      rawText: marksPick,
     };
     return buildMeta(title, suggestion);
   }

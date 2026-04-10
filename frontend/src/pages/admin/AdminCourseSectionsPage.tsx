@@ -293,6 +293,15 @@ export function AdminCourseSectionsPage() {
     setInstructorLocked(false)
   }, [])
 
+  /** Create flow: clear section fields but keep the admin's timetable track (EN/CN) when only the course changes. */
+  const resetFormKeepingScheduleTrack = useCallback(() => {
+    setForm((prev) => ({ ...emptyForm(), schedule_track: prev.schedule_track }))
+    setEditingId(null)
+    setFormMessage(null)
+    setCourseTitleLocked(false)
+    setInstructorLocked(false)
+  }, [])
+
   useEffect(() => {
     const ac = new AbortController()
     ;(async () => {
@@ -561,19 +570,25 @@ export function AdminCourseSectionsPage() {
     const termOk = t && terms.some((x) => x.id === t) ? t : null
     const courseOk = c && courses.some((x) => x.code === c) ? c : null
 
-    let shouldResetForm = false
-    if (termOk != null && termOk !== academicTermId.trim()) {
+    const termChanged = termOk != null && termOk !== academicTermId.trim()
+    const courseChanged = courseOk != null && courseOk !== courseCode.trim()
+
+    if (termChanged) {
       setAcademicTermId(termOk)
-      shouldResetForm = true
     }
-    if (courseOk != null && courseOk !== courseCode.trim()) {
+    if (courseChanged) {
       setCourseCode(courseOk)
-      shouldResetForm = true
     }
     if (q !== courseSearch) {
       setCourseSearch(q)
     }
-    if (shouldResetForm) resetForm()
+    if (termChanged || courseChanged) {
+      if (termChanged || editingId != null) {
+        resetForm()
+      } else {
+        resetFormKeepingScheduleTrack()
+      }
+    }
   }, [
     searchParams,
     terms,
@@ -581,7 +596,9 @@ export function AdminCourseSectionsPage() {
     academicTermId,
     courseCode,
     courseSearch,
+    editingId,
     resetForm,
+    resetFormKeepingScheduleTrack,
   ])
 
   /**
@@ -912,7 +929,11 @@ export function AdminCourseSectionsPage() {
                   course: v,
                   q: courseSearch,
                 })
-                resetForm()
+                if (editingId != null) {
+                  resetForm()
+                } else {
+                  resetFormKeepingScheduleTrack()
+                }
               }}
               disabled={sortedCourses.length === 0}
               aria-label="Course"
