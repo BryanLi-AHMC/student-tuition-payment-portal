@@ -95,9 +95,11 @@ async function instructorSuggestionFromTimetable(
       const eng = row != null ? trimOrNull(row.name_eng) : null;
       const chi = row != null ? trimOrNull(row.name_chi) : null;
       if (eng != null) rowDisplays.push(eng);
-      else if (chi != null) rowDisplays.push(chi);
-      else if (rawCol !== "") rowDisplays.push(rawCol);
-      else rowDisplays.push(id);
+      if (chi != null) rowDisplays.push(chi);
+      if (eng == null && chi == null) {
+        if (rawCol !== "") rowDisplays.push(rawCol);
+        else rowDisplays.push(id);
+      }
     } else if (rawCol !== "") {
       rowDisplays.push(rawCol);
     }
