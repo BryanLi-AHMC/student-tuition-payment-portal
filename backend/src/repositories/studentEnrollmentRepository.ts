@@ -178,7 +178,8 @@ async function resolveRequestedEnrollmentSectionsForTermWithQueryable(
            pc.title AS prerequisite_course_title
          FROM course_sections cs
          LEFT JOIN portal_courses pc
-           ON pc.course_id = cs.prerequisite_course_id
+           ON CONVERT(TRIM(pc.course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+              CONVERT(TRIM(cs.prerequisite_course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci
          WHERE cs.course_code = ?
            AND cs.section_code = ?
            AND cs.term = ?
@@ -199,7 +200,8 @@ async function resolveRequestedEnrollmentSectionsForTermWithQueryable(
            pc.title AS prerequisite_course_title
          FROM course_sections cs
          LEFT JOIN portal_courses pc
-           ON pc.course_id = cs.prerequisite_course_id
+           ON CONVERT(TRIM(pc.course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+              CONVERT(TRIM(cs.prerequisite_course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci
          WHERE cs.course_code = ?
            AND cs.section_code = ?
            AND cs.term = ?
