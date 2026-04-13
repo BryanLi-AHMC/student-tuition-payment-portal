@@ -1,6 +1,7 @@
 import { pool } from "../lib/db.js";
 import { listMarksForStudent } from "./studentAcademicsRepository.js";
 import { mapCourseSectionRow, } from "./courseSectionRepository.js";
+import { resolvePortalCourseIdByCourseCode } from "./portalCourseRepository.js";
 function trimNullableString(value) {
     if (value == null)
         return null;
@@ -10,81 +11,12 @@ function trimNullableString(value) {
 function normalizeScheduleTrackForEnrollment(raw) {
     return String(raw ?? "").trim().toUpperCase() === "CN" ? "CN" : "EN";
 }
-function isMysqlDupEntry(e) {
-    return (typeof e === "object" &&
-        e !== null &&
-        "code" in e &&
-        e.code === "ER_DUP_ENTRY");
-}
-function inferPortalTypeFromLegacy(engName) {
-    const n = engName.toLowerCase();
-    if (/\blab(oratory)?\b/i.test(engName) || /\blab\b/.test(n))
-        return "lab";
-    if (n.includes("clinic") || n.includes("internship"))
-        return "clinical";
-    return "didactic";
-}
 /**
  * Resolves `portal_courses.course_id` for enrollment: exact `course_code` first, else one row
  * from legacy `courses` plus a deterministic `LEGACY{sequenceNumber}` insert (idempotent on PK).
  */
 async function resolvePortalCourseIdForEnrollment(conn, courseCode) {
-    const code = courseCode.trim();
-    const [existing] = await conn.query(`SELECT course_id FROM portal_courses WHERE course_code = ? LIMIT 2`, [code]);
-    if (existing.length === 1) {
-        return { ok: true, courseId: String(existing[0].course_id) };
-    }
-    if (existing.length > 1) {
-        return {
-            ok: false,
-            error: `Course code ${code} matches multiple portal courses.`,
-        };
-    }
-    const [legacyRows] = await conn.query(`SELECT \`sequenceNumber\`, TRIM(code) AS legacy_code, eng_name, units
-     FROM courses
-     WHERE CONVERT(TRIM(code) USING utf8mb4) COLLATE utf8mb4_unicode_ci = ?
-     LIMIT 2`, [code]);
-    if (legacyRows.length === 0) {
-        return {
-            ok: false,
-            error: `Course ${code} is not in the portal catalog (portal_courses).`,
-        };
-    }
-    if (legacyRows.length > 1) {
-        return {
-            ok: false,
-            error: `Course code ${code} matches multiple legacy catalog entries.`,
-        };
-    }
-    const leg = legacyRows[0];
-    const seq = Number(leg.sequenceNumber);
-    const courseId = `LEGACY${seq}`;
-    const titleRaw = leg.eng_name != null ? String(leg.eng_name).trim() : "";
-    const title = titleRaw !== "" ? titleRaw : code;
-    const units = leg.units != null ? leg.units : null;
-    const type = inferPortalTypeFromLegacy(titleRaw);
-    try {
-        await conn.query(`INSERT INTO portal_courses (course_id, course_code, title, type, units, hours)
-       VALUES (?, ?, ?, ?, ?, NULL)`, [courseId, code, title, type, units]);
-    }
-    catch (e) {
-        if (!isMysqlDupEntry(e))
-            throw e;
-    }
-    const [again] = await conn.query(`SELECT course_id FROM portal_courses WHERE course_code = ? LIMIT 2`, [code]);
-    if (again.length === 1) {
-        return { ok: true, courseId: String(again[0].course_id) };
-    }
-    if (again.length > 1) {
-        return {
-            ok: false,
-            error: `Course code ${code} matches multiple portal courses.`,
-        };
-    }
-    return {
-        ok: false,
-        error: `Could not resolve portal catalog row for ${code}.`,
-    };
+    return resolvePortalCourseIdByCourseCode(conn, courseCode);
 }
 function normalizeEnrollmentStatusForCompare(raw) {
     if (raw == null)
@@ -115,7 +47,8 @@ async function resolveRequestedEnrollmentSectionsForTermWithQueryable(db, term, 
            pc.title AS prerequisite_course_title
          FROM course_sections cs
          LEFT JOIN portal_courses pc
-           ON pc.course_id = cs.prerequisite_course_id
+           ON CONVERT(TRIM(pc.course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+              CONVERT(TRIM(cs.prerequisite_course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci
          WHERE cs.course_code = ?
            AND cs.section_code = ?
            AND cs.term = ?
@@ -134,7 +67,8 @@ async function resolveRequestedEnrollmentSectionsForTermWithQueryable(db, term, 
            pc.title AS prerequisite_course_title
          FROM course_sections cs
          LEFT JOIN portal_courses pc
-           ON pc.course_id = cs.prerequisite_course_id
+           ON CONVERT(TRIM(pc.course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+              CONVERT(TRIM(cs.prerequisite_course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci
          WHERE cs.course_code = ?
            AND cs.section_code = ?
            AND cs.term = ?

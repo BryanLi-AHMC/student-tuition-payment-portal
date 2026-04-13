@@ -318,7 +318,8 @@ export async function listCoursePrerequisiteCandidatesByCourseForTermYear(term, 
       pc.title AS prerequisite_course_title
     FROM course_sections cs
     LEFT JOIN portal_courses pc
-      ON pc.course_id = cs.prerequisite_course_id
+      ON CONVERT(TRIM(pc.course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+         CONVERT(TRIM(cs.prerequisite_course_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci
     WHERE cs.term = ? AND cs.year = ?
     ORDER BY
       cs.course_code ASC,

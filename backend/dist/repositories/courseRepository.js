@@ -1,4 +1,5 @@
 import { pool } from "../lib/db.js";
+import { ensurePortalCoursesForLegacyCatalog } from "./portalCourseRepository.js";
 /** API output keys (fixed contract). */
 export const COURSE_LIST_KEYS = [
     "course_id",
@@ -98,6 +99,9 @@ export async function listCoursesFromMysql() {
     }
     const selections = [];
     const codePhysical = pickColumn(cols, ["code"]);
+    if (codePhysical) {
+        await ensurePortalCoursesForLegacyCatalog();
+    }
     for (const spec of COLUMN_SPECS) {
         const physical = pickColumn(cols, spec.candidates);
         if (!physical)
