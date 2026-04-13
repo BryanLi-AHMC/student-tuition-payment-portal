@@ -159,6 +159,16 @@ export async function fetchStudentRegisteredScheduleRowsForTerm(
 export type StudentProgram = 'DAHM' | 'MAHM'
 
 export type AdminStudentsProgramFilter = 'all' | 'dahm' | 'mahm'
+export type AdminStudentsTrackFilter = 'all' | 'C' | 'E'
+export type AdminStudentsListView = 'roster' | 'new-enrollment'
+
+export type AdminStudentEnrollmentFilterOptions = {
+  years: string[]
+  intakes: Array<{
+    code: string
+    label: string
+  }>
+}
 
 export type StudentProfileResponse = {
   studentId: string
@@ -185,7 +195,10 @@ export type AdminStudentListItem = {
   division: 'Chinese' | 'English' | 'Unknown'
   name: string
   email: string | null
+  status: string | null
   program: StudentProgram
+  trackCode: 'C' | 'E' | null
+  trackLabel: 'Chinese' | 'English' | null
   requirementsId: string | null
   highestDegree: string | null
   backgroundSchool: string | null
@@ -193,6 +206,8 @@ export type AdminStudentListItem = {
   enrollStartDate: string | null
   resolvedEntryDate: string | null
   entryYear: number | null
+  intakeCode: string | null
+  intakeLabel: string | null
   latestRegistrationTerm: string | null
   /** Present when the list is requested with `clinicalSummary=1`. */
   clinicalProgressSummary?: AdminStudentClinicalProgressSummary
@@ -204,6 +219,7 @@ export type AdminStudentListPageResponse = {
   total: number
   page: number
   pageSize: number
+  enrollmentFilterOptions: AdminStudentEnrollmentFilterOptions
 }
 
 /** One line-item under a term bucket in admin registration history (optional API field). */
@@ -302,6 +318,18 @@ function parseNullableString(v: unknown): string | null {
   throw new Error('Unexpected admin students response')
 }
 
+function parseNullableTrackCode(v: unknown): 'C' | 'E' | null {
+  if (v === null || v === undefined) return null
+  if (v === 'C' || v === 'E') return v
+  throw new Error('Unexpected admin students response')
+}
+
+function parseNullableTrackLabel(v: unknown): 'Chinese' | 'English' | null {
+  if (v === null || v === undefined) return null
+  if (v === 'Chinese' || v === 'English') return v
+  throw new Error('Unexpected admin students response')
+}
+
 function parseNullableRequirementsId(v: unknown): string | null {
   if (v === null || v === undefined) return null
   if (typeof v === 'string') return v
@@ -397,6 +425,28 @@ function parseClinicalProgressSummary(
   }
 }
 
+function parseAdminStudentEnrollmentFilterOptions(
+  v: unknown,
+): AdminStudentEnrollmentFilterOptions {
+  if (v == null || typeof v !== 'object') {
+    return { years: [], intakes: [] }
+  }
+  const raw = v as Record<string, unknown>
+  const years = Array.isArray(raw.years)
+    ? raw.years.filter((year): year is string => typeof year === 'string')
+    : []
+  const intakesRaw = Array.isArray(raw.intakes) ? raw.intakes : []
+  const intakes = intakesRaw.flatMap((entry) => {
+    if (entry == null || typeof entry !== 'object') return []
+    const intake = entry as Record<string, unknown>
+    if (typeof intake.code !== 'string' || typeof intake.label !== 'string') {
+      return []
+    }
+    return [{ code: intake.code, label: intake.label }]
+  })
+  return { years, intakes }
+}
+
 function parseOptionalClinicalProgress(
   v: unknown,
 ): ClinicalProgress | undefined {
@@ -463,7 +513,10 @@ function parseAdminStudentListRow(o: Record<string, unknown>): AdminStudentListI
     division: parseAdminDivision(o.division),
     name: o.name,
     email: parseNullableString(o.email),
+    status: parseNullableString(o.status),
     program: parseStudentProgram(o.program),
+    trackCode: parseNullableTrackCode(o.trackCode),
+    trackLabel: parseNullableTrackLabel(o.trackLabel),
     requirementsId: parseNullableRequirementsId(o.requirementsId),
     highestDegree: parseNullableString(o.highestDegree),
     backgroundSchool: parseNullableString(o.backgroundSchool),
@@ -471,6 +524,8 @@ function parseAdminStudentListRow(o: Record<string, unknown>): AdminStudentListI
     enrollStartDate: parseNullableString(o.enrollStartDate),
     resolvedEntryDate: parseNullableString(o.resolvedEntryDate),
     entryYear: parseNullableNumber(o.entryYear),
+    intakeCode: parseNullableString(o.intakeCode),
+    intakeLabel: parseNullableString(o.intakeLabel),
     latestRegistrationTerm: parseNullableString(o.latestRegistrationTerm),
     ...(clinicalProgressSummary != null
       ? { clinicalProgressSummary }
@@ -549,6 +604,9 @@ function parseAdminStudentListPageResponse(
     total: Math.trunc(total),
     page: Math.trunc(page),
     pageSize: Math.trunc(pageSize),
+    enrollmentFilterOptions: parseAdminStudentEnrollmentFilterOptions(
+      o.enrollmentFilterOptions,
+    ),
   }
 }
 
@@ -562,6 +620,12 @@ export async function fetchAdminStudents(options?: {
   search?: string
   /** Server-side persisted program filter. */
   program?: AdminStudentsProgramFilter
+  /** Server-side filter derived from first character of student ID. */
+  track?: AdminStudentsTrackFilter
+  /** Server-side 4-digit entry year derived from student ID. */
+  entryYear?: string
+  /** Server-side intake code derived from student ID. */
+  intakeCode?: string
   /** When true, each row may include `clinicalProgressSummary` (same source as admin detail). */
   clinicalSummary?: boolean
 }): Promise<AdminStudentListPageResponse> {
@@ -579,6 +643,18 @@ export async function fetchAdminStudents(options?: {
     params.set('program', 'dahm')
   } else if (program === 'mahm') {
     params.set('program', 'mahm')
+  }
+  const track = options?.track ?? 'all'
+  if (track === 'C' || track === 'E') {
+    params.set('track', track)
+  }
+  const entryYear = (options?.entryYear ?? '').trim()
+  if (entryYear !== '') {
+    params.set('entryYear', entryYear)
+  }
+  const intakeCode = (options?.intakeCode ?? '').trim()
+  if (intakeCode !== '') {
+    params.set('intakeCode', intakeCode)
   }
   if (options?.clinicalSummary) {
     params.set('clinicalSummary', '1')
@@ -742,6 +818,10 @@ export async function downloadAdminStudentsCsv(options?: {
   studentIds?: string[]
   search?: string
   program?: AdminStudentsProgramFilter
+  track?: AdminStudentsTrackFilter
+  entryYear?: string
+  intakeCode?: string
+  view?: AdminStudentsListView
   signal?: AbortSignal
 }): Promise<void> {
   const normalizedIds = Array.from(
@@ -753,10 +833,17 @@ export async function downloadAdminStudentsCsv(options?: {
   )
   const isSelectedExport = normalizedIds.length > 0
   const body = isSelectedExport
-    ? { studentIds: normalizedIds }
+    ? {
+        studentIds: normalizedIds,
+        view: options?.view ?? 'roster',
+      }
     : {
         search: (options?.search ?? '').trim(),
         program: options?.program ?? 'all',
+        track: options?.track ?? 'all',
+        entryYear: (options?.entryYear ?? '').trim(),
+        intakeCode: (options?.intakeCode ?? '').trim(),
+        view: options?.view ?? 'roster',
       }
 
   const res = await apiFetch('/api/admin/students/export.csv', {
