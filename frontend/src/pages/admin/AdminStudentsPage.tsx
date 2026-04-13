@@ -6,6 +6,7 @@ import {
   fetchAdminStudents,
   type AdminStudentEnrollmentFilterOptions,
   type AdminStudentListItem,
+  type AdminStudentsLoaFilter,
   type AdminStudentsListView,
   type AdminStudentsProgramFilter,
   type AdminStudentsTrackFilter,
@@ -17,6 +18,7 @@ const SEARCH_DEBOUNCE_MS = 300
 const EMPTY_ENROLLMENT_FILTER_OPTIONS: AdminStudentEnrollmentFilterOptions = {
   years: [],
   intakes: [],
+  loaTerms: [],
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -79,6 +81,9 @@ export function AdminStudentsPage() {
   const [view, setView] = useState<AdminStudentsListView>('roster')
   const [q, setQ] = useState('')
   const [program, setProgram] = useState<AdminStudentsProgramFilter>('all')
+  const [loa, setLoa] = useState<AdminStudentsLoaFilter>('all')
+  const [loaQuarter, setLoaQuarter] = useState('')
+  const [loaYear, setLoaYear] = useState('')
   const [track, setTrack] = useState<AdminStudentsTrackFilter>('all')
   const [entryYear, setEntryYear] = useState('')
   const [intakeCode, setIntakeCode] = useState('')
@@ -103,6 +108,11 @@ export function AdminStudentsPage() {
   const activeTrack = isEnrollmentView ? track : 'all'
   const activeEntryYear = isEnrollmentView ? entryYear : ''
   const activeIntakeCode = isEnrollmentView ? intakeCode : ''
+  const activeLoa = isEnrollmentView ? 'all' : loa
+  const activeLoaQuarter = isEnrollmentView ? '' : loaQuarter
+  const activeLoaYear = isEnrollmentView ? '' : loaYear
+  const selectedLoaTermValue =
+    loaQuarter !== '' && loaYear !== '' ? `${loaQuarter}|${loaYear}` : ''
 
   const debouncedSearchPrev = useRef<string | null>(null)
   useEffect(() => {
@@ -131,6 +141,9 @@ export function AdminStudentsPage() {
           track: activeTrack,
           entryYear: activeEntryYear,
           intakeCode: activeIntakeCode,
+          loa: activeLoa,
+          loaQuarter: activeLoaQuarter,
+          loaYear: activeLoaYear,
         })
         if (ac.signal.aborted) return
         setRows(res.items)
@@ -157,6 +170,9 @@ export function AdminStudentsPage() {
     activeTrack,
     activeEntryYear,
     activeIntakeCode,
+    activeLoa,
+    activeLoaQuarter,
+    activeLoaYear,
     reloadKey,
   ])
 
@@ -203,6 +219,13 @@ export function AdminStudentsPage() {
     entryYear !== '' ||
     intakeCode !== ''
 
+  const hasRosterFilters =
+    debouncedSearch !== '' ||
+    program !== 'all' ||
+    loa !== 'all' ||
+    loaQuarter !== '' ||
+    loaYear !== ''
+
   function toggleRow(id: string, checked: boolean) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -234,6 +257,15 @@ export function AdminStudentsPage() {
     setTrack('all')
     setEntryYear('')
     setIntakeCode('')
+    setPage(1)
+  }
+
+  function resetRosterFilters() {
+    setQ('')
+    setProgram('all')
+    setLoa('all')
+    setLoaQuarter('')
+    setLoaYear('')
     setPage(1)
   }
 
@@ -304,6 +336,9 @@ export function AdminStudentsPage() {
           await downloadAdminStudentsCsv({
             search: debouncedSearch,
             program,
+            loa,
+            loaQuarter,
+            loaYear,
             view: 'roster',
           })
         }
@@ -321,11 +356,9 @@ export function AdminStudentsPage() {
 
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(page * PAGE_SIZE, total)
+  const noActiveFilters = isEnrollmentView ? !hasEnrollmentFilters : !hasRosterFilters
   const emptyMessage =
-    total === 0 &&
-    debouncedSearch === '' &&
-    program === 'all' &&
-    (!isEnrollmentView || (!hasEnrollmentFilters && items.length === 0))
+    total === 0 && noActiveFilters
       ? 'No students on file.'
       : 'No students match your filters.'
 
@@ -482,7 +515,7 @@ export function AdminStudentsPage() {
             </button>
           </div>
         ) : (
-          <div className="admin-page__toolbar-actions portal-academics-print-hide">
+          <div className="admin-page__toolbar-actions admin-page__toolbar-actions--wrap portal-academics-print-hide">
             <input
               type="search"
               className="admin-input admin-input--search"
@@ -506,6 +539,61 @@ export function AdminStudentsPage() {
               <option value="dahm">DAHM</option>
               <option value="mahm">MAHM</option>
             </select>
+            <select
+              className="admin-input"
+              value={loa}
+              onChange={(e) => {
+                const nextLoa = e.target.value as AdminStudentsLoaFilter
+                setLoa(nextLoa)
+                if (nextLoa === 'no') {
+                  setLoaQuarter('')
+                  setLoaYear('')
+                }
+                setPage(1)
+              }}
+              aria-label="Filter students by leave of absence history"
+              disabled={sectionLoading || Boolean(error)}
+            >
+              <option value="all">LOA: All</option>
+              <option value="yes">LOA: Yes</option>
+              <option value="no">LOA: No</option>
+            </select>
+            <select
+              className="admin-input"
+              value={selectedLoaTermValue}
+              onChange={(e) => {
+                const value = e.target.value
+                if (value === '') {
+                  setLoaQuarter('')
+                  setLoaYear('')
+                } else {
+                  const [quarter, year] = value.split('|')
+                  setLoaQuarter(quarter ?? '')
+                  setLoaYear(year ?? '')
+                }
+                setPage(1)
+              }}
+              aria-label="Filter students by LOA term"
+              disabled={sectionLoading || Boolean(error) || loa === 'no'}
+            >
+              <option value="">All Terms</option>
+              {enrollmentFilterOptions.loaTerms.map((loaTerm) => (
+                <option
+                  key={`${loaTerm.quarter}|${loaTerm.year}`}
+                  value={`${loaTerm.quarter}|${loaTerm.year}`}
+                >
+                  {loaTerm.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="portal-btn portal-btn--secondary"
+              disabled={!hasRosterFilters || loading}
+              onClick={resetRosterFilters}
+            >
+              Reset Filters
+            </button>
             <button
               type="button"
               className="portal-btn portal-btn--secondary"
