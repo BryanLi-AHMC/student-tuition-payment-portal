@@ -8,14 +8,13 @@ targets = {
     "admin.csv": ["date_from2", "date_to2"],
     "course_withdraw_date.csv": ["date"],
     "daim_students_info.csv": ["daim_grad_date", "daim_signed_date"],
-    "loa.csv": ["actual_return", "return_date"],
+    "loa.csv": ["actual_return", "return_date", "absent_starting_date"],
     "seniority.csv": ["date"],
-    "students.csv": ["withdraw_date", "EnrollStartDate"],
+    "students.csv": ["withdraw_date", "EnrollStartDate", "cale_date"],
     "term_order.csv": ["start_date"],
 }
 
-# ✅ 扩展非法日期
-bad_values = {"0000-00-00", "0000-01-02", "0000-04-01"}
+bad_values = {"0000-00-00", "0000-01-02", "0000-04-01", "0000-07-01"}
 
 for filename, columns in targets.items():
     path = CSV_DIR / filename
