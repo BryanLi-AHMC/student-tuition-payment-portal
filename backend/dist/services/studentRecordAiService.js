@@ -117,7 +117,7 @@ function buildCurrentTermCoursesAnswer(question, academics, records) {
         return {
             result: {
                 question,
-                answer: "I couldn't identify an active current term in your academic records, so I can't list current-term courses reliably.",
+                answer: "I don't have enough information from your records to confirm your current-term courses.",
                 sources: [],
             },
             usedHelpers: ["getCurrentTermCourses"],
@@ -150,7 +150,7 @@ function buildCurrentTermCourseCountAnswer(question, academics, records) {
         return {
             result: {
                 question,
-                answer: "I couldn't identify an active current term in your academic records, so I can't count current-term courses reliably.",
+                answer: "I don't have enough information from your records to confirm your current-term course count.",
                 sources: [],
             },
             usedHelpers: ["getCurrentTermCourseCount"],
@@ -171,7 +171,7 @@ function buildCurrentTermCreditsAnswer(question, academics, records) {
         return {
             result: {
                 question,
-                answer: "I couldn't identify an active current term in your academic records, so I can't calculate your current credit load reliably.",
+                answer: "I don't have enough information from your records to confirm your current credit load.",
                 sources: [],
             },
             usedHelpers: ["getCurrentTermCredits"],
@@ -192,7 +192,7 @@ function buildCurrentTermCreditsAnswer(question, academics, records) {
         return {
             result: {
                 question,
-                answer: `I found ${records.length} active current-term course${records.length === 1 ? "" : "s"} in ${formatTermLabel(currentTerm.term, currentTerm.year)}, but their credit values are not fully available in the current record snapshot.`,
+                answer: `I found ${records.length} active current-term course${records.length === 1 ? "" : "s"} in ${formatTermLabel(currentTerm.term, currentTerm.year)}, but I don't have enough information from your records to confirm the exact credit total.`,
                 sources: [],
             },
             usedHelpers: ["getCurrentTermCredits"],
