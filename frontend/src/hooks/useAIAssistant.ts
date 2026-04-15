@@ -60,30 +60,6 @@ function userMessage(content: string): AIAssistantChatMessage {
   return { id: newId(), role: 'user', content, createdAt: Date.now() }
 }
 
-function formatSourcesAppendix(sources: unknown, locale: PortalLocale): string {
-  if (!Array.isArray(sources) || sources.length === 0) return ''
-  const lines: string[] = []
-  for (const item of sources) {
-    if (typeof item !== 'object' || item === null) continue
-    const o = item as Record<string, unknown>
-    const src = typeof o.source === 'string' ? o.source : ''
-    if (!src) continue
-    const chunk =
-      typeof o.chunkIndex === 'number' && Number.isFinite(o.chunkIndex)
-        ? o.chunkIndex
-        : null
-    lines.push(
-      chunk != null
-        ? portalT(locale, 'aiSourceBulletChunk')
-            .replace('{src}', src)
-            .replace('{chunk}', String(chunk))
-        : portalT(locale, 'aiSourceBullet').replace('{src}', src),
-    )
-  }
-  if (lines.length === 0) return ''
-  return `\n\n${portalT(locale, 'sourcesHeading')}\n${lines.join('\n')}`
-}
-
 function isChatMessageRecord(v: unknown): v is AIAssistantChatMessage {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
@@ -313,8 +289,7 @@ export function useAIAssistant(pageContext: AIAssistantPageContext) {
       }
 
       const answer = (data as { answer: string; sources?: unknown }).answer
-      const appendix = formatSourcesAppendix((data as { sources?: unknown }).sources, locale)
-      setMessages((m) => [...m, assistantTextMessage(answer + appendix)])
+      setMessages((m) => [...m, assistantTextMessage(answer)])
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return
       console.error(e)
