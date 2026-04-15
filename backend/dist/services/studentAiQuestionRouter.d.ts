@@ -27,5 +27,6 @@ export type StudentRecordQuestionMatch = {
 };
 export declare function extractCourseCode(question: string): string | null;
 export declare function detectStudentRecordQuestion(question: string): StudentRecordQuestionMatch | null;
+export declare function detectGraduationEligibilityQuestion(question: string): boolean;
 export declare function classifyStudentAiIntent(question: string): StudentAiIntent;
 //# sourceMappingURL=studentAiQuestionRouter.d.ts.map

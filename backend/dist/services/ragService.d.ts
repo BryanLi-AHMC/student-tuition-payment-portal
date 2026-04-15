@@ -28,6 +28,9 @@ export type AnswerAmuQuestionOptions = {
     studentContext?: string | null;
     pipeline?: GroundedAmuPipeline;
 };
+export type AnswerGraduationQuestionOptions = {
+    graduationEvaluation: string;
+};
 export declare class RagQuestionValidationError extends Error {
     constructor(message: string);
 }
@@ -39,6 +42,7 @@ export declare function planShortConversationMemory(question: string, rawHistory
 export declare function answerSchoolFactQuestion(question: string): RagAnswerResult;
 export declare function answerGeneralQuestion(question: string, rawHistory?: unknown): Promise<RagAnswerResult>;
 export declare function answerStudentRecordQuestionFromFacts(question: string, studentFacts: string): Promise<RagAnswerResult>;
+export declare function answerGraduationQuestion(question: string, rawHistory?: unknown, options?: AnswerGraduationQuestionOptions): Promise<RagAnswerResult>;
 /**
  * Grounded AMU answer path for policy-only and mixed student+policy questions.
  * @param rawHistory - Optional recent turns; sanitized (capped, invalid entries dropped).

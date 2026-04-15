@@ -728,6 +728,24 @@ If the facts do not support the answer, say "I don't have enough information fro
 Keep the answer natural, concise, and grounded.
 ${languageInstructionForLlm(question)}`;
 }
+function buildGraduationEvaluationSystemPrompt(question) {
+    return `${DUAL_MODE_SYSTEM_PROMPT}
+
+The current request is a graduation eligibility question.
+The structured graduation evaluation in the user message was computed deterministically by backend logic and is the source of truth for:
+- whether the student is currently eligible to graduate,
+- total earned credits,
+- required credits,
+- missing credits,
+- missing required courses,
+- GPA requirement status when provided.
+Do not recompute, override, soften, or contradict the structured graduation evaluation.
+Do not say you cannot confirm graduation eligibility when the evaluation block is present.
+Use retrieved AMU documents only to explain or contextualize the result, not to decide it.
+Start with a direct yes/no answer, then clearly summarize credits, missing courses, and any remaining requirements.
+Keep the answer concise and student-facing.
+${languageInstructionForLlm(question)}`;
+}
 const ACADEMIC_CONTACT_BLOCK_EN = `For final academic advising or official confirmation, please contact:
 
 Lillian Li
@@ -1076,6 +1094,55 @@ ${q}`,
         question: q,
         answer: completion.choices[0]?.message?.content?.trim() ?? "(no response)",
         sources: [],
+    };
+}
+export async function answerGraduationQuestion(question, rawHistory, options) {
+    const q = validateQuestion(question);
+    const history = sanitizeChatHistory(rawHistory);
+    const client = getOpenAiClient();
+    const chunks = await getKnowledgeChunks();
+    const retrievalQuery = await rewriteQuestionForRetrieval(client, q, history, "strict", undefined);
+    const embedRes = await client.embeddings.create({
+        model: "text-embedding-3-small",
+        input: retrievalQuery,
+    });
+    const questionEmbedding = embedRes.data[0]?.embedding;
+    if (!questionEmbedding) {
+        throw new Error("No embedding in OpenAI response");
+    }
+    const scored = chunks.map((chunk) => ({
+        chunk,
+        score: cosineSimilarity(questionEmbedding, chunk.embedding),
+    }));
+    scored.sort((x, y) => y.score - x.score);
+    const top = scored.slice(0, TOP_K);
+    const historyPrefix = history != null && history.length > 0
+        ? `${formatRecentConversationBlock(history)}\n\n`
+        : "";
+    const evaluationBlock = options?.graduationEvaluation?.trim() ?? "No evaluation available.";
+    const contextBlock = formatRetrievedDocumentContextBlock(top);
+    const completion = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+            { role: "system", content: buildGraduationEvaluationSystemPrompt(q) },
+            {
+                role: "user",
+                content: `${historyPrefix}STRUCTURED GRADUATION EVALUATION:
+${evaluationBlock}
+
+RETRIEVED AMU DOCUMENT CONTEXT:
+${contextBlock}
+
+USER QUESTION:
+${q}`,
+            },
+        ],
+        temperature: 0.2,
+    });
+    return {
+        question: q,
+        answer: completion.choices[0]?.message?.content?.trim() ?? "(no response)",
+        sources: top.map(({ chunk, score }) => toRetrieved(chunk, score)),
     };
 }
 /**

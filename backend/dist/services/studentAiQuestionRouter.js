@@ -105,6 +105,17 @@ export function detectStudentRecordQuestion(question) {
     }
     return null;
 }
+export function detectGraduationEligibilityQuestion(question) {
+    const normalized = lower(question);
+    if (/\b(can\s+i\s+graduate|am\s+i\s+eligible\s+to\s+graduate|am\s+i\s+eligible\s+for\s+graduation|have\s+i\s+met\s+(the\s+)?graduation\s+requirements|have\s+i\s+met\s+(the\s+)?degree\s+requirements|do\s+i\s+meet\s+(the\s+)?graduation\s+requirements|do\s+i\s+meet\s+(the\s+)?degree\s+requirements|have\s+i\s+satisfied\s+(the\s+)?graduation\s+requirements|what\s+am\s+i\s+missing\s+to\s+graduate|which\s+courses\s+am\s+i\s+missing\s+to\s+graduate)\b/i.test(normalized)) {
+        return true;
+    }
+    return (/我.{0,8}(能不能|可不可以|能否).{0,10}毕业/.test(normalized) ||
+        /我.{0,8}(是否|是不是).{0,10}符合.{0,6}毕业/.test(normalized) ||
+        /我.{0,8}(有没有|是否已经).{0,12}(达到|满足|符合).{0,8}毕业要求/.test(normalized) ||
+        /毕业要求.{0,8}(达到|满足|符合)/.test(normalized) ||
+        /我.{0,8}还缺.{0,8}(什么课|哪些课|什么要求|多少学分).{0,6}毕业/.test(normalized));
+}
 export function classifyStudentAiIntent(question) {
     const normalized = lower(question);
     const recordMatch = detectStudentRecordQuestion(question);
