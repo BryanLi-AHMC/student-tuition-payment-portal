@@ -5,6 +5,7 @@ import {
   answerGeneralQuestion,
   answerAmuQuestion,
   answerGraduationQuestion,
+  answerLocalSearchQuestion,
   answerSchoolFactQuestion,
   answerStudentRecordQuestionFromFacts,
   planShortConversationMemory,
@@ -21,17 +22,28 @@ import {
   answerDeterministicStudentRecordQuestion,
   buildStudentRecordFactsForQuestion,
 } from "../services/studentRecordAiService.js";
+import { getStudentAcademicsPayload } from "../services/studentAcademicsService.js";
 import { getLegacyStudentProfile } from "../services/studentProfileService.js";
 import {
   answerSelfReferentialQuestion,
   buildSafeLoggedInUserContext,
   sanitizeConversationFacts,
 } from "../services/conversationFactsService.js";
+import type { StudentAcademicsResponse } from "../types/studentAcademics.js";
 
 function readQuestion(req: Request): unknown {
   const body = req.body as Record<string, unknown> | null | undefined;
   if (body == null || typeof body !== "object") return undefined;
   return body.question;
+}
+
+function hasVerifiedAcademicData(academics: StudentAcademicsResponse): boolean {
+  return (
+    academics.courseRecords.length > 0 ||
+    academics.transcript.length > 0 ||
+    academics.enrollmentHistory.length > 0 ||
+    academics.currentSchedule.length > 0
+  );
 }
 
 /**
@@ -123,6 +135,7 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
     const initialIntent = classifyStudentAiIntent(q);
     const memoryPlan = planShortConversationMemory(q, rawHistory, initialIntent);
     const routedIntent = memoryPlan.effectiveIntent;
+    const isGraduationQuestion = detectGraduationEligibilityQuestion(q);
     console.debug("[ai/ask] detected intent", {
       initialIntent,
       effectiveIntent: routedIntent,
@@ -132,7 +145,40 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
       retainedHistoryMessages: memoryPlan.history?.length ?? 0,
     });
 
-    if (detectGraduationEligibilityQuestion(q)) {
+    if (
+      isGraduationQuestion ||
+      routedIntent === "student_record" ||
+      routedIntent === "mixed"
+    ) {
+      const academics = await getStudentAcademicsPayload(authStudent.studentId);
+      console.log("[AI DEBUG] Authorization header exists:", hasAuthorizationHeader);
+      console.log("[AI DEBUG] studentId:", authStudent.studentId);
+      console.log("[AI DEBUG] academics payload:", academics);
+
+      if (!hasVerifiedAcademicData(academics)) {
+        console.error("[AI DEBUG] missing student academic data", {
+          studentId: authStudent.studentId,
+          question: q,
+          routedIntent,
+          isGraduationQuestion,
+          currentTerm: academics.currentTerm,
+          availableTerms: academics.availableTerms.length,
+          currentScheduleCount: academics.currentSchedule.length,
+          transcriptCount: academics.transcript.length,
+          enrollmentHistoryCount: academics.enrollmentHistory.length,
+          courseRecordCount: academics.courseRecords.length,
+        });
+        res.status(200).json({
+          question: q,
+          answer:
+            "I couldn't load any verified academic records from marks, portal enrollments, portal courses, or registration for your account, so I can't answer this from student data.",
+          sources: [],
+        });
+        return;
+      }
+    }
+
+    if (isGraduationQuestion) {
       const evaluation = await evaluateStudentGraduation(authStudent.studentId);
       const result = await answerGraduationQuestion(q, memoryPlan.history, {
         graduationEvaluation: formatGraduationEvaluationFacts(evaluation),
@@ -161,6 +207,13 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
     if (routedIntent === "school_fact") {
       console.debug("[ai/ask] pipeline used", { pipeline: "school_fact" });
       const result = answerSchoolFactQuestion(q);
+      res.status(200).json(result);
+      return;
+    }
+
+    if (routedIntent === "local_search") {
+      console.debug("[ai/ask] pipeline used", { pipeline: "local_search" });
+      const result = answerLocalSearchQuestion(q);
       res.status(200).json(result);
       return;
     }
@@ -204,9 +257,14 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
         deterministicStudentFactsUsed: false,
         ragUsed: false,
       });
+      console.error("[AI DEBUG] student_record fell through without deterministic facts", {
+        studentId: authStudent.studentId,
+        question: q,
+      });
       res.status(200).json({
         question: q,
-        answer: "I don't have enough information from your records to confirm this.",
+        answer:
+          "I could not build a verified student-record answer from backend data, so I did not fall back to a guessed answer.",
         sources: [],
       });
       return;
@@ -226,16 +284,26 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
       authStudent.studentId,
       q,
     );
-    const studentContextText =
-      recordFacts?.contextText ??
-      `Student Record Facts
-- I don't have enough information from your records to confirm this.`;
+    if (recordFacts == null) {
+      console.error("[AI DEBUG] mixed intent missing student record facts", {
+        studentId: authStudent.studentId,
+        question: q,
+      });
+      res.status(200).json({
+        question: q,
+        answer:
+          "I could not build verified student-record facts for this mixed question, so I did not fall back to a guessed answer.",
+        sources: [],
+      });
+      return;
+    }
+    const studentContextText = recordFacts.contextText;
 
     console.debug("[ai/ask] pipeline used", {
       pipeline: "mixed",
-      deterministicStudentFactsUsed: recordFacts != null,
+      deterministicStudentFactsUsed: true,
       ragUsed: true,
-      helperCount: recordFacts?.usedHelpers.length ?? 0,
+      helperCount: recordFacts.usedHelpers.length,
     });
 
     const result = await answerAmuQuestion(q, memoryPlan.history, {

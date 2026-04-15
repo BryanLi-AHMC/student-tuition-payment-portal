@@ -3,6 +3,7 @@ export type StudentAiIntent =
   | "policy"
   | "mixed"
   | "school_fact"
+  | "local_search"
   | "general";
 
 export type StudentRecordQuestionKind =
@@ -12,6 +13,7 @@ export type StudentRecordQuestionKind =
   | "registered_term_count"
   | "registration_in_year"
   | "courses_in_year"
+  | "all_courses_history"
   | "withdrawal_history"
   | "took_course"
   | "completed_course"
@@ -24,6 +26,7 @@ export type StudentRecordQuestionMatch =
   | { kind: "registered_term_count" }
   | { kind: "registration_in_year"; year: number }
   | { kind: "courses_in_year"; year: number }
+  | { kind: "all_courses_history" }
   | { kind: "withdrawal_history" }
   | { kind: "took_course"; courseCode: string }
   | { kind: "completed_course"; courseCode: string }
@@ -101,6 +104,41 @@ function hasInstitutionFactCue(value: string): boolean {
 function hasSchoolFactCue(value: string): boolean {
   const hasAmu = hasAmuIdentityCue(value);
   return hasAmu || (hasSchoolContextCue(value) && hasInstitutionFactCue(value));
+}
+
+function hasLocalSearchCue(value: string): boolean {
+  const explicitPhraseCue =
+    /\b(near me|nearby|around here|close by|good places near|best places near|recommend places|recommend restaurants|restaurant recommendations|food recommendations)\b/i.test(
+      value,
+    ) ||
+    /哪里好吃|哪裡好吃|附近有什么|附近有什麼|附近有啥|附近吃什么|附近吃什麼|附近有什么好吃|附近有什麼好吃|推荐餐厅|推薦餐廳|推荐美食|推薦美食|附近有什么地方可以去|附近有什麼地方可以去/.test(
+      value,
+    );
+
+  const placeTopicCue =
+    /\b(restaurant|restaurants|food|eat|eating|lunch|dinner|brunch|breakfast|coffee|cafe|cafes|boba|milk tea|dessert|hot pot|bbq|ramen|sushi|tacos?|burger|pizza|places|spots|things to do|attractions?)\b/i.test(
+      value,
+    ) ||
+    /餐厅|餐廳|饭店|美食|吃的|吃饭|吃飯|火锅|火鍋|奶茶|咖啡|甜品|烧烤|燒烤|拉面|拉麵|寿司|壽司|早午餐|景点|景點|玩的地方/.test(
+      value,
+    );
+
+  const recommendationCue =
+    /\b(recommend|recommendation|suggest|suggestion|good|best|favorite|favourite|worth trying)\b/i.test(
+      value,
+    ) ||
+    /推荐|推薦|好吃|值得去|值得吃|有什么好|有什麼好/.test(value);
+
+  const areaCue =
+    /\b(near|nearby|around|in)\s+[a-z][a-z\s-]{1,40}\b/i.test(value) ||
+    /\b(los angeles|alhambra|irvine|pasadena|san gabriel|monterey park|arcadia|rowland heights|anaheim|orange county)\b/i.test(
+      value,
+    ) ||
+    /附近|周边|周邊|洛杉矶|洛杉磯|阿罕布拉|尔湾|爾灣|帕萨迪纳|帕薩迪納|圣盖博|聖蓋博|蒙特利公园|蒙特利公園|亚凯迪亚|亞凱迪亞|橙县|橙縣/.test(
+      value,
+    );
+
+  return explicitPhraseCue || (placeTopicCue && (recommendationCue || areaCue));
 }
 
 export function extractCourseCode(question: string): string | null {
@@ -196,6 +234,24 @@ export function detectStudentRecordQuestion(
   }
 
   if (
+    /\b(what|which)\s+(courses|classes)\s+(have i|i have|i've|did i)\s+(take|taken|took|completed|finished|studied)\b/i.test(
+      normalized,
+    ) ||
+    /\bwhat\s+(courses|classes)\s+have\s+i\s+(taken|completed)\b/i.test(
+      normalized,
+    ) ||
+    /\b(show|list)\s+my\s+(courses|classes|academic history|record|records|transcript)\b/i.test(
+      normalized,
+    ) ||
+    /我.{0,8}(修过|上过|学过|选过|完成过).{0,8}(什么课|哪些课|哪些课程)/.test(
+      normalized,
+    ) ||
+    /我的.{0,6}(课程记录|学术记录|学术历史|修课记录)/.test(normalized)
+  ) {
+    return { kind: "all_courses_history" };
+  }
+
+  if (
     courseCode != null &&
     /\b(did i|have i|do i|was i)\b/i.test(normalized) &&
     /\b(take|taken|took|register(?:ed)?\s+for|enroll(?:ed)?\s+in)\b/i.test(
@@ -229,7 +285,11 @@ export function detectStudentRecordQuestion(
     /\bhow\s+many\s+credits\s+(have i|i have|i've)\s+completed\b/i.test(
       normalized,
     ) ||
-    /\bhow\s+many\s+earned\s+credits\s+do\s+i\s+have\b/i.test(normalized)
+    /\bhow\s+many\s+earned\s+credits\s+do\s+i\s+have\b/i.test(normalized) ||
+    /我.{0,6}(总共|一共|已经)?.{0,6}(有|拿了|获得了|修了|完成了)?.{0,6}多少学分/.test(
+      normalized,
+    ) ||
+    /我的.{0,4}(总学分|已修学分|已获得学分).{0,4}(多少|是多少)/.test(normalized)
   ) {
     return { kind: "completed_credits_total" };
   }
@@ -299,6 +359,10 @@ export function classifyStudentAiIntent(question: string): StudentAiIntent {
 
   if (hasSchoolFactCue(normalized)) {
     return "school_fact";
+  }
+
+  if (hasLocalSearchCue(normalized)) {
+    return "local_search";
   }
 
   return "general";
