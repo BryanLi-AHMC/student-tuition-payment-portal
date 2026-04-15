@@ -4,11 +4,19 @@ import {
   RagQuestionValidationError,
   answerGeneralQuestion,
   answerAmuQuestion,
+  answerGraduationQuestion,
   answerSchoolFactQuestion,
   answerStudentRecordQuestionFromFacts,
   planShortConversationMemory,
 } from "../services/ragService.js";
-import { classifyStudentAiIntent } from "../services/studentAiQuestionRouter.js";
+import {
+  classifyStudentAiIntent,
+  detectGraduationEligibilityQuestion,
+} from "../services/studentAiQuestionRouter.js";
+import {
+  evaluateStudentGraduation,
+  formatGraduationEvaluationFacts,
+} from "../services/graduationEvaluationService.js";
 import {
   answerDeterministicStudentRecordQuestion,
   buildStudentRecordFactsForQuestion,
@@ -81,6 +89,22 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
       previousDomain: memoryPlan.previousDomain,
       retainedHistoryMessages: memoryPlan.history?.length ?? 0,
     });
+
+    if (detectGraduationEligibilityQuestion(q)) {
+      const evaluation = await evaluateStudentGraduation(authStudent.studentId);
+      const result = await answerGraduationQuestion(q, memoryPlan.history, {
+        graduationEvaluation: formatGraduationEvaluationFacts(evaluation),
+      });
+      console.debug("[ai/ask] pipeline used", {
+        pipeline: "graduation_evaluation",
+        eligible: evaluation.eligible,
+        ruleSetId: evaluation.ruleSetId,
+        missingCourseCount: evaluation.missingCourses.length,
+        missingCredits: evaluation.missingCredits,
+      });
+      res.status(200).json(result);
+      return;
+    }
 
     if (routedIntent === "general") {
       console.debug("[ai/ask] pipeline used", { pipeline: "general" });
