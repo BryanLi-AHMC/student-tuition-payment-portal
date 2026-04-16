@@ -40,6 +40,13 @@ function parseOptionalDate(v) {
         return "invalid";
     return s;
 }
+function serializeAcademicTermForApi(t) {
+    const { clinic_appointment_deadline, ...rest } = t;
+    return {
+        ...rest,
+        clinicAppointmentDeadline: clinic_appointment_deadline,
+    };
+}
 function parseOptionalBool(v) {
     if (v === undefined)
         return undefined;
@@ -79,12 +86,17 @@ function parseCreateBody(body) {
     const rc = parseOptionalDate(o.registration_close);
     const wd = parseOptionalDate(o.withdraw_deadline);
     const pdd = parseOptionalDate(o.payment_due_date);
+    const clinRaw = o.clinicAppointmentDeadline !== undefined
+        ? o.clinicAppointmentDeadline
+        : o.clinic_appointment_deadline;
+    const clin = parseOptionalDate(clinRaw);
     if (start === "invalid" ||
         end === "invalid" ||
         ro === "invalid" ||
         rc === "invalid" ||
         wd === "invalid" ||
-        pdd === "invalid") {
+        pdd === "invalid" ||
+        clin === "invalid") {
         return null;
     }
     const vis = parseOptionalBool(o.is_visible);
@@ -106,6 +118,7 @@ function parseCreateBody(body) {
         registration_close: rc,
         withdraw_deadline: wd,
         payment_due_date: pdd,
+        clinic_appointment_deadline: clin,
         ...(lockReg !== undefined ? { lock_registration_if_overdue: lockReg } : {}),
         status: status,
         ...(vis !== undefined ? { is_visible: vis } : {}),
@@ -170,6 +183,15 @@ function parsePatchBody(body) {
             return null;
         patch.is_visible = vis;
     }
+    if (o.clinicAppointmentDeadline !== undefined ||
+        o.clinic_appointment_deadline !== undefined) {
+        const d = parseOptionalDate(o.clinicAppointmentDeadline !== undefined
+            ? o.clinicAppointmentDeadline
+            : o.clinic_appointment_deadline);
+        if (d === "invalid")
+            return null;
+        patch.clinic_appointment_deadline = d;
+    }
     return patch;
 }
 function patchHasField(patch) {
@@ -183,7 +205,7 @@ export async function getAcademicTerms(_req, res) {
     try {
         const terms = await listAllAcademicTerms();
         await setAcademicTermPaymentColumnsHeader(res);
-        res.json(terms);
+        res.json(terms.map(serializeAcademicTermForApi));
     }
     catch (e) {
         console.error("[academic-terms] list failed:", e);
@@ -207,7 +229,7 @@ export async function getAcademicTermsRecent(req, res) {
         }
         const terms = await listRecentVisibleTerms(limit);
         await setAcademicTermPaymentColumnsHeader(res);
-        res.json(terms);
+        res.json(terms.map(serializeAcademicTermForApi));
     }
     catch (e) {
         console.error("[academic-terms/recent] failed:", e);
@@ -220,7 +242,7 @@ export async function getAcademicTermsCurrent(_req, res) {
     try {
         const term = await getCurrentRegistrationOpenTerm();
         await setAcademicTermPaymentColumnsHeader(res);
-        res.json(term);
+        res.json(term ? serializeAcademicTermForApi(term) : null);
     }
     catch (e) {
         console.error("[academic-terms/current] failed:", e);
@@ -234,7 +256,7 @@ export async function getAcademicTermsCurrentPosted(_req, res) {
     try {
         const term = await getPostedToDashboardTerm();
         await setAcademicTermPaymentColumnsHeader(res);
-        res.json(term);
+        res.json(term ? serializeAcademicTermForApi(term) : null);
     }
     catch (e) {
         console.error("[academic-terms/current-posted] failed:", e);
@@ -254,7 +276,7 @@ export async function postAdminAcademicTerm(req, res) {
         }
         const term = await createAcademicTerm(input);
         await setAcademicTermPaymentColumnsHeader(res);
-        res.status(201).json(term);
+        res.status(201).json(serializeAcademicTermForApi(term));
     }
     catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -286,7 +308,7 @@ export async function postAdminAcademicTermPost(req, res) {
             return;
         }
         await setAcademicTermPaymentColumnsHeader(res);
-        res.json(term);
+        res.json(serializeAcademicTermForApi(term));
     }
     catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -327,7 +349,7 @@ export async function patchAdminAcademicTerm(req, res) {
             return;
         }
         await setAcademicTermPaymentColumnsHeader(res);
-        res.json(term);
+        res.json(serializeAcademicTermForApi(term));
     }
     catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
