@@ -42,7 +42,7 @@ function emptyToNull(iso: string): string | null {
 }
 
 function humanizeDateFieldKey(k: string): string {
-  if (k === 'clinicAppointmentDeadline') return 'clinic appointment deadline'
+  if (k === 'clinicAppointmentDeadline') return 'clinic deadline'
   return k.replace(/_/g, ' ')
 }
 
@@ -312,7 +312,7 @@ export function AdminAcademicTermsPage() {
                 <th scope="col">Registration Close</th>
                 <th scope="col">Withdraw DDL</th>
                 <th scope="col">Payment DDL</th>
-                <th scope="col">Clinic Appointment DDL</th>
+                <th scope="col">Clinic Deadline</th>
                 <th scope="col">Lock Registration if Overdue</th>
                 <th scope="col">Visible</th>
                 <th scope="col">Posted</th>
@@ -613,7 +613,7 @@ export function AdminAcademicTermsPage() {
               </div>
               <div className="portal-course-feedback-modal__field">
                 <label htmlFor="admin-term-clinic-ddl">
-                  Clinic appointment deadline
+                  Clinic deadline
                 </label>
                 <input
                   id="admin-term-clinic-ddl"
