@@ -1148,6 +1148,12 @@ export type LedgerRowSourceType =
   | 'manual_payment'
   | 'auto_late_fee'
 
+export type ClinicalBookingPaymentHoldLedger = {
+  holdExpiresAt: string
+  remainingSeconds: number
+  holdStatus: string
+}
+
 export type AccountingLedgerRow = {
   date: string
   type: string
@@ -1159,6 +1165,7 @@ export type AccountingLedgerRow = {
   sourceId?: string | number | null
   isEditable?: boolean
   isDeletable?: boolean
+  clinicalBookingPaymentHold?: ClinicalBookingPaymentHoldLedger | null
 }
 
 export type AccountingLedgerResponse = {

@@ -10,6 +10,7 @@ import {
   listLegacyAccountingQuarters,
   loadLegacyAccountingRows,
 } from "../repositories/studentLegacyAccountRepository.js";
+import { listActiveClinicalBookingPaymentHoldsForStudentQuarter } from "../repositories/clinicalBookingPaymentHoldRepository.js";
 import type {
   AccountContext,
   BillingAdjustmentRecord,
@@ -35,6 +36,15 @@ export type LedgerRowSourceType =
   | "manual_payment"
   | "auto_late_fee";
 
+/** Present on ledger rows tied to an active clinical booking payment hold. */
+export type LedgerClinicalBookingPaymentHoldDto = {
+  /** ISO-8601 UTC instant when the hold window ends. */
+  holdExpiresAt: string;
+  /** Whole seconds remaining at response time (server clock); clients should tick from `holdExpiresAt`. */
+  remainingSeconds: number;
+  holdStatus: string;
+};
+
 export type LedgerRowDto = {
   date: string;
   type: string;
@@ -46,6 +56,7 @@ export type LedgerRowDto = {
   sourceId: string | number | null;
   isEditable: boolean;
   isDeletable: boolean;
+  clinicalBookingPaymentHold?: LedgerClinicalBookingPaymentHoldDto | null;
 };
 
 export type LedgerSummaryDto = {
@@ -137,6 +148,55 @@ function summarizeLedgerRows(rows: LedgerRowDto[]): LedgerSummaryDto {
     totalPayments: roundMoney(totalPayments),
     balance: roundMoney(totalCharges - totalPayments),
   };
+}
+
+/** Positive `system_clinical` charges map to `portal_billing_adjustments.id` on ledger `sourceId`. */
+function clinicalBookingChargeAdjustmentIds(
+  adjustments: BillingAdjustmentRecord[],
+): Set<number> {
+  const s = new Set<number>();
+  for (const a of adjustments) {
+    if (a.adjustmentSource !== "system_clinical") continue;
+    const id = a.id;
+    if (id == null || !Number.isFinite(id)) continue;
+    if (roundMoney(a.amount) <= 0) continue;
+    s.add(Math.trunc(Number(id)));
+  }
+  return s;
+}
+
+function applyClinicalBookingPaymentHoldsToLedgerRows(
+  rows: LedgerRowDto[],
+  adjustments: BillingAdjustmentRecord[],
+  holds: {
+    billingAdjustmentId: number;
+    holdExpiresAt: Date;
+    status: string;
+  }[],
+): void {
+  const adjIds = clinicalBookingChargeAdjustmentIds(adjustments);
+  if (adjIds.size === 0 || holds.length === 0) return;
+
+  const byBill = new Map(holds.map((h) => [h.billingAdjustmentId, h] as const));
+  const nowMs = Date.now();
+
+  for (const row of rows) {
+    /* Portal adjustment lines only — avoids legacy `accounting.seq` id collisions. */
+    if (row.type !== "Adjustment") continue;
+    const sid = row.sourceId;
+    if (typeof sid !== "number" || !Number.isFinite(sid)) continue;
+    const b = Math.trunc(sid);
+    if (!adjIds.has(b)) continue;
+    const h = byBill.get(b);
+    if (!h) continue;
+    const exp = h.holdExpiresAt.getTime();
+    const remainingSeconds = Math.max(0, Math.floor((exp - nowMs) / 1000));
+    row.clinicalBookingPaymentHold = {
+      holdExpiresAt: h.holdExpiresAt.toISOString(),
+      remainingSeconds,
+      holdStatus: h.status,
+    };
+  }
 }
 
 function systemRowMeta(): Pick<
@@ -381,17 +441,29 @@ export async function getAccountingLedgerPayload(
     const resolvedTerm = legacy[0]?.term ?? termTrim;
     const resolvedYear = legacy[0]?.year ?? year;
 
-    const portalAdjustments = await loadPortalBillingAdjustmentsForQuarter(
-      pool,
-      studentId,
-      resolvedTerm.trim(),
-      resolvedYear,
-    );
+    const [portalAdjustments, quarterHolds] = await Promise.all([
+      loadPortalBillingAdjustmentsForQuarter(
+        pool,
+        studentId,
+        resolvedTerm.trim(),
+        resolvedYear,
+      ),
+      listActiveClinicalBookingPaymentHoldsForStudentQuarter(
+        studentId,
+        resolvedTerm.trim(),
+        resolvedYear,
+      ),
+    ]);
     const portalAdjRows = ledgerRowsFromPortalAdjustments(
       portalAdjustments,
       isoEffectiveDateForPortalCharges(),
     );
     const mergedRows = [...rows, ...portalAdjRows];
+    applyClinicalBookingPaymentHoldsToLedgerRows(
+      mergedRows,
+      portalAdjustments,
+      quarterHolds,
+    );
     const summary = summarizeLedgerRows(mergedRows);
 
     return {
@@ -403,13 +475,16 @@ export async function getAccountingLedgerPayload(
     };
   }
 
-  const ctx = await loadPortalTermBillingContext(
-    pool,
-    studentId,
-    termTrim,
-    year,
-  );
+  const [ctx, quarterHolds] = await Promise.all([
+    loadPortalTermBillingContext(pool, studentId, termTrim, year),
+    listActiveClinicalBookingPaymentHoldsForStudentQuarter(
+      studentId,
+      termTrim,
+      year,
+    ),
+  ]);
   const rows = buildPortalLedgerRowsFromContext(ctx);
+  applyClinicalBookingPaymentHoldsToLedgerRows(rows, ctx.adjustments, quarterHolds);
   const summary = summarizeLedgerRows(rows);
 
   return {

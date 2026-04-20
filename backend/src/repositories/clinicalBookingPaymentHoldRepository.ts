@@ -258,6 +258,47 @@ export async function markClinicalBookingPaymentHoldSatisfiedOutsideTxn(
   );
 }
 
+/** Active holds for one student quarter (ledger / countdown UI). */
+export async function listActiveClinicalBookingPaymentHoldsForStudentQuarter(
+  studentId: string,
+  term: string,
+  year: number,
+): Promise<
+  {
+    billingAdjustmentId: number;
+    holdExpiresAt: Date;
+    status: ClinicalBookingPaymentHoldStatus;
+  }[]
+> {
+  if (!(await clinicalBookingPaymentHoldsTableExists())) return [];
+  const sid = studentId.trim();
+  const tm = term.trim();
+  if (sid === "" || tm === "" || !Number.isFinite(year)) return [];
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT billing_adjustment_id AS billingAdjustmentId,
+            hold_expires_at AS holdExpiresAt,
+            TRIM(status) AS status
+       FROM clinical_booking_payment_holds
+      WHERE TRIM(student_id) = TRIM(?)
+        AND TRIM(term) = TRIM(?)
+        AND year = ?
+        AND status = 'active'
+      ORDER BY id ASC
+      LIMIT 50`,
+    [sid, tm, Math.trunc(year)],
+  );
+  return rows.map((r) => {
+    const he = (r as { holdExpiresAt?: unknown }).holdExpiresAt;
+    return {
+      billingAdjustmentId: Math.trunc(
+        Number((r as { billingAdjustmentId?: unknown }).billingAdjustmentId),
+      ),
+      holdExpiresAt: he instanceof Date ? he : new Date(String(he)),
+      status: String((r as { status?: unknown }).status ?? "").trim() as ClinicalBookingPaymentHoldStatus,
+    };
+  });
+}
+
 export async function listActiveClinicalBookingPaymentHoldsForStudent(
   studentId: string,
 ): Promise<

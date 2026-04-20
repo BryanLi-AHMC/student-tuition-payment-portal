@@ -161,6 +161,9 @@ export const STUDENT_PORTAL_EN = {
   payment: 'Payment',
   totalPayments: 'Total payments',
   balance: 'Balance',
+  clinicalBookingPaymentDueIn: 'Payment due in {time}',
+  clinicalBookingPaymentHoldExpired:
+    'The payment deadline for this clinical booking charge has passed.',
 
   // Registration
   selectTerm: 'Select Term',
@@ -1302,6 +1305,8 @@ const STUDENT_PORTAL_ZH: Record<StudentPortalKey, string> = {
   payment: '付款',
   totalPayments: '付款合計',
   balance: '餘額',
+  clinicalBookingPaymentDueIn: '付款截止倒數 {time}',
+  clinicalBookingPaymentHoldExpired: '此臨床預約費用之付款期限已過。',
 
   selectTerm: '選擇學期',
   loadingTerms: '正在載入學期…',

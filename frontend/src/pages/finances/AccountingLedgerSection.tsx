@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { Link } from 'react-router-dom'
 import { useLanguage, useStudentPortalT } from '@/LanguageContext'
 import { useAccount } from '../../context/AccountContext'
@@ -6,8 +6,11 @@ import {
   fetchAccountingLedger,
   fetchAccountingQuarters,
   type AccountingLedgerResponse,
+  type AccountingLedgerRow,
   type AccountingQuarterOption,
+  type ClinicalBookingPaymentHoldLedger,
 } from '../../lib/api'
+import type { StudentPortalKey } from '../../lib/i18n'
 import { formatMoney } from '../../lib/formatMoney'
 
 function dashText(value: string): string {
@@ -37,6 +40,54 @@ function formatLedgerDate(iso: string, locale: string): string {
 
 function quarterKey(q: AccountingQuarterOption): string {
   return `${q.year}:${q.term}`
+}
+
+function formatRemainingHms(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
+function ClinicalBookingPaymentHoldCountdown({
+  hold,
+  t,
+}: {
+  hold: ClinicalBookingPaymentHoldLedger
+  t: (key: StudentPortalKey) => string
+}): ReactElement | null {
+  const expiresMs = useMemo(() => {
+    const ms = new Date(hold.holdExpiresAt.trim()).getTime()
+    return Number.isFinite(ms) ? ms : Number.NaN
+  }, [hold.holdExpiresAt])
+
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!Number.isFinite(expiresMs)) return undefined
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [expiresMs])
+
+  if (!Number.isFinite(expiresMs) || hold.holdStatus !== 'active') {
+    return null
+  }
+
+  const remainingSec = Math.max(0, Math.floor((expiresMs - nowMs) / 1000))
+  if (remainingSec <= 0) {
+    return (
+      <p className="portal-inline-note portal-inline-note--flush" role="status">
+        {t('clinicalBookingPaymentHoldExpired')}
+      </p>
+    )
+  }
+
+  return (
+    <p className="portal-inline-note portal-inline-note--flush" aria-live="polite">
+      {t('clinicalBookingPaymentDueIn').replace('{time}', formatRemainingHms(remainingSec))}
+    </p>
+  )
 }
 
 /**
@@ -230,12 +281,20 @@ export function AccountingLedgerSection() {
                 </tr>
               </thead>
               <tbody>
-                {ledger.rows.map((row, index) => (
+                {ledger.rows.map((row: AccountingLedgerRow, index) => (
                   <tr key={`${row.date}-${index}-${row.memo}`}>
                     <td>{formatLedgerDate(row.date, dateLocale)}</td>
                     <td className="portal-table-cell-capitalize">{dashText(row.type)}</td>
                     <td>{dashText(row.code)}</td>
-                    <td>{dashText(row.memo)}</td>
+                    <td>
+                      <div>{dashText(row.memo)}</div>
+                      {row.clinicalBookingPaymentHold != null ? (
+                        <ClinicalBookingPaymentHoldCountdown
+                          hold={row.clinicalBookingPaymentHold}
+                          t={t}
+                        />
+                      ) : null}
+                    </td>
                     <td>{ledgerChargeCell(row.debit)}</td>
                     <td>{ledgerPaymentCell(row.credit)}</td>
                   </tr>
