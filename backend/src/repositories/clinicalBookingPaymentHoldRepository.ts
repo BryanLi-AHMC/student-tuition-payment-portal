@@ -25,7 +25,9 @@ export type ClinicalBookingPaymentHoldRow = {
 let holdsTableExistsCache: boolean | null = null;
 
 export async function clinicalBookingPaymentHoldsTableExists(): Promise<boolean> {
-  if (holdsTableExistsCache != null) return holdsTableExistsCache;
+  // Only cache positive discovery: if the table was missing at first check (e.g. before
+  // migrations) we must not remember `false` forever after the table is created.
+  if (holdsTableExistsCache === true) return true;
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT 1 AS ok
        FROM information_schema.TABLES
@@ -33,8 +35,9 @@ export async function clinicalBookingPaymentHoldsTableExists(): Promise<boolean>
         AND TABLE_NAME = 'clinical_booking_payment_holds'
       LIMIT 1`,
   );
-  holdsTableExistsCache = rows.length > 0;
-  return holdsTableExistsCache;
+  const exists = rows.length > 0;
+  if (exists) holdsTableExistsCache = true;
+  return exists;
 }
 
 export async function insertClinicalBookingPaymentHold(params: {
@@ -46,19 +49,28 @@ export async function insertClinicalBookingPaymentHold(params: {
   chargeAmount: number;
   balanceBeforeCharge: number;
 }): Promise<number> {
+  const eid = Math.trunc(params.clinicalEnrollmentId);
   const [res] = await pool.execute<ResultSetHeader>(
     `INSERT INTO clinical_booking_payment_holds
       (clinical_enrollment_id, student_id, billing_adjustment_id, term, year,
        charge_amount, balance_before_charge, hold_expires_at, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR), 'active')`,
+     SELECT ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 12 HOUR), 'active'
+       FROM DUAL
+      WHERE NOT EXISTS (
+        SELECT 1
+          FROM clinical_booking_payment_holds cbph
+         WHERE cbph.clinical_enrollment_id = ?
+           AND cbph.status = 'active'
+      )`,
     [
-      Math.trunc(params.clinicalEnrollmentId),
+      eid,
       params.studentId.trim(),
       Math.trunc(params.billingAdjustmentId),
       params.term.trim(),
       Math.trunc(params.year),
       params.chargeAmount,
       params.balanceBeforeCharge,
+      eid,
     ],
   );
   return Math.trunc(Number(res.insertId));
