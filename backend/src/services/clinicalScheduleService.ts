@@ -244,7 +244,8 @@ export async function getStudentClinicalSchedule(
   console.info("[clinical-trace] student upcoming assignments query", {
     studentId: sid,
     termYear: uniqueTermYears.length > 0 ? uniqueTermYears : ["unknown"],
-    sourceTable: "clinical_assignments LEFT JOIN clinic_timetable",
+    sourceTable:
+      "clinical_assignments LEFT JOIN clinic_timetable (timetable rows gated by active clinical_enrollments)",
     sourceQuery:
       "clinicalScheduleRepository.listStudentClinicalAssignments",
     rawRowCount: rows.length,

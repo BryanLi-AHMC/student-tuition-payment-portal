@@ -35,6 +35,12 @@ export declare function updateClinicalBookingPaymentHoldStatus(conn: PoolConnect
     autoDroppedAt?: Date | null;
 }): Promise<void>;
 export declare function markClinicalBookingPaymentHoldSatisfiedOutsideTxn(holdId: number): Promise<void>;
+/** Active holds for one student quarter (ledger / countdown UI). */
+export declare function listActiveClinicalBookingPaymentHoldsForStudentQuarter(studentId: string, term: string, year: number): Promise<{
+    billingAdjustmentId: number;
+    holdExpiresAt: Date;
+    status: ClinicalBookingPaymentHoldStatus;
+}[]>;
 export declare function listActiveClinicalBookingPaymentHoldsForStudent(studentId: string): Promise<{
     id: number;
     balanceBeforeCharge: number;
@@ -42,4 +48,13 @@ export declare function listActiveClinicalBookingPaymentHoldsForStudent(studentI
     term: string;
     year: number;
 }[]>;
+/**
+ * Active DB hold tied to an enrolled clinical enrollment (excludes orphaned holds).
+ * When multiple exist, returns the soonest deadline.
+ */
+export declare function getUrgentActiveClinicalBookingHoldForStudentPortal(studentId: string): Promise<{
+    clinicalEnrollmentId: number;
+    timetableId: number;
+    holdExpiresAt: Date;
+} | null>;
 //# sourceMappingURL=clinicalBookingPaymentHoldRepository.d.ts.map

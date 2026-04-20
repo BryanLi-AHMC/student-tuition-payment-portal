@@ -85,6 +85,18 @@ export async function listStudentClinicalAssignments(studentId) {
        FROM clinical_assignments ca
        LEFT JOIN clinic_timetable ct ON ca.timetable_id = ct.seqNum
       WHERE TRIM(ca.student_id) = TRIM(?)
+       AND (
+         ca.timetable_id IS NULL
+         OR EXISTS (
+           SELECT 1
+             FROM clinical_enrollments ce
+            WHERE TRIM(ce.student_id) = TRIM(ca.student_id)
+              AND ce.timetable_id = ca.timetable_id
+              AND TRIM(ce.term) = TRIM(IFNULL(ca.term, ''))
+              AND ce.year = ca.\`year\`
+              AND LOWER(TRIM(ce.status)) = 'enrolled'
+         )
+       )
       ORDER BY COALESCE(ca.\`year\`, YEAR(ca.session_date)) DESC,
                ca.session_date ASC,
                ca.id ASC`, [sid]);

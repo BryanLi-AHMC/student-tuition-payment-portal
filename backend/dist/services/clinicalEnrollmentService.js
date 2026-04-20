@@ -103,6 +103,14 @@ export async function enrollStudentInClinicalSlot(studentId, timetableId) {
         return { ok: false, error: result.error, status: 400 };
     }
     const shouldPostClinicalCharge = result.isNewEnrollmentRow || result.wasReactivation;
+    if (!shouldPostClinicalCharge) {
+        console.log("[HOLD_DEBUG] enrollStudentInClinicalSlot: hold path skipped (shouldPostClinicalCharge=false)", {
+            studentId: sid,
+            clinicalEnrollmentId: result.enrollmentId,
+            isNewEnrollmentRow: result.isNewEnrollmentRow,
+            wasReactivation: result.wasReactivation,
+        });
+    }
     let billingChargePosted = false;
     if (shouldPostClinicalCharge) {
         if (result.wasReactivation) {
@@ -124,7 +132,19 @@ export async function enrollStudentInClinicalSlot(studentId, timetableId) {
                 clinicalEnrollmentId: result.enrollmentId,
             });
             billingChargePosted = true;
-            if (await clinicalBookingPaymentHoldsTableExists()) {
+            const holdsTableOk = await clinicalBookingPaymentHoldsTableExists();
+            console.log("[HOLD_DEBUG] enrollStudentInClinicalSlot: service-layer table-exists guard", { holdsTableOk });
+            if (!holdsTableOk) {
+                console.log("[HOLD_DEBUG] insertClinicalBookingPaymentHold not called: table missing per information_schema");
+            }
+            if (holdsTableOk) {
+                console.log("[HOLD_DEBUG] immediately before insertClinicalBookingPaymentHold", {
+                    studentId: sid,
+                    clinicalEnrollmentId: result.enrollmentId,
+                    billingAdjustmentId: adjustmentId,
+                    term,
+                    year,
+                });
                 try {
                     await insertClinicalBookingPaymentHold({
                         clinicalEnrollmentId: result.enrollmentId,

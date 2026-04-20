@@ -9,6 +9,19 @@
  *   immediately after posting this clinical debit).
  */
 export declare function isClinicalBookingHoldFinanciallySatisfied(balanceBeforeCharge: number, chargeAmount: number, currentBalance: number): boolean;
+export type StudentPortalClinicalBookingHoldDto = {
+    holdExpiresAt: string;
+    remainingSeconds: number;
+    holdStatus: "active" | "expired";
+    clinicalEnrollmentId: number;
+    timetableId: number;
+    slotLabel: string;
+};
+/**
+ * Summarizes the student's most urgent open clinical booking payment hold for the student portal.
+ * DB row must be `active` and tied to an `enrolled` clinical enrollment.
+ */
+export declare function getStudentPortalClinicalBookingHold(studentId: string): Promise<StudentPortalClinicalBookingHoldDto | null>;
 export declare function reconcilePaidClinicalBookingPaymentHoldsForStudent(studentId: string): Promise<void>;
 export type ClinicalBookingPaymentHoldCleanupStats = {
     candidates: number;

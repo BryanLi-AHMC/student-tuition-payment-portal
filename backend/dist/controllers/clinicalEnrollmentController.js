@@ -1,7 +1,8 @@
 import { env } from "../config/env.js";
 import { adminDropClinicalEnrollmentForSlot, dropStudentClinicalEnrollment, enrollStudentInClinicalSlot, listAdminClinicalSlotRoster, listOpenClinicalSlotsForStudent, listStudentClinicalEnrollmentRows, } from "../services/clinicalEnrollmentService.js";
-import { reconcilePaidClinicalBookingPaymentHoldsForStudent, runClinicalBookingPaymentHoldCleanup, } from "../services/clinicalBookingPaymentHoldService.js";
+import { getStudentPortalClinicalBookingHold, reconcilePaidClinicalBookingPaymentHoldsForStudent, runClinicalBookingPaymentHoldCleanup, } from "../services/clinicalBookingPaymentHoldService.js";
 import { ClinicalScheduleValidationError } from "../services/clinicalScheduleService.js";
+import { getClinicTimetableById } from "../repositories/clinicalTimetableRepository.js";
 function devMessage(e) {
     return e instanceof Error ? e.message : typeof e === "string" ? e : String(e);
 }
@@ -52,7 +53,16 @@ export async function getAdminClinicalSlotRosterHandler(req, res) {
             res.status(400).json({ error: "Invalid timetable id" });
             return;
         }
+        const slot = await getClinicTimetableById(tid);
         const rows = await listAdminClinicalSlotRoster(tid);
+        console.info("[clinical-trace] admin clinical roster query", {
+            studentId: null,
+            termYear: slot != null ? `${slot.term.trim()} ${slot.year}` : "unknown",
+            sourceTable: "clinical_enrollments LEFT JOIN students",
+            sourceQuery: "clinicalEnrollmentRepository.listActiveClinicalRosterForTimetable",
+            returnedRowCount: rows.length,
+            timetableId: tid,
+        });
         res.json(rows);
     }
     catch (e) {
@@ -145,7 +155,29 @@ export async function getStudentClinicalEnrollmentsHandler(req, res) {
         const year = parseOptYearQuery(req);
         await reconcilePaidClinicalBookingPaymentHoldsForStudent(sid);
         const rows = await listStudentClinicalEnrollmentRows(sid, { term, year });
-        res.json(rows);
+        const activeClinicalBookingHold = await getStudentPortalClinicalBookingHold(sid);
+        const termYears = rows.map((r) => `${r.term} ${r.year}`);
+        const uniqueTermYears = [...new Set(termYears)];
+        console.info("[clinical-trace] student clinical enrollments query", {
+            studentId: sid,
+            termYear: term != null || year != null
+                ? `${term ?? "*"} ${year ?? "*"}`
+                : uniqueTermYears.length > 0
+                    ? uniqueTermYears
+                    : ["unknown"],
+            sourceTable: "clinical_enrollments INNER JOIN clinic_timetable",
+            sourceQuery: "clinicalEnrollmentRepository.listStudentClinicalEnrollments",
+            returnedRowCount: rows.length,
+        });
+        console.info("[clinical-trace] student current booking hold query", {
+            studentId: sid,
+            termYear: activeClinicalBookingHold != null ? "derived-from-enrollment" : "none",
+            sourceTable: "clinical_booking_payment_holds INNER JOIN clinical_enrollments",
+            sourceQuery: "clinicalBookingPaymentHoldRepository.getUrgentActiveClinicalBookingHoldForStudentPortal",
+            returnedRowCount: activeClinicalBookingHold != null ? 1 : 0,
+            timetableId: activeClinicalBookingHold?.timetableId ?? null,
+        });
+        res.json({ enrollments: rows, activeClinicalBookingHold });
     }
     catch (e) {
         if (e instanceof ClinicalScheduleValidationError) {

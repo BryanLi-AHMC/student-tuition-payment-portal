@@ -4,6 +4,14 @@ export type LedgerQuarterOption = {
     label: string;
 };
 export type LedgerRowSourceType = "system" | "manual_charge" | "manual_payment" | "auto_late_fee";
+/** Present on ledger rows tied to an active clinical booking payment hold. */
+export type LedgerClinicalBookingPaymentHoldDto = {
+    /** ISO-8601 UTC instant when the hold window ends. */
+    holdExpiresAt: string;
+    /** Whole seconds remaining at response time (server clock); clients should tick from `holdExpiresAt`. */
+    remainingSeconds: number;
+    holdStatus: string;
+};
 export type LedgerRowDto = {
     date: string;
     type: string;
@@ -15,6 +23,7 @@ export type LedgerRowDto = {
     sourceId: string | number | null;
     isEditable: boolean;
     isDeletable: boolean;
+    clinicalBookingPaymentHold?: LedgerClinicalBookingPaymentHoldDto | null;
 };
 export type LedgerSummaryDto = {
     totalCharges: number;
