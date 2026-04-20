@@ -47,6 +47,8 @@ export type AdminClinicalSlotDto = {
   cap200: number;
   cap300: number;
   cap123: number;
+  /** Non-dropped `clinical_enrollments` for this slot (admin list + roster index). */
+  activeEnrolledCount: number;
 };
 
 export type AdminClinicalSlotCreateInput = {
@@ -95,6 +97,7 @@ function rowToDto(row: ClinicTimetableAdminRow): AdminClinicalSlotDto {
     cap200: row.cap_200,
     cap300: row.cap_300,
     cap123: row.cap_123,
+    activeEnrolledCount: row.active_enrolled_count,
   };
 }
 
@@ -328,6 +331,7 @@ export async function createAdminClinicalSlot(
     withJoin ?? {
       ...created,
       academic_term_id: null,
+      active_enrolled_count: 0,
     },
   );
 }
@@ -453,6 +457,7 @@ export async function updateAdminClinicalSlot(
     withJoin ?? {
       ...updated,
       academic_term_id: null,
+      active_enrolled_count: 0,
     },
   );
 }

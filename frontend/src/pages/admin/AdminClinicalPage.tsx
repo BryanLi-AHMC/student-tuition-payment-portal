@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import {
   createAdminClinicalSlot,
   deleteAdminClinicalSlot,
@@ -8,7 +7,6 @@ import {
   fetchAdminClinicalRequests,
   fetchAdminClinicalSlots,
   fetchAdminClinicalSlotRoster,
-  fetchAdminStudents,
   postApproveClinicalRequest,
   postRejectClinicalRequest,
   updateAdminClinicalSlot,
@@ -16,13 +14,8 @@ import {
   type AdminClinicalSlot,
   type AdminClinicalSlotRosterRow,
   type AdminPendingClinicalRequestItem,
-  type AdminStudentClinicalProgressSummary,
-  type AdminStudentListItem,
 } from '../../lib/api'
 import { WEEKDAYS_FULL_ORDERED } from '../../lib/weekdaySchedule'
-
-const PAGE_SIZE = 25
-const SEARCH_DEBOUNCE_MS = 300
 
 type AdminClinicalTabId = 'roster' | 'requests' | 'slots'
 
@@ -77,36 +70,23 @@ function slotRowToForm(
   }
 }
 
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebounced(value), delayMs)
-    return () => window.clearTimeout(t)
-  }, [value, delayMs])
-  return debounced
-}
-
-function clinicalReadinessLabel(
-  readiness: AdminStudentClinicalProgressSummary['readiness'],
-): string {
-  return readiness === 'ready' ? 'Ready' : 'Not ready'
-}
-
 function formatClinicalRosterBookedAt(iso: string): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString()
 }
 
+function academicTermDisplayLabel(
+  terms: AcademicTerm[] | null,
+  termId: string,
+): string {
+  const id = termId.trim()
+  if (id === '') return '—'
+  const t = (terms ?? []).find((x) => x.id === id)
+  return t ? `${t.term_label} (${t.year} · ${t.term_name})` : '—'
+}
+
 export function AdminClinicalPage() {
   const [tab, setTab] = useState<AdminClinicalTabId>('roster')
-  const [q, setQ] = useState('')
-  const debouncedSearch = useDebouncedValue(q.trim(), SEARCH_DEBOUNCE_MS)
-  const [page, setPage] = useState(1)
-  const [rows, setRows] = useState<AdminStudentListItem[] | null>(null)
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
 
   const [pendingRequests, setPendingRequests] = useState<
     AdminPendingClinicalRequestItem[] | null
@@ -138,51 +118,6 @@ export function AdminClinicalPage() {
   const [rosterLoading, setRosterLoading] = useState(false)
   const [rosterError, setRosterError] = useState<string | null>(null)
   const [rosterRemovingKey, setRosterRemovingKey] = useState<string | null>(null)
-
-  const debouncedSearchPrev = useRef<string | null>(null)
-  useEffect(() => {
-    if (debouncedSearchPrev.current === null) {
-      debouncedSearchPrev.current = debouncedSearch
-      return
-    }
-    if (debouncedSearchPrev.current !== debouncedSearch) {
-      debouncedSearchPrev.current = debouncedSearch
-      setPage(1)
-    }
-  }, [debouncedSearch])
-
-  useEffect(() => {
-    const ac = new AbortController()
-    setLoading(true)
-    setError(null)
-    ;(async () => {
-      try {
-        const res = await fetchAdminStudents({
-          signal: ac.signal,
-          page,
-          pageSize: PAGE_SIZE,
-          search: debouncedSearch,
-          clinicalSummary: true,
-        })
-        if (ac.signal.aborted) return
-        setRows(res.items)
-        setTotal(res.total)
-        setError(null)
-      } catch (e) {
-        if (ac.signal.aborted) return
-        setRows(null)
-        setTotal(0)
-        setError(
-          e instanceof Error ? e.message : 'Could not load clinical roster.',
-        )
-      } finally {
-        if (!ac.signal.aborted) {
-          setLoading(false)
-        }
-      }
-    })()
-    return () => ac.abort()
-  }, [page, debouncedSearch, reloadKey])
 
   useEffect(() => {
     const ac = new AbortController()
@@ -227,7 +162,7 @@ export function AdminClinicalPage() {
   }, [])
 
   useEffect(() => {
-    if (tab !== 'slots') return
+    if (tab !== 'slots' && tab !== 'roster') return
     const ac = new AbortController()
     if (slotsTermId.trim() === '') {
       setSlots(null)
@@ -260,7 +195,7 @@ export function AdminClinicalPage() {
   }, [tab, slotsTermId, slotsReloadKey])
 
   useEffect(() => {
-    if (tab !== 'slots') {
+    if (tab === 'requests') {
       setRosterSlot(null)
     }
   }, [tab])
@@ -297,15 +232,13 @@ export function AdminClinicalPage() {
     return () => ac.abort()
   }, [rosterSlot])
 
-  const items = rows ?? []
-  const sectionLoading = loading && rows === null && error === null
-
-  const canGoPrev = page > 1 && !sectionLoading && !error
-  const canGoNext =
-    !sectionLoading && !error && page * PAGE_SIZE < total
-
-  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
-  const rangeEnd = Math.min(page * PAGE_SIZE, total)
+  const rosterTermLabel = academicTermDisplayLabel(terms, slotsTermId)
+  const rosterSlotsLoading = slotsLoading && slots === null && slotsError === null
+  const rosterSlotsReady =
+    slotsTermId.trim() !== '' &&
+    !slotsLoading &&
+    !slotsError &&
+    slots != null
 
   return (
     <main className="admin-page">
@@ -362,48 +295,68 @@ export function AdminClinicalPage() {
       {tab === 'roster' ? (
         <>
           <div className="admin-page__toolbar">
-            <div className="admin-page__toolbar-actions">
-              <input
-                type="search"
-                className="admin-input admin-input--search"
-                placeholder="Search by student ID, name, email, or program"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                aria-label="Search clinical roster"
-                disabled={sectionLoading || Boolean(error)}
-              />
+            <div className="admin-page__toolbar-actions" style={{ width: '100%' }}>
+              <label
+                htmlFor="admin-clinical-roster-term-filter"
+                className="portal-card-note"
+                style={{
+                  marginRight: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                Academic term
+                <select
+                  id="admin-clinical-roster-term-filter"
+                  className="admin-input"
+                  style={{ minWidth: '14rem' }}
+                  value={slotsTermId}
+                  onChange={(e) => setSlotsTermId(e.target.value)}
+                >
+                  <option value="">Select term…</option>
+                  {(terms ?? []).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.term_label} ({t.year} · {t.term_name})
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
 
-          {sectionLoading ? (
+          {slotsTermId.trim() === '' ? (
+            <p className="portal-card-note" style={{ marginTop: '0.75rem' }}>
+              Select an academic term to view slot rosters for that term.
+            </p>
+          ) : null}
+
+          {slotsTermId.trim() !== '' && rosterSlotsLoading ? (
             <section
               className="portal-card portal-profile-state"
               aria-busy="true"
               aria-live="polite"
             >
-              <p className="portal-profile-state__title">Loading clinical roster</p>
+              <p className="portal-profile-state__title">Loading slots</p>
               <p className="portal-profile-state__detail">
-                Please wait while we load each student&apos;s clinical progress from
-                the school database.
+                Fetching clinical timetable rows for the selected term.
               </p>
             </section>
           ) : null}
 
-          {!sectionLoading && error ? (
+          {slotsTermId.trim() !== '' && slotsError ? (
             <section
               className="portal-card portal-profile-state portal-profile-state--error"
               role="alert"
-              aria-live="assertive"
             >
-              <p className="portal-profile-state__title">
-                We could not load the clinical roster
-              </p>
-              <p className="portal-profile-state__detail">{error}</p>
+              <p className="portal-profile-state__title">Could not load slots</p>
+              <p className="portal-profile-state__detail">{slotsError}</p>
               <div className="portal-actions portal-profile-state__actions">
                 <button
                   type="button"
                   className="portal-btn portal-btn--secondary"
-                  onClick={() => setReloadKey((k) => k + 1)}
+                  onClick={() => setSlotsReloadKey((k) => k + 1)}
                 >
                   Try again
                 </button>
@@ -411,152 +364,71 @@ export function AdminClinicalPage() {
             </section>
           ) : null}
 
-          {!sectionLoading && !error && rows != null ? (
-            <>
-              <div className="portal-table-wrap admin-table-wrap">
-                <table className="portal-table portal-data-table admin-students-table--center">
-                  <thead>
+          {rosterSlotsReady ? (
+            <div className="portal-table-wrap admin-table-wrap">
+              <table className="portal-table portal-data-table admin-students-table--center">
+                <thead>
+                  <tr>
+                    <th scope="col">Academic term</th>
+                    <th scope="col">Day</th>
+                    <th scope="col">Time</th>
+                    <th scope="col">Slot</th>
+                    <th scope="col">Instructor</th>
+                    <th scope="col">Capacities (100 / 200 / 300 / All)</th>
+                    <th scope="col">Active enrolled</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {slots.length === 0 ? (
                     <tr>
-                      <th scope="col">Student ID</th>
-                      <th scope="col">Name</th>
-                      <th scope="col">Clinical level</th>
-                      <th scope="col">Completed hours</th>
-                      <th scope="col">Required hours</th>
-                      <th scope="col">Readiness</th>
-                      <th scope="col">Missing</th>
-                      <th scope="col">Actions</th>
+                      <td colSpan={8} className="portal-card-note">
+                        No clinical slots for this term yet.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {items.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="portal-card-note">
-                          {total === 0 && debouncedSearch === ''
-                            ? 'No students on file.'
-                            : 'No students match your search.'}
+                  ) : (
+                    slots.map((s) => (
+                      <tr key={s.id}>
+                        <td>{rosterTermLabel}</td>
+                        <td>{s.weekday || '—'}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          {s.timeFrom || '—'}–{s.timeTo || '—'}
+                        </td>
+                        <td>{s.slot}</td>
+                        <td
+                          style={{
+                            maxWidth: '12rem',
+                            textAlign: 'left',
+                            whiteSpace: 'normal',
+                          }}
+                        >
+                          {s.instructor || '—'}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          {s.cap100} / {s.cap200} / {s.cap300} / {s.cap123}
+                        </td>
+                        <td>{s.activeEnrolledCount}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="portal-btn portal-btn--secondary"
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              fontSize: '0.8125rem',
+                            }}
+                            onClick={() => {
+                              setRosterSlot(s)
+                            }}
+                          >
+                            View Roster
+                          </button>
                         </td>
                       </tr>
-                    ) : (
-                      items.map((r) => {
-                        const s = r.clinicalProgressSummary
-                        return (
-                          <tr key={r.studentId}>
-                            <td>{r.studentId}</td>
-                            <td>{r.name}</td>
-                            <td>
-                              {s ? (
-                                <span className="portal-status portal-status--scheduled">
-                                  Level {s.level}
-                                </span>
-                              ) : (
-                                '—'
-                              )}
-                            </td>
-                            <td>{s != null ? s.completedHours : '—'}</td>
-                            <td>{s != null ? s.requiredHours : '—'}</td>
-                            <td>
-                              {s ? (
-                                <span
-                                  className={
-                                    s.readiness === 'ready'
-                                      ? 'portal-status portal-status--paid'
-                                      : 'portal-status portal-status--pending'
-                                  }
-                                >
-                                  {clinicalReadinessLabel(s.readiness)}
-                                </span>
-                              ) : (
-                                '—'
-                              )}
-                            </td>
-                            <td
-                              style={{
-                                maxWidth: '14rem',
-                                textAlign: 'left',
-                                whiteSpace: 'normal',
-                              }}
-                            >
-                              {s == null ? (
-                                '—'
-                              ) : s.missingCount === 0 ? (
-                                <span className="portal-card-note">None</span>
-                              ) : (
-                                <>
-                                  <span className="portal-card-note">
-                                    {s.missingCount}{' '}
-                                    {s.missingCount === 1 ? 'item' : 'items'}
-                                  </span>
-                                  {s.missingSummary ? (
-                                    <div
-                                      style={{
-                                        marginTop: '0.25rem',
-                                        fontSize: '0.8125rem',
-                                        lineHeight: 1.35,
-                                      }}
-                                    >
-                                      {s.missingSummary}
-                                    </div>
-                                  ) : null}
-                                </>
-                              )}
-                            </td>
-                            <td>
-                              <Link
-                                to={`/admin/clinical/${encodeURIComponent(r.studentId)}`}
-                                className="portal-btn portal-btn--secondary"
-                                style={{
-                                  display: 'inline-flex',
-                                  padding: '0.35rem 0.65rem',
-                                  fontSize: '0.8125rem',
-                                }}
-                              >
-                                View
-                              </Link>
-                            </td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div
-                className="portal-actions"
-                style={{
-                  marginTop: '1rem',
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  gap: '0.75rem 1rem',
-                }}
-              >
-                <span className="portal-card-note" style={{ marginRight: 'auto' }}>
-                  {total === 0
-                    ? '0 results'
-                    : `Showing ${rangeStart}–${rangeEnd} of ${total}`}
-                </span>
-                <button
-                  type="button"
-                  className="portal-btn portal-btn--secondary"
-                  disabled={!canGoPrev}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Previous
-                </button>
-                <span className="portal-card-note" aria-current="page">
-                  Page {page}
-                </span>
-                <button
-                  type="button"
-                  className="portal-btn portal-btn--secondary"
-                  disabled={!canGoNext}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           ) : null}
         </>
       ) : null}
@@ -1267,177 +1139,174 @@ export function AdminClinicalPage() {
               </div>
             </div>
           ) : null}
-
-          {rosterSlot != null ? (
-            <div
-              className="admin-section-detail-backdrop"
-              role="presentation"
-              onMouseDown={(ev) => {
-                if (ev.target === ev.currentTarget && rosterRemovingKey == null) {
-                  setRosterSlot(null)
-                }
-              }}
-            >
-              <div
-                className="admin-section-detail-modal admin-section-detail-modal--form-wide"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="admin-clinical-slot-roster-title"
-              >
-                <h2
-                  id="admin-clinical-slot-roster-title"
-                  className="admin-section-detail-modal__title"
-                >
-                  Slot roster
-                </h2>
-                <p className="admin-section-detail-modal__meta">
-                  Slot #{rosterSlot.id} · {rosterSlot.weekday}{' '}
-                  {rosterSlot.timeFrom}–{rosterSlot.timeTo} · {rosterSlot.slot}
-                  {rosterSlot.instructor ? ` · ${rosterSlot.instructor}` : ''}
-                </p>
-                {rosterLoading && rosterRows === null ? (
-                  <p className="portal-card-note" aria-live="polite">
-                    Loading roster…
-                  </p>
-                ) : null}
-                {rosterError ? (
-                  <p className="portal-page-lede" role="alert">
-                    {rosterError}
-                  </p>
-                ) : null}
-                {!rosterLoading && rosterRows != null && rosterRows.length === 0 ? (
-                  <p className="portal-card-note">
-                    No students with a non-dropped enrollment for this slot.
-                  </p>
-                ) : null}
-                {rosterRows != null && rosterRows.length > 0 ? (
-                  <div
-                    className="portal-table-wrap admin-table-wrap"
-                    style={{ marginTop: '0.75rem', maxHeight: '50vh', overflow: 'auto' }}
-                  >
-                    <table className="portal-table portal-data-table admin-students-table--center">
-                      <thead>
-                        <tr>
-                          <th scope="col">Student ID</th>
-                          <th scope="col">Name</th>
-                          <th scope="col">Email</th>
-                          <th scope="col">Status</th>
-                          <th scope="col">Booked at</th>
-                          <th scope="col">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rosterRows.map((r) => {
-                          const removeKey = `${r.enrollmentId}:${r.studentId}`
-                          const removing = rosterRemovingKey === removeKey
-                          const canRemove =
-                            r.status.trim().toLowerCase() === 'enrolled'
-                          return (
-                            <tr key={removeKey}>
-                              <td>{r.studentId}</td>
-                              <td
-                                style={{
-                                  maxWidth: '12rem',
-                                  textAlign: 'left',
-                                  whiteSpace: 'normal',
-                                }}
-                              >
-                                {r.studentName}
-                              </td>
-                              <td
-                                style={{
-                                  maxWidth: '14rem',
-                                  textAlign: 'left',
-                                  whiteSpace: 'normal',
-                                }}
-                              >
-                                {r.email ?? '—'}
-                              </td>
-                              <td>{r.status}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>
-                                {formatClinicalRosterBookedAt(r.createdAt)}
-                              </td>
-                              <td>
-                                {canRemove ? (
-                                  <button
-                                    type="button"
-                                    className="portal-btn portal-btn--secondary"
-                                    style={{
-                                      padding: '0.35rem 0.65rem',
-                                      fontSize: '0.8125rem',
-                                    }}
-                                    disabled={removing}
-                                    onClick={() => {
-                                      if (
-                                        !window.confirm(
-                                          `Remove ${r.studentName} (${r.studentId}) from this slot? Their enrollment will be marked dropped.`,
-                                        )
-                                      ) {
-                                        return
-                                      }
-                                      setRosterRemovingKey(removeKey)
-                                      ;(async () => {
-                                        try {
-                                          await deleteAdminClinicalSlotEnrollment(
-                                            rosterSlot.id,
-                                            r.enrollmentId,
-                                            r.studentId,
-                                          )
-                                          setRosterRows((prev) =>
-                                            prev == null
-                                              ? prev
-                                              : prev.filter(
-                                                  (x) =>
-                                                    x.enrollmentId !== r.enrollmentId,
-                                                ),
-                                          )
-                                        } catch (e) {
-                                          window.alert(
-                                            e instanceof Error
-                                              ? e.message
-                                              : 'Remove failed.',
-                                          )
-                                        } finally {
-                                          setRosterRemovingKey(null)
-                                        }
-                                      })()
-                                    }}
-                                  >
-                                    {removing ? '…' : 'Remove'}
-                                  </button>
-                                ) : (
-                                  <span
-                                    className="portal-card-note"
-                                    title="Only enrolled rows can be removed here."
-                                  >
-                                    —
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : null}
-                <div
-                  className="portal-actions"
-                  style={{ marginTop: '1rem', justifyContent: 'flex-end' }}
-                >
-                  <button
-                    type="button"
-                    className="portal-btn portal-btn--secondary"
-                    disabled={rosterRemovingKey != null}
-                    onClick={() => setRosterSlot(null)}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
         </>
+      ) : null}
+
+      {rosterSlot != null ? (
+        <div
+          className="admin-section-detail-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget && rosterRemovingKey == null) {
+              setRosterSlot(null)
+            }
+          }}
+        >
+          <div
+            className="admin-section-detail-modal admin-section-detail-modal--form-wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-clinical-slot-roster-title"
+          >
+            <h2
+              id="admin-clinical-slot-roster-title"
+              className="admin-section-detail-modal__title"
+            >
+              Slot roster
+            </h2>
+            <p className="admin-section-detail-modal__meta">
+              Slot #{rosterSlot.id} · {rosterSlot.weekday}{' '}
+              {rosterSlot.timeFrom}–{rosterSlot.timeTo} · {rosterSlot.slot}
+              {rosterSlot.instructor ? ` · ${rosterSlot.instructor}` : ''}
+            </p>
+            {rosterLoading && rosterRows === null ? (
+              <p className="portal-card-note" aria-live="polite">
+                Loading roster…
+              </p>
+            ) : null}
+            {rosterError ? (
+              <p className="portal-page-lede" role="alert">
+                {rosterError}
+              </p>
+            ) : null}
+            {!rosterLoading && rosterRows != null && rosterRows.length === 0 ? (
+              <p className="portal-card-note">
+                No students with a non-dropped enrollment for this slot.
+              </p>
+            ) : null}
+            {rosterRows != null && rosterRows.length > 0 ? (
+              <div
+                className="portal-table-wrap admin-table-wrap"
+                style={{ marginTop: '0.75rem', maxHeight: '50vh', overflow: 'auto' }}
+              >
+                <table className="portal-table portal-data-table admin-students-table--center">
+                  <thead>
+                    <tr>
+                      <th scope="col">Student ID</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Email</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Booked at</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rosterRows.map((r) => {
+                      const removeKey = `${r.enrollmentId}:${r.studentId}`
+                      const removing = rosterRemovingKey === removeKey
+                      const canRemove = r.status.trim().toLowerCase() === 'enrolled'
+                      return (
+                        <tr key={removeKey}>
+                          <td>{r.studentId}</td>
+                          <td
+                            style={{
+                              maxWidth: '12rem',
+                              textAlign: 'left',
+                              whiteSpace: 'normal',
+                            }}
+                          >
+                            {r.studentName}
+                          </td>
+                          <td
+                            style={{
+                              maxWidth: '14rem',
+                              textAlign: 'left',
+                              whiteSpace: 'normal',
+                            }}
+                          >
+                            {r.email ?? '—'}
+                          </td>
+                          <td>{r.status}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {formatClinicalRosterBookedAt(r.createdAt)}
+                          </td>
+                          <td>
+                            {canRemove ? (
+                              <button
+                                type="button"
+                                className="portal-btn portal-btn--secondary"
+                                style={{
+                                  padding: '0.35rem 0.65rem',
+                                  fontSize: '0.8125rem',
+                                }}
+                                disabled={removing}
+                                onClick={() => {
+                                  if (
+                                    !window.confirm(
+                                      `Remove ${r.studentName} (${r.studentId}) from this slot? Their enrollment will be marked dropped.`,
+                                    )
+                                  ) {
+                                    return
+                                  }
+                                  setRosterRemovingKey(removeKey)
+                                  ;(async () => {
+                                    try {
+                                      await deleteAdminClinicalSlotEnrollment(
+                                        rosterSlot.id,
+                                        r.enrollmentId,
+                                        r.studentId,
+                                      )
+                                      setRosterRows((prev) =>
+                                        prev == null
+                                          ? prev
+                                          : prev.filter(
+                                              (x) => x.enrollmentId !== r.enrollmentId,
+                                            ),
+                                      )
+                                      setSlotsReloadKey((k) => k + 1)
+                                    } catch (e) {
+                                      window.alert(
+                                        e instanceof Error ? e.message : 'Remove failed.',
+                                      )
+                                    } finally {
+                                      setRosterRemovingKey(null)
+                                    }
+                                  })()
+                                }}
+                              >
+                                {removing ? '…' : 'Remove'}
+                              </button>
+                            ) : (
+                              <span
+                                className="portal-card-note"
+                                title="Only enrolled rows can be removed here."
+                              >
+                                —
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            <div
+              className="portal-actions"
+              style={{ marginTop: '1rem', justifyContent: 'flex-end' }}
+            >
+              <button
+                type="button"
+                className="portal-btn portal-btn--secondary"
+                disabled={rosterRemovingKey != null}
+                onClick={() => setRosterSlot(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </main>
   )

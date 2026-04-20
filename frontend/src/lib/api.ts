@@ -2042,6 +2042,8 @@ export type AdminClinicalSlot = {
   cap200: number
   cap300: number
   cap123: number
+  /** Non-dropped enrollments on this timetable slot (from admin slot list SQL). */
+  activeEnrolledCount: number
 }
 
 export type CreateAdminClinicalSlotBody = {
@@ -2077,7 +2079,9 @@ function isAdminClinicalSlot(x: unknown): x is AdminClinicalSlot {
     typeof o.cap100 === 'number' &&
     typeof o.cap200 === 'number' &&
     typeof o.cap300 === 'number' &&
-    typeof o.cap123 === 'number'
+    typeof o.cap123 === 'number' &&
+    typeof o.activeEnrolledCount === 'number' &&
+    Number.isFinite(o.activeEnrolledCount)
   )
 }
 
