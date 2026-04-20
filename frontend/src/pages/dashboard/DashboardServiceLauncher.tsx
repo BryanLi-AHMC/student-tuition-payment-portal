@@ -9,7 +9,6 @@ const SERVICE_TITLE_KEY: Record<DashboardService['icon'], StudentPortalKey> = {
   registration: 'registrationModule',
   finances: 'finances',
   academics: 'academics',
-  clinical: 'clinicalModule',
   documents: 'documents',
   account: 'myAccount',
 }

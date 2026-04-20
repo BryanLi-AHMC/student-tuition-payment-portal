@@ -10,7 +10,8 @@
   --portal-ai-shadow: 0 12px 40px rgba(28, 35, 51, 0.14), 0 4px 12px rgba(28, 35, 51, 0.08);
   position: fixed;
   inset: 0;
-  z-index: 85;
+  /* Above app chrome (40–50), sidebars, and in-content overlays; below browser devtools */
+  z-index: 10000;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -31,15 +32,16 @@
 
 .portal-ai-assistant-dock {
   position: fixed;
-  z-index: 87;
+  z-index: 1;
   display: flex;
   flex-direction: row;
   align-items: flex-end;
   gap: 8px;
-  right: max(1rem, env(safe-area-inset-right));
-  bottom: max(1rem, env(safe-area-inset-bottom));
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(32px, env(safe-area-inset-bottom));
   left: auto;
   top: auto;
+  cursor: default;
 }
 
 .portal-ai-assistant-dock--cat-hidden {
@@ -83,10 +85,11 @@
 }
 
 .portal-ai-assistant-dock--mobile-fallback {
-  right: max(0.75rem, env(safe-area-inset-right));
-  bottom: auto;
+  /* Same corner as desktop: header-anchored top placement hid the assistant on busy home layouts */
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(32px, env(safe-area-inset-bottom));
   left: auto;
-  top: max(0.75rem, calc(env(safe-area-inset-top) + var(--portal-header-height, 9rem) + 0.25rem));
+  top: auto;
 }
 
 .portal-ai-assistant-dock__cat-hit:focus-visible {
@@ -192,6 +195,7 @@
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
+  cursor: pointer;
   margin: 0;
   padding: 0;
   border: none;

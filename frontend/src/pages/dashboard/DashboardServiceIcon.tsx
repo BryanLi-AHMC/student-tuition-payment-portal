@@ -2,7 +2,6 @@ import type { ComponentType, SVGProps } from 'react'
 import type { DashboardService } from './dashboardMockData'
 import {
   IconAcademics,
-  IconClinical,
   IconDocument,
   IconFinance,
   IconMyAccount,
@@ -13,7 +12,6 @@ const SERVICE_ICON: Record<DashboardService['icon'], ComponentType<SVGProps<SVGS
   registration: IconRegistration,
   finances: IconFinance,
   academics: IconAcademics,
-  clinical: IconClinical,
   documents: IconDocument,
   account: IconMyAccount,
 }

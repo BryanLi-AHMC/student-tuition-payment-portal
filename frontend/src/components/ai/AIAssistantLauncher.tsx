@@ -3,7 +3,6 @@ import { useStudentPortalT } from '@/LanguageContext'
 import { AIAssistantBrandTitle } from './AIAssistantBrandTitle'
 import { AIAssistantPanel } from './AIAssistantPanel'
 import { AIAssistantDockCat } from './AIAssistantPet'
-import { useAIAssistantMobileAnchor } from './AIAssistantMobileAnchorContext'
 import { useAIAssistantContext } from './AIAssistantProvider'
 import { useAIAssistantCatDragEnabled, useAIAssistantDockPosition } from './useAIAssistantDockPosition'
 import { useAIAssistantMinimizedBarDrag } from './useAIAssistantMinimizedBarDrag'
@@ -22,8 +21,6 @@ export function AIAssistantLauncher() {
   const messagesRegionId = `${baseId}-messages`
   const dockRef = useRef<HTMLDivElement>(null)
   const minimizedFloatRef = useRef<HTMLDivElement>(null)
-  const { mobileDockAnchorEl } = useAIAssistantMobileAnchor()
-
   const dragEnabled = useAIAssistantCatDragEnabled()
   const contextMenuEnabled = useAIAssistantCatContextMenuEnabled()
   const catSize = useAIAssistantCatDisplaySize()
@@ -62,8 +59,6 @@ export function AIAssistantLauncher() {
     fallbackStyle: layout.desktopMinimizedWrapStyle,
   })
 
-  const mobileAnchorForDock = layout.isMobile ? mobileDockAnchorEl : null
-
   const {
     dockStyle,
     onDockPointerDown,
@@ -72,7 +67,8 @@ export function AIAssistantLauncher() {
     onDockPointerCancel,
   } = useAIAssistantDockPosition(dockRef, dragEnabled, openPanel, {
     isMobile: layout.isMobile,
-    mobileAnchorEl: mobileAnchorForDock,
+    /* Viewport-fixed FAB (bottom-right); header anchors hid the dock on dense headers / small viewports */
+    mobileAnchorEl: null,
   })
 
   const dockClassNames = [
