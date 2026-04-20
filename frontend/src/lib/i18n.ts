@@ -10,7 +10,7 @@ export const STUDENT_PORTAL_EN = {
   // Nav & shell
   registrationModule: 'Registration',
   logout: 'Logout',
-  finances: 'Finances',
+  finances: 'Make a Payment',
   academics: 'Academics',
   clinicalModule: 'Clinical',
   documents: 'Documents',
@@ -1169,7 +1169,7 @@ export type StudentPortalKey = keyof typeof STUDENT_PORTAL_EN
 const STUDENT_PORTAL_ZH: Record<StudentPortalKey, string> = {
   registrationModule: '選課註冊',
   logout: '登出',
-  finances: '財務',
+  finances: '立即繳費',
   academics: '學業',
   clinicalModule: '臨床實習',
   documents: '文件',
