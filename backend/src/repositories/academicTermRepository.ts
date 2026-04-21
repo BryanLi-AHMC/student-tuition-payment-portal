@@ -297,8 +297,8 @@ export type AcademicTermDeleteDependencies = {
 
 export async function countAcademicTermDeleteDependencies(
   id: string,
-  _termName: string,
-  _year: number,
+  termName: string,
+  year: number,
 ): Promise<AcademicTermDeleteDependencies> {
   const existing = await listExistingTables([...TERM_YEAR_TABLES, ...TERM_ID_TABLES]);
   const out: AcademicTermDeleteDependencies = {
@@ -319,9 +319,8 @@ export async function countAcademicTermDeleteDependencies(
   const termYearCountSql = (tableName: string, alias: string): string => `
     SELECT COUNT(*) AS cnt
       FROM ${tableName} ${alias}
-      JOIN academic_terms at ON at.id = ?
-     WHERE ${alias}.term = at.term_name
-       AND ${alias}.year = at.year
+     WHERE ${alias}.term = ?
+       AND ${alias}.year = ?
   `;
 
   const promises: Array<Promise<void>> = [];
@@ -330,7 +329,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("course_sections", "cs"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.courseSections = cnt;
       }),
@@ -340,7 +339,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("portal_enrollments", "pe"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.portalEnrollments = cnt;
       }),
@@ -350,7 +349,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("clinic_timetable", "ct"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.clinicalTimetableSlots = cnt;
       }),
@@ -360,7 +359,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("clinical_enrollments", "ce"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.clinicalEnrollments = cnt;
       }),
@@ -370,7 +369,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("clinical_assignments", "ca"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.clinicalAssignments = cnt;
       }),
@@ -380,7 +379,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("clinical_requests", "cr"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.clinicalRequests = cnt;
       }),
@@ -390,7 +389,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("portal_term_finance_settings", "ptfs"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.portalTermFinanceSettings = cnt;
       }),
@@ -400,7 +399,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("portal_payments", "pp"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.portalPayments = cnt;
       }),
@@ -410,7 +409,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("portal_billing_adjustments", "pba"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.portalBillingAdjustments = cnt;
       }),
@@ -420,7 +419,7 @@ export async function countAcademicTermDeleteDependencies(
     promises.push(
       countRows(
         termYearCountSql("portal_student_term_prefs", "pstp"),
-        [id],
+        [termName, year],
       ).then((cnt) => {
         out.portalStudentTermPrefs = cnt;
       }),

@@ -229,7 +229,7 @@ const TERM_ID_TABLES = [
     "portal_document_requirements",
     "portal_document_requirement_attempts",
 ];
-export async function countAcademicTermDeleteDependencies(id, _termName, _year) {
+export async function countAcademicTermDeleteDependencies(id, termName, year) {
     const existing = await listExistingTables([...TERM_YEAR_TABLES, ...TERM_ID_TABLES]);
     const out = {
         courseSections: 0,
@@ -248,58 +248,57 @@ export async function countAcademicTermDeleteDependencies(id, _termName, _year) 
     const termYearCountSql = (tableName, alias) => `
     SELECT COUNT(*) AS cnt
       FROM ${tableName} ${alias}
-      JOIN academic_terms at ON at.id = ?
-     WHERE ${alias}.term = at.term_name
-       AND ${alias}.year = at.year
+     WHERE ${alias}.term = ?
+       AND ${alias}.year = ?
   `;
     const promises = [];
     if (existing.has("course_sections")) {
-        promises.push(countRows(termYearCountSql("course_sections", "cs"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("course_sections", "cs"), [termName, year]).then((cnt) => {
             out.courseSections = cnt;
         }));
     }
     if (existing.has("portal_enrollments")) {
-        promises.push(countRows(termYearCountSql("portal_enrollments", "pe"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("portal_enrollments", "pe"), [termName, year]).then((cnt) => {
             out.portalEnrollments = cnt;
         }));
     }
     if (existing.has("clinic_timetable")) {
-        promises.push(countRows(termYearCountSql("clinic_timetable", "ct"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("clinic_timetable", "ct"), [termName, year]).then((cnt) => {
             out.clinicalTimetableSlots = cnt;
         }));
     }
     if (existing.has("clinical_enrollments")) {
-        promises.push(countRows(termYearCountSql("clinical_enrollments", "ce"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("clinical_enrollments", "ce"), [termName, year]).then((cnt) => {
             out.clinicalEnrollments = cnt;
         }));
     }
     if (existing.has("clinical_assignments")) {
-        promises.push(countRows(termYearCountSql("clinical_assignments", "ca"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("clinical_assignments", "ca"), [termName, year]).then((cnt) => {
             out.clinicalAssignments = cnt;
         }));
     }
     if (existing.has("clinical_requests")) {
-        promises.push(countRows(termYearCountSql("clinical_requests", "cr"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("clinical_requests", "cr"), [termName, year]).then((cnt) => {
             out.clinicalRequests = cnt;
         }));
     }
     if (existing.has("portal_term_finance_settings")) {
-        promises.push(countRows(termYearCountSql("portal_term_finance_settings", "ptfs"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("portal_term_finance_settings", "ptfs"), [termName, year]).then((cnt) => {
             out.portalTermFinanceSettings = cnt;
         }));
     }
     if (existing.has("portal_payments")) {
-        promises.push(countRows(termYearCountSql("portal_payments", "pp"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("portal_payments", "pp"), [termName, year]).then((cnt) => {
             out.portalPayments = cnt;
         }));
     }
     if (existing.has("portal_billing_adjustments")) {
-        promises.push(countRows(termYearCountSql("portal_billing_adjustments", "pba"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("portal_billing_adjustments", "pba"), [termName, year]).then((cnt) => {
             out.portalBillingAdjustments = cnt;
         }));
     }
     if (existing.has("portal_student_term_prefs")) {
-        promises.push(countRows(termYearCountSql("portal_student_term_prefs", "pstp"), [id]).then((cnt) => {
+        promises.push(countRows(termYearCountSql("portal_student_term_prefs", "pstp"), [termName, year]).then((cnt) => {
             out.portalStudentTermPrefs = cnt;
         }));
     }
