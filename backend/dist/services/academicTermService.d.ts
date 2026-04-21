@@ -14,4 +14,16 @@ export declare function postAcademicTermToDashboard(id: string): Promise<Academi
 export declare function academicTermPaymentPolicyColumnsAvailable(): Promise<boolean>;
 export declare function createAcademicTerm(input: CreateAcademicTermInput): Promise<AcademicTermDetail>;
 export declare function updateAcademicTerm(id: string, patch: UpdateAcademicTermInput): Promise<AcademicTermDetail | null>;
+export type AcademicTermDeleteDependencyCategory = {
+    label: string;
+    count: number;
+};
+export type DeleteAcademicTermResult = {
+    ok: true;
+} | {
+    ok: false;
+    code: "invalid_id" | "not_found" | "has_dependencies";
+    error: string;
+};
+export declare function deleteAcademicTerm(id: string): Promise<DeleteAcademicTermResult>;
 //# sourceMappingURL=academicTermService.d.ts.map

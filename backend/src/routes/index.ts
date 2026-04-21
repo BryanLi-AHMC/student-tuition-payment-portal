@@ -69,6 +69,7 @@ import {
   postStudentWithdraw,
 } from "../controllers/studentEnrollmentController.js";
 import {
+  deleteAdminAcademicTerm,
   getAcademicTerms,
   getAcademicTermsCurrent,
   getAcademicTermsCurrentPosted,
@@ -203,6 +204,7 @@ adminRouter.get("/finance/:studentId/ledger", getAdminFinanceLedgerHandler);
 adminRouter.post("/academic-terms", postAdminAcademicTerm);
 adminRouter.post("/academic-terms/:id/post", postAdminAcademicTermPost);
 adminRouter.patch("/academic-terms/:id", patchAdminAcademicTerm);
+adminRouter.delete("/academic-terms/:id", deleteAdminAcademicTerm);
 adminRouter.get("/clinical/timetable", getAdminClinicalTimetableHandler);
 adminRouter.get(
   "/clinical/slots/:timetableId/roster",

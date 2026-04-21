@@ -239,6 +239,222 @@ export async function getPostedToDashboardTerm(): Promise<AcademicTermDetail | n
   return row ? normalizeRow(row) : null;
 }
 
+async function listExistingTables(tableNames: readonly string[]): Promise<Set<string>> {
+  if (tableNames.length === 0) return new Set<string>();
+  const placeholders = tableNames.map(() => "?").join(", ");
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT TABLE_NAME
+       FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME IN (${placeholders})`,
+    [...tableNames],
+  );
+  return new Set(rows.map((r) => String(r.TABLE_NAME ?? "").trim()));
+}
+
+async function countRows(
+  sql: string,
+  params: readonly (string | number)[],
+): Promise<number> {
+  const [rows] = await pool.query<RowDataPacket[]>(sql, [...params]);
+  const cntRaw = rows[0]?.cnt;
+  const cnt = Number(cntRaw);
+  return Number.isFinite(cnt) && cnt > 0 ? Math.trunc(cnt) : 0;
+}
+
+const TERM_YEAR_TABLES = [
+  "course_sections",
+  "portal_enrollments",
+  "portal_student_term_prefs",
+  "portal_payments",
+  "portal_billing_adjustments",
+  "portal_term_finance_settings",
+  "clinic_timetable",
+  "clinical_enrollments",
+  "clinical_assignments",
+  "clinical_requests",
+] as const;
+
+const TERM_ID_TABLES = [
+  "portal_document_requirements",
+  "portal_document_requirement_attempts",
+] as const;
+
+export type AcademicTermDeleteDependencies = {
+  courseSections: number;
+  portalEnrollments: number;
+  clinicalTimetableSlots: number;
+  clinicalEnrollments: number;
+  clinicalAssignments: number;
+  clinicalRequests: number;
+  portalDocumentRequirements: number;
+  portalDocumentRequirementAttempts: number;
+  portalTermFinanceSettings: number;
+  portalPayments: number;
+  portalBillingAdjustments: number;
+  portalStudentTermPrefs: number;
+};
+
+export async function countAcademicTermDeleteDependencies(
+  id: string,
+  termName: string,
+  year: number,
+): Promise<AcademicTermDeleteDependencies> {
+  const existing = await listExistingTables([...TERM_YEAR_TABLES, ...TERM_ID_TABLES]);
+  const t = termName.trim();
+  const y = Math.trunc(year);
+  const out: AcademicTermDeleteDependencies = {
+    courseSections: 0,
+    portalEnrollments: 0,
+    clinicalTimetableSlots: 0,
+    clinicalEnrollments: 0,
+    clinicalAssignments: 0,
+    clinicalRequests: 0,
+    portalDocumentRequirements: 0,
+    portalDocumentRequirementAttempts: 0,
+    portalTermFinanceSettings: 0,
+    portalPayments: 0,
+    portalBillingAdjustments: 0,
+    portalStudentTermPrefs: 0,
+  };
+
+  const termYearWhere = `
+    TRIM(term) COLLATE utf8mb4_unicode_ci =
+      CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    AND year = ?
+  `;
+
+  const promises: Array<Promise<void>> = [];
+
+  if (existing.has("course_sections")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM course_sections WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.courseSections = cnt;
+      }),
+    );
+  }
+  if (existing.has("portal_enrollments")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM portal_enrollments WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.portalEnrollments = cnt;
+      }),
+    );
+  }
+  if (existing.has("clinic_timetable")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM clinic_timetable WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.clinicalTimetableSlots = cnt;
+      }),
+    );
+  }
+  if (existing.has("clinical_enrollments")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM clinical_enrollments WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.clinicalEnrollments = cnt;
+      }),
+    );
+  }
+  if (existing.has("clinical_assignments")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM clinical_assignments WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.clinicalAssignments = cnt;
+      }),
+    );
+  }
+  if (existing.has("clinical_requests")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM clinical_requests WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.clinicalRequests = cnt;
+      }),
+    );
+  }
+  if (existing.has("portal_term_finance_settings")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM portal_term_finance_settings WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.portalTermFinanceSettings = cnt;
+      }),
+    );
+  }
+  if (existing.has("portal_payments")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM portal_payments WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.portalPayments = cnt;
+      }),
+    );
+  }
+  if (existing.has("portal_billing_adjustments")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM portal_billing_adjustments WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.portalBillingAdjustments = cnt;
+      }),
+    );
+  }
+  if (existing.has("portal_student_term_prefs")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt FROM portal_student_term_prefs WHERE ${termYearWhere}`,
+        [t, y],
+      ).then((cnt) => {
+        out.portalStudentTermPrefs = cnt;
+      }),
+    );
+  }
+  if (existing.has("portal_document_requirements")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt
+           FROM portal_document_requirements
+          WHERE academic_term_id = ?`,
+        [id],
+      ).then((cnt) => {
+        out.portalDocumentRequirements = cnt;
+      }),
+    );
+  }
+  if (existing.has("portal_document_requirement_attempts")) {
+    promises.push(
+      countRows(
+        `SELECT COUNT(*) AS cnt
+           FROM portal_document_requirement_attempts
+          WHERE academic_term_id = ?`,
+        [id],
+      ).then((cnt) => {
+        out.portalDocumentRequirementAttempts = cnt;
+      }),
+    );
+  }
+
+  await Promise.all(promises);
+  return out;
+}
+
 /**
  * Clears all posted flags, then marks `id` as posted. Requires `is_posted_to_dashboard` column.
  */
@@ -488,4 +704,12 @@ export async function updateAcademicTermRow(
     await pool.query<ResultSetHeader>(sql, params);
   }
   return getAcademicTermById(row.id);
+}
+
+export async function deleteAcademicTermById(id: string): Promise<boolean> {
+  const [result] = await pool.query<ResultSetHeader>(
+    `DELETE FROM academic_terms WHERE id = ?`,
+    [id],
+  );
+  return result.affectedRows > 0;
 }

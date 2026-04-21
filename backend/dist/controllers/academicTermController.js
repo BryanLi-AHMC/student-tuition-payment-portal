@@ -1,5 +1,5 @@
 import { env } from "../config/env.js";
-import { academicTermPaymentPolicyColumnsAvailable, createAcademicTerm, getCurrentRegistrationOpenTerm, getPostedToDashboardTerm, listAllAcademicTerms, listRecentVisibleTerms, isAcademicTermName, isAcademicTermStatus, postAcademicTermToDashboard, updateAcademicTerm, } from "../services/academicTermService.js";
+import { academicTermPaymentPolicyColumnsAvailable, createAcademicTerm, deleteAcademicTerm, getCurrentRegistrationOpenTerm, getPostedToDashboardTerm, listAllAcademicTerms, listRecentVisibleTerms, isAcademicTermName, isAcademicTermStatus, postAcademicTermToDashboard, updateAcademicTerm, } from "../services/academicTermService.js";
 function devMessage(e) {
     return e instanceof Error ? e.message : typeof e === "string" ? e : String(e);
 }
@@ -363,6 +363,38 @@ export async function patchAdminAcademicTerm(req, res) {
         console.error("[admin/academic-terms] update failed:", e);
         const body = {
             error: "Failed to update academic term",
+        };
+        if (env.nodeEnv === "development")
+            body.message = devMessage(e);
+        res.status(500).json(body);
+    }
+}
+export async function deleteAdminAcademicTerm(req, res) {
+    try {
+        const id = pathTermId(req);
+        if (!id) {
+            res.status(400).json({ error: "Invalid term id" });
+            return;
+        }
+        const result = await deleteAcademicTerm(id);
+        if (!result.ok) {
+            if (result.code === "not_found") {
+                res.status(404).json({ error: result.error });
+                return;
+            }
+            if (result.code === "invalid_id") {
+                res.status(400).json({ error: result.error });
+                return;
+            }
+            res.status(409).json({ error: result.error });
+            return;
+        }
+        res.json({ ok: true });
+    }
+    catch (e) {
+        console.error("[admin/academic-terms] delete failed:", e);
+        const body = {
+            error: "Failed to delete academic term",
         };
         if (env.nodeEnv === "development")
             body.message = devMessage(e);

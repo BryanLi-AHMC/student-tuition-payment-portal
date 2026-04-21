@@ -7,4 +7,5 @@ export declare function getAcademicTermsCurrentPosted(_req: Request, res: Respon
 export declare function postAdminAcademicTerm(req: Request, res: Response): Promise<void>;
 export declare function postAdminAcademicTermPost(req: Request, res: Response): Promise<void>;
 export declare function patchAdminAcademicTerm(req: Request, res: Response): Promise<void>;
+export declare function deleteAdminAcademicTerm(req: Request, res: Response): Promise<void>;
 //# sourceMappingURL=academicTermController.d.ts.map

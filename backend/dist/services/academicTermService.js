@@ -1,4 +1,4 @@
-import { academicTermSchemaCaps, getAcademicTermById, insertAcademicTerm, listAcademicTerms, listRecentVisibleAcademicTerms, listVisibleAcademicTerms, getCurrentRegistrationOpenTerm as repoGetCurrentRegistrationOpenTerm, getPostedToDashboardTerm as repoGetPostedToDashboardTerm, postAcademicTermToDashboard as repoPostAcademicTermToDashboard, updateAcademicTermRow, } from "../repositories/academicTermRepository.js";
+import { academicTermSchemaCaps, countAcademicTermDeleteDependencies, deleteAcademicTermById, getAcademicTermById, insertAcademicTerm, listAcademicTerms, listRecentVisibleAcademicTerms, listVisibleAcademicTerms, getCurrentRegistrationOpenTerm as repoGetCurrentRegistrationOpenTerm, getPostedToDashboardTerm as repoGetPostedToDashboardTerm, postAcademicTermToDashboard as repoPostAcademicTermToDashboard, updateAcademicTermRow, } from "../repositories/academicTermRepository.js";
 const TERM_NAMES = [
     "Winter",
     "Spring",
@@ -201,5 +201,52 @@ export async function updateAcademicTerm(id, patch) {
         }
         throw e;
     }
+}
+function blockingDependencyCategories(counts) {
+    return [
+        { label: "course section(s)", count: counts.courseSections },
+        { label: "enrollment record(s)", count: counts.portalEnrollments },
+        { label: "clinical timetable slot(s)", count: counts.clinicalTimetableSlots },
+        { label: "clinical enrollment(s)", count: counts.clinicalEnrollments },
+        { label: "clinical assignment(s)", count: counts.clinicalAssignments },
+        { label: "clinical request(s)", count: counts.clinicalRequests },
+        { label: "document requirement assignment(s)", count: counts.portalDocumentRequirements },
+        {
+            label: "document requirement attempt(s)",
+            count: counts.portalDocumentRequirementAttempts,
+        },
+        { label: "term finance setting row(s)", count: counts.portalTermFinanceSettings },
+        { label: "payment record(s)", count: counts.portalPayments },
+        { label: "billing adjustment record(s)", count: counts.portalBillingAdjustments },
+        { label: "student term preference row(s)", count: counts.portalStudentTermPrefs },
+    ].filter((entry) => entry.count > 0);
+}
+function formatDependencySummary(blocking) {
+    const detail = blocking.map((entry) => `${entry.count} ${entry.label}`).join(", ");
+    return `This term cannot be deleted because it is still referenced by ${detail}.`;
+}
+export async function deleteAcademicTerm(id) {
+    const trimmed = id.trim();
+    if (!trimmed) {
+        return { ok: false, code: "invalid_id", error: "Invalid term id." };
+    }
+    const term = await getAcademicTermById(trimmed);
+    if (!term) {
+        return { ok: false, code: "not_found", error: "Academic term not found." };
+    }
+    const dependencyCounts = await countAcademicTermDeleteDependencies(term.id, term.term_name, term.year);
+    const blocking = blockingDependencyCategories(dependencyCounts);
+    if (blocking.length > 0) {
+        return {
+            ok: false,
+            code: "has_dependencies",
+            error: formatDependencySummary(blocking),
+        };
+    }
+    const deleted = await deleteAcademicTermById(term.id);
+    if (!deleted) {
+        return { ok: false, code: "not_found", error: "Academic term not found." };
+    }
+    return { ok: true };
 }
 //# sourceMappingURL=academicTermService.js.map

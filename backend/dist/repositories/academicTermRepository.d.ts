@@ -17,6 +17,21 @@ export declare function listRecentVisibleAcademicTerms(limit?: number): Promise<
 export declare function getAcademicTermById(id: string): Promise<AcademicTermDetail | null>;
 export declare function getCurrentRegistrationOpenTerm(): Promise<AcademicTermDetail | null>;
 export declare function getPostedToDashboardTerm(): Promise<AcademicTermDetail | null>;
+export type AcademicTermDeleteDependencies = {
+    courseSections: number;
+    portalEnrollments: number;
+    clinicalTimetableSlots: number;
+    clinicalEnrollments: number;
+    clinicalAssignments: number;
+    clinicalRequests: number;
+    portalDocumentRequirements: number;
+    portalDocumentRequirementAttempts: number;
+    portalTermFinanceSettings: number;
+    portalPayments: number;
+    portalBillingAdjustments: number;
+    portalStudentTermPrefs: number;
+};
+export declare function countAcademicTermDeleteDependencies(id: string, termName: string, year: number): Promise<AcademicTermDeleteDependencies>;
 /**
  * Clears all posted flags, then marks `id` as posted. Requires `is_posted_to_dashboard` column.
  */
@@ -29,4 +44,5 @@ export declare function insertAcademicTerm(row: AcademicTermInsertRow): Promise<
  * Full row replace by current primary key `currentId` (supports changing `id` when year/term_name change).
  */
 export declare function updateAcademicTermRow(currentId: string, row: AcademicTermInsertRow): Promise<AcademicTermDetail | null>;
+export declare function deleteAcademicTermById(id: string): Promise<boolean>;
 //# sourceMappingURL=academicTermRepository.d.ts.map

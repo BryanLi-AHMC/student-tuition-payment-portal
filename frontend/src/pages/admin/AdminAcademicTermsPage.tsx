@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createAcademicTerm,
+  deleteAcademicTerm,
   fetchAcademicTerms,
   postAcademicTermToDashboard,
   updateAcademicTerm,
@@ -106,6 +107,9 @@ export function AdminAcademicTermsPage() {
   const [form, setForm] = useState<TermForm>(() => defaultAddForm(1))
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [actionNotice, setActionNotice] = useState<string | null>(null)
   const [postingId, setPostingId] = useState<string | null>(null)
   const [postError, setPostError] = useState<string | null>(null)
 
@@ -140,6 +144,7 @@ export function AdminAcademicTermsPage() {
     setEditingId(null)
     setForm(defaultAddForm(nextSequence))
     setFormError(null)
+    setShowDeleteConfirm(false)
     setModalMode('add')
   }
 
@@ -147,14 +152,16 @@ export function AdminAcademicTermsPage() {
     setEditingId(t.id)
     setForm(termToForm(t))
     setFormError(null)
+    setShowDeleteConfirm(false)
     setModalMode('edit')
   }
 
   function closeModal() {
-    if (saving) return
+    if (saving || deleting) return
     setModalMode(null)
     setEditingId(null)
     setFormError(null)
+    setShowDeleteConfirm(false)
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -241,6 +248,37 @@ export function AdminAcademicTermsPage() {
     }
   }
 
+  function openDeleteConfirm() {
+    if (modalMode !== 'edit' || !editingId || saving || deleting) return
+    setFormError(null)
+    setShowDeleteConfirm(true)
+  }
+
+  function closeDeleteConfirm() {
+    if (deleting) return
+    setShowDeleteConfirm(false)
+  }
+
+  async function onConfirmDelete() {
+    if (!editingId) return
+    const deletingId = editingId
+    setDeleting(true)
+    setFormError(null)
+    try {
+      await deleteAcademicTerm(deletingId)
+      setRows((prev) => (prev == null ? prev : prev.filter((row) => row.id !== deletingId)))
+      setActionNotice(`Academic term ${deletingId} deleted.`)
+      setShowDeleteConfirm(false)
+      setModalMode(null)
+      setEditingId(null)
+    } catch (err) {
+      setShowDeleteConfirm(false)
+      setFormError(err instanceof Error ? err.message : 'Delete failed.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const sectionLoading = loading && rows === null && error === null
 
   return (
@@ -260,6 +298,11 @@ export function AdminAcademicTermsPage() {
           </button>
         </div>
       </div>
+      {actionNotice ? (
+        <p className="portal-card-note" role="status">
+          {actionNotice}
+        </p>
+      ) : null}
 
       {sectionLoading ? (
         <section
@@ -653,10 +696,21 @@ export function AdminAcademicTermsPage() {
               ) : null}
 
               <div className="admin-section-detail-modal__actions">
+                {modalMode === 'edit' ? (
+                  <button
+                    type="button"
+                    className="portal-btn portal-btn--admin-danger portal-btn--compact"
+                    disabled={saving || deleting}
+                    style={{ marginRight: 'auto' }}
+                    onClick={openDeleteConfirm}
+                  >
+                    Delete Term
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="portal-btn portal-btn--secondary portal-btn--compact"
-                  disabled={saving}
+                  disabled={saving || deleting}
                   onClick={closeModal}
                 >
                   Cancel
@@ -664,12 +718,62 @@ export function AdminAcademicTermsPage() {
                 <button
                   type="submit"
                   className="portal-btn portal-btn--primary portal-btn--compact"
-                  disabled={saving}
+                  disabled={saving || deleting}
                 >
                   {saving ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showDeleteConfirm && modalMode === 'edit' ? (
+        <div
+          className="admin-section-detail-backdrop"
+          role="presentation"
+          onMouseDown={(ev) => {
+            if (ev.target === ev.currentTarget) closeDeleteConfirm()
+          }}
+        >
+          <div
+            className="admin-section-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-academic-term-delete-title"
+          >
+            <h2
+              id="admin-academic-term-delete-title"
+              className="admin-section-detail-modal__title"
+            >
+              Delete Term
+            </h2>
+            <p className="admin-section-detail-modal__meta">
+              Are you sure you want to delete this academic term?
+            </p>
+            <p className="admin-section-detail-modal__meta">
+              This action cannot be undone. Deletion may be blocked if this term is
+              still referenced by records such as sections, enrollments, clinical
+              scheduling records, or compliance documents.
+            </p>
+            <div className="admin-section-detail-modal__actions">
+              <button
+                type="button"
+                className="portal-btn portal-btn--secondary portal-btn--compact"
+                disabled={deleting}
+                onClick={closeDeleteConfirm}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="portal-btn portal-btn--admin-danger portal-btn--compact"
+                disabled={deleting}
+                onClick={() => void onConfirmDelete()}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

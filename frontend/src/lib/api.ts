@@ -3338,6 +3338,26 @@ export async function postAcademicTermToDashboard(
   return term
 }
 
+/** DELETE /api/admin/academic-terms/:id — removes a term when it has no dependencies. */
+export async function deleteAcademicTerm(
+  id: string,
+  options?: { signal?: AbortSignal },
+): Promise<void> {
+  const path = `/api/admin/academic-terms/${encodeURIComponent(id)}`
+  const data = (await fetchApiJson(path, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    signal: options?.signal,
+  })) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected delete academic term response')
+  }
+  const ok = (data as { ok?: unknown }).ok
+  if (ok !== true) {
+    throw new Error('Unexpected delete academic term response')
+  }
+}
+
 /** GET /api/courses — catalog rows for admin scheduling pickers. */
 export type CourseCatalogItem = {
   course_id: string | null
