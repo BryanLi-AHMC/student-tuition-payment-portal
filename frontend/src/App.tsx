@@ -41,6 +41,7 @@ import { EnrollmentVerificationPage } from './pages/academics/EnrollmentVerifica
 import { ClinicalModuleShell } from './pages/clinical/ClinicalModuleShell'
 import { ClinicalSchedulePage } from './pages/clinical/ClinicalSchedulePage'
 import { ClinicalAddDropPage } from './pages/clinical/ClinicalAddDropPage'
+import { ClinicalProgressPage } from './pages/clinical/ClinicalProgressPage'
 import { DocumentsLayout } from './pages/documents/DocumentsLayout'
 import { DocumentsHomePage } from './pages/documents/DocumentsHomePage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -188,6 +189,7 @@ export default function App() {
                 <Route index element={<Navigate to="schedule" replace />} />
                 <Route path="schedule" element={<ClinicalSchedulePage />} />
                 <Route path="my-schedule" element={<ClinicalAddDropPage />} />
+                <Route path="progress" element={<ClinicalProgressPage />} />
                 <Route path="offered-timetable" element={<Navigate to="../schedule" replace />} />
                 <Route path="add-drop" element={<Navigate to="../my-schedule" replace />} />
                 <Route path="exam-practice" element={<Navigate to="../schedule" replace />} />

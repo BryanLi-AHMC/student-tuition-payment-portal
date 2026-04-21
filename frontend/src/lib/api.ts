@@ -1773,6 +1773,63 @@ export async function fetchStudentClinicalSchedule(
   return data
 }
 
+/** GET /api/student/clinical-progress?studentId= — passed rows from legacy `clinic` (grade P only). */
+export type StudentClinicalProgressRecord = {
+  code: string
+  courseTitle: string
+  term: string
+  year: number
+  grade: string
+  hours: number
+}
+
+export type StudentClinicalProgressResponse = {
+  completedCount: number
+  totalHours: number
+  records: StudentClinicalProgressRecord[]
+}
+
+function isStudentClinicalProgressRecord(x: unknown): x is StudentClinicalProgressRecord {
+  if (x == null || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  const year = Number(o.year)
+  const hours = Number(o.hours)
+  return (
+    typeof o.code === 'string' &&
+    typeof o.courseTitle === 'string' &&
+    typeof o.term === 'string' &&
+    Number.isFinite(year) &&
+    typeof o.grade === 'string' &&
+    Number.isFinite(hours)
+  )
+}
+
+function isStudentClinicalProgressResponse(x: unknown): x is StudentClinicalProgressResponse {
+  if (x == null || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  const completedCount = Number(o.completedCount)
+  const totalHours = Number(o.totalHours)
+  if (!Number.isFinite(completedCount) || !Number.isFinite(totalHours)) return false
+  if (!Array.isArray(o.records)) return false
+  for (const row of o.records) {
+    if (!isStudentClinicalProgressRecord(row)) return false
+  }
+  return true
+}
+
+export async function fetchStudentClinicalProgress(
+  studentId: string,
+  options?: { signal?: AbortSignal },
+): Promise<StudentClinicalProgressResponse> {
+  const qs = new URLSearchParams({ studentId: studentId.trim() })
+  const path = `/api/student/clinical-progress?${qs.toString()}`
+  const data = (await fetchApiJson(path, { signal: options?.signal })) as unknown
+  if (!isStudentClinicalProgressResponse(data)) {
+    throw new Error('Unexpected clinical progress response')
+  }
+  return data
+}
+
 /** GET /api/students/:studentId/clinical-enrollments/open */
 export type StudentOpenClinicalEnrollmentSlot = {
   timetableId: number

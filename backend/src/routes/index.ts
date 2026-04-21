@@ -69,6 +69,7 @@ import {
   postStudentEnroll,
   postStudentWithdraw,
 } from "../controllers/studentEnrollmentController.js";
+import { getStudentClinicalProgressHandler } from "../controllers/studentClinicalProgressController.js";
 import {
   deleteAdminAcademicTerm,
   getAcademicTerms,
@@ -128,6 +129,7 @@ apiRouter.post("/auth/login", postStudentLogin);
 apiRouter.post("/student/enroll", postStudentEnroll);
 apiRouter.post("/student/withdraw", postStudentWithdraw);
 apiRouter.get("/student/enrolled-sections", getStudentEnrolledSections);
+apiRouter.get("/student/clinical-progress", getStudentClinicalProgressHandler);
 apiRouter.put("/student/profile", putStudentProfile);
 
 apiRouter.post("/ai/ask", postAiAsk);
