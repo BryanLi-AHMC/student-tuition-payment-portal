@@ -42,7 +42,14 @@ function weekdayColumnLabel(
   return t(WEEKDAY_FULL_TO_LABEL[full])
 }
 
-export function ClinicalOfferedTimetablePage() {
+export type ClinicalOfferedTimetablePageProps = {
+  /** Render inside admin (or other) shell without a nested document `<main>`. */
+  embedded?: boolean
+}
+
+export function ClinicalOfferedTimetablePage({
+  embedded = false,
+}: ClinicalOfferedTimetablePageProps) {
   const t = useStudentPortalT()
   const [searchParams] = useSearchParams()
   const [recentTerms, setRecentTerms] = useState<AcademicTerm[]>([])
@@ -133,10 +140,17 @@ export function ClinicalOfferedTimetablePage() {
 
   const bodyHeightPx = timetableBodyHeightPx(CLINICAL_OFFERED_GRID)
 
+  const Root = embedded ? 'div' : 'main'
+  const rootClassName = embedded
+    ? 'portal-clinical-offered-timetable portal-clinical-offered-timetable--embedded'
+    : 'portal-page portal-clinical-offered-timetable'
+
   return (
-    <main
-      className="portal-page portal-clinical-offered-timetable"
+    <Root
+      className={rootClassName}
       data-registration-term={selectedTermId.trim() || undefined}
+      role={embedded ? 'region' : undefined}
+      aria-labelledby={embedded ? 'clinical-offered-tt-heading' : undefined}
     >
       <section className="portal-card portal-stack" aria-labelledby="clinical-offered-tt-heading">
         <h2 id="clinical-offered-tt-heading" className="portal-section-heading">
@@ -226,6 +240,6 @@ export function ClinicalOfferedTimetablePage() {
           </div>
         )}
       </section>
-    </main>
+    </Root>
   )
 }

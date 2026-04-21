@@ -1648,6 +1648,10 @@ select.portal-profile-input {
   text-align: left;
 }
 
+.admin-page .portal-clinical-offered-timetable--embedded {
+  margin-top: 0;
+}
+
 .portal-offered-section-modal-backdrop {
   position: fixed;
   inset: 0;

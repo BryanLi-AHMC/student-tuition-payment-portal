@@ -16,8 +16,9 @@ import {
   type AdminPendingClinicalRequestItem,
 } from '../../lib/api'
 import { WEEKDAYS_FULL_ORDERED } from '../../lib/weekdaySchedule'
+import { ClinicalOfferedTimetablePage } from '../clinical/ClinicalOfferedTimetablePage'
 
-type AdminClinicalTabId = 'roster' | 'requests' | 'slots'
+type AdminClinicalTabId = 'roster' | 'requests' | 'slots' | 'offered-timetable'
 
 type SlotModalMode = 'add' | 'edit' | null
 
@@ -289,6 +290,20 @@ export function AdminClinicalPage() {
           onClick={() => setTab('slots')}
         >
           Manage Slots
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'offered-timetable'}
+          className={[
+            'portal-tab',
+            tab === 'offered-timetable' ? 'portal-tab--active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          onClick={() => setTab('offered-timetable')}
+        >
+          Offered Timetable
         </button>
       </div>
 
@@ -1140,6 +1155,10 @@ export function AdminClinicalPage() {
             </div>
           ) : null}
         </>
+      ) : null}
+
+      {tab === 'offered-timetable' ? (
+        <ClinicalOfferedTimetablePage embedded />
       ) : null}
 
       {rosterSlot != null ? (
