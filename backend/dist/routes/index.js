@@ -15,6 +15,7 @@ import { getStudentTranscriptPreview } from "../controllers/studentTranscriptCon
 import { getDemoAccount, getDemoActivity, getStudentAccount, getStudentActivity, getStudentProfile, putStudentProfile, } from "../controllers/studentAccountController.js";
 import { postStudentLogin } from "../controllers/studentAuthController.js";
 import { getStudentEnrolledSections, postStudentEnroll, postStudentWithdraw, } from "../controllers/studentEnrollmentController.js";
+import { getStudentClinicalProgressHandler } from "../controllers/studentClinicalProgressController.js";
 import { deleteAdminAcademicTerm, getAcademicTerms, getAcademicTermsCurrent, getAcademicTermsCurrentPosted, getAcademicTermsRecent, patchAdminAcademicTerm, postAdminAcademicTerm, postAdminAcademicTermPost, } from "../controllers/academicTermController.js";
 import { postAiAsk } from "../controllers/aiAskController.js";
 import { getAdminClinicalRequestsHandler, getStudentClinicalRequestsHandler, postApproveClinicalRequestHandler, postRejectClinicalRequestHandler, postStudentClinicalRequestHandler, } from "../controllers/clinicalRequestController.js";
@@ -30,6 +31,7 @@ apiRouter.post("/auth/login", postStudentLogin);
 apiRouter.post("/student/enroll", postStudentEnroll);
 apiRouter.post("/student/withdraw", postStudentWithdraw);
 apiRouter.get("/student/enrolled-sections", getStudentEnrolledSections);
+apiRouter.get("/student/clinical-progress", getStudentClinicalProgressHandler);
 apiRouter.put("/student/profile", putStudentProfile);
 apiRouter.post("/ai/ask", postAiAsk);
 apiRouter.get("/courses", getCourses);
