@@ -1,11 +1,12 @@
 /**
- * Student-facing clinical completion rows from legacy `clinic` only (grade P, raw hours),
- * plus fixed clinical exam history from the same `clinic` table.
+ * Student-facing clinical completion rows from legacy `clinic` (non-empty grade + hours),
+ * plus fixed clinical exam history from legacy `marks` (transcript source — not `clinic`).
  */
 
 import type { Pool, RowDataPacket } from "mysql2/promise";
 
 import { CLINICAL_EXAMS } from "../constants/clinicalExams.js";
+import { MARKS_ORDER_BY_NEWEST } from "./studentAcademicsRepository.js";
 
 export type StudentClinicalProgressRecord = {
   code: string;
@@ -35,36 +36,31 @@ function numHours(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function numYear(v: unknown): number {
+function optionalYearNum(v: unknown): number | null {
   const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? n : null;
 }
 
-type ClinicExamRow = {
+type MarksExamRow = {
   code: string;
   grade: string;
   term: string;
-  year: number;
+  year: number | null;
 };
 
-function codeStartsWithExamCode(codeRaw: string, examCode: string): boolean {
-  const c = codeRaw.trim().toUpperCase();
-  const p = examCode.trim().toUpperCase();
-  return c.startsWith(p);
-}
-
-function gradeIsPresent(gradeRaw: string): boolean {
-  return str(gradeRaw) !== "";
-}
-
 /**
- * Fixed list of five clinical exams, merged with `clinic` rows (code prefix match, same student).
- * Status: any matching row with non-empty grade → Completed; else any row → Pending Grade; else Not Taken.
+ * Fixed list of five clinical exams merged with `marks` rows (code prefix match).
+ * `marksRows` should be ordered newest-first so the first prefix match is the latest attempt.
  */
-function buildClinicalExamHistory(examRows: ClinicExamRow[]): StudentClinicalExamHistoryItem[] {
+function buildClinicalExamHistoryFromMarks(
+  marksRows: MarksExamRow[],
+): StudentClinicalExamHistoryItem[] {
   return CLINICAL_EXAMS.map(({ code: examCode, name: examName }) => {
-    const matches = examRows.filter((r) => codeStartsWithExamCode(r.code, examCode));
-    if (matches.length === 0) {
+    const examPrefix = examCode.trim().toUpperCase();
+    const record = marksRows.find((m) =>
+      m.code.trim().toUpperCase().startsWith(examPrefix),
+    );
+    if (!record) {
       return {
         code: examCode,
         examName,
@@ -74,35 +70,31 @@ function buildClinicalExamHistory(examRows: ClinicExamRow[]): StudentClinicalExa
         year: null,
       };
     }
-    const sorted = [...matches].sort((a, b) => {
-      if (b.year !== a.year) return b.year - a.year;
-      return str(b.term).localeCompare(str(a.term));
-    });
-    const graded = sorted.find((r) => gradeIsPresent(r.grade));
-    if (graded) {
+    const grade = str(record.grade);
+    if (grade === "") {
       return {
         code: examCode,
         examName,
-        status: "Completed" as const,
-        grade: str(graded.grade),
-        term: str(graded.term) || null,
-        year: Number.isFinite(graded.year) ? graded.year : null,
+        status: "Pending Grade" as const,
+        grade: null,
+        term: str(record.term) || null,
+        year: record.year,
       };
     }
-    const latest = sorted[0]!;
     return {
       code: examCode,
       examName,
-      status: "Pending Grade" as const,
-      grade: null,
-      term: str(latest.term) || null,
-      year: Number.isFinite(latest.year) ? latest.year : null,
+      status: "Completed" as const,
+      grade,
+      term: str(record.term) || null,
+      year: record.year,
     };
   });
 }
 
 /**
- * Lists passed clinical rows and a summary from `clinic` (source of truth for this endpoint).
+ * Lists completed clinical rows (any non-empty grade) and hours from `clinic`;
+ * exam history from `marks` only.
  */
 export async function loadStudentClinicalProgressFromClinic(
   pool: Pool,
@@ -114,8 +106,8 @@ export async function loadStudentClinicalProgressFromClinic(
   exams: StudentClinicalExamHistoryItem[];
 }> {
   const sid = studentId.trim();
-  const baseWhere = `TRIM(id) = TRIM(?)
-     AND UPPER(TRIM(grade)) = 'P'`;
+  const clinicCompletedWhere = `TRIM(id) = TRIM(?)
+     AND TRIM(COALESCE(grade, '')) <> ''`;
 
   const [detailRows] = await pool.query<RowDataPacket[]>(
     `SELECT code,
@@ -125,8 +117,8 @@ export async function loadStudentClinicalProgressFromClinic(
             grade,
             hours
      FROM clinic
-     WHERE ${baseWhere}
-     ORDER BY \`year\`, term`,
+     WHERE ${clinicCompletedWhere}
+     ORDER BY \`year\`, term, code`,
     [sid],
   );
 
@@ -134,7 +126,7 @@ export async function loadStudentClinicalProgressFromClinic(
     `SELECT COUNT(*) AS completedCount,
             COALESCE(SUM(hours), 0) AS totalHours
      FROM clinic
-     WHERE ${baseWhere}`,
+     WHERE ${clinicCompletedWhere}`,
     [sid],
   );
 
@@ -154,30 +146,30 @@ export async function loadStudentClinicalProgressFromClinic(
     };
   });
 
-  const examLikeConditions = CLINICAL_EXAMS.map(
-    () => `UPPER(TRIM(code)) LIKE CONCAT(?, '%')`,
-  ).join("\n         OR ");
-
-  const [examDetailRows] = await pool.query<RowDataPacket[]>(
-    `SELECT code, grade, term, \`year\`
-     FROM clinic
+  const [marksExamRowsRaw] = await pool.query<RowDataPacket[]>(
+    `SELECT TRIM(code) AS code,
+            course_title,
+            grade,
+            TRIM(term) AS term,
+            \`year\`
+     FROM marks
      WHERE TRIM(id) = TRIM(?)
-       AND (${examLikeConditions})
-     ORDER BY \`year\` DESC, term DESC`,
-    [sid, ...CLINICAL_EXAMS.map((e) => e.code.toUpperCase())],
+       AND UPPER(TRIM(code)) LIKE 'CL%'
+     ORDER BY ${MARKS_ORDER_BY_NEWEST}`,
+    [sid],
   );
 
-  const examRows: ClinicExamRow[] = examDetailRows.map((r) => {
+  const marksExamRows: MarksExamRow[] = marksExamRowsRaw.map((r) => {
     const row = r as Record<string, unknown>;
     return {
       code: str(row.code),
       grade: str(row.grade),
       term: str(row.term),
-      year: numYear(row.year),
+      year: optionalYearNum(row.year),
     };
   });
 
-  const exams = buildClinicalExamHistory(examRows);
+  const exams = buildClinicalExamHistoryFromMarks(marksExamRows);
 
   return {
     completedCount: Number.isFinite(completedCountRaw)

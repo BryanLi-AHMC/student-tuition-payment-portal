@@ -1,6 +1,6 @@
 /**
- * Student-facing clinical completion rows from legacy `clinic` only (grade P, raw hours),
- * plus fixed clinical exam history from the same `clinic` table.
+ * Student-facing clinical completion rows from legacy `clinic` (non-empty grade + hours),
+ * plus fixed clinical exam history from legacy `marks` (transcript source — not `clinic`).
  */
 import type { Pool } from "mysql2/promise";
 export type StudentClinicalProgressRecord = {
@@ -20,7 +20,8 @@ export type StudentClinicalExamHistoryItem = {
     year: number | null;
 };
 /**
- * Lists passed clinical rows and a summary from `clinic` (source of truth for this endpoint).
+ * Lists completed clinical rows (any non-empty grade) and hours from `clinic`;
+ * exam history from `marks` only.
  */
 export declare function loadStudentClinicalProgressFromClinic(pool: Pool, studentId: string): Promise<{
     completedCount: number;

@@ -1773,7 +1773,7 @@ export async function fetchStudentClinicalSchedule(
   return data
 }
 
-/** GET /api/student/clinical-progress?studentId= — passed rows from legacy `clinic` (grade P only). */
+/** GET /api/student/clinical-progress?studentId= — clinic rows with grade; exams from `marks` (CL%). */
 export type StudentClinicalProgressRecord = {
   code: string
   courseTitle: string
