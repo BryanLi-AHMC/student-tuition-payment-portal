@@ -51,8 +51,9 @@ export function PaymentCardForm({
       <form className="portal-finance-checkout-form" onSubmit={onSubmit}>
         <label className="portal-finance-checkout-form__field">
           <span>Card number</span>
-          <div className="portal-finance-checkout-form__input-wrap portal-finance-checkout-form__input-wrap--card-number">
+          <div className="portal-finance-checkout-form__input-wrap portal-finance-checkout-form__input-wrap--card-number card-input-wrapper">
             <input
+              className="card-number-input"
               type="text"
               inputMode="numeric"
               autoComplete="cc-number"
@@ -62,7 +63,7 @@ export function PaymentCardForm({
               disabled={busy}
               required
             />
-            <div className="portal-finance-checkout-form__trailing-icons" aria-hidden="true">
+            <div className="portal-finance-checkout-form__trailing-icons card-brand-icons" aria-hidden="true">
               <img src="/visa.png" alt="" />
               <img src="/master.png" alt="" />
               <img src="/amex.png" alt="" />
@@ -102,8 +103,9 @@ export function PaymentCardForm({
           </label>
           <label className="portal-finance-checkout-form__field">
             <span>CVV</span>
-            <div className="portal-finance-checkout-form__input-wrap portal-finance-checkout-form__input-wrap--cvv">
+            <div className="portal-finance-checkout-form__input-wrap portal-finance-checkout-form__input-wrap--cvv card-input-wrapper">
               <input
+                className="cvv-input"
                 type="password"
                 inputMode="numeric"
                 autoComplete="cc-csc"
@@ -113,7 +115,7 @@ export function PaymentCardForm({
                 disabled={busy}
                 required
               />
-              <div className="portal-finance-checkout-form__trailing-icon" aria-hidden="true">
+              <div className="portal-finance-checkout-form__trailing-icon cvv-icon" aria-hidden="true">
                 <img src="/CVC.png" alt="" />
               </div>
             </div>

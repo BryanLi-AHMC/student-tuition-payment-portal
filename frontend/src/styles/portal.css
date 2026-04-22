@@ -2581,34 +2581,35 @@ select.portal-profile-input {
 }
 
 .portal-finance-checkout-form__input-wrap--card-number input {
-  padding-right: 8.9rem;
+  padding-right: 8.5rem;
 }
 
 .portal-finance-checkout-form__input-wrap--cvv input {
-  padding-right: 2.8rem;
+  padding-right: 2.75rem;
 }
 
 .portal-finance-checkout-form__trailing-icons {
   position: absolute;
-  right: 0.55rem;
+  right: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.5rem;
   pointer-events: none;
 }
 
 .portal-finance-checkout-form__trailing-icons img {
-  width: 1.4rem;
-  height: 0.95rem;
+  width: auto;
+  height: 1.375rem;
   object-fit: contain;
-  border-radius: 0.15rem;
+  display: block;
+  border-radius: 0.12rem;
 }
 
 .portal-finance-checkout-form__trailing-icon {
   position: absolute;
-  right: 0.65rem;
+  right: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -2617,9 +2618,59 @@ select.portal-profile-input {
 }
 
 .portal-finance-checkout-form__trailing-icon img {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: auto;
+  height: 1.1875rem;
   object-fit: contain;
+  display: block;
+}
+
+.card-input-wrapper {
+  position: relative;
+}
+
+.card-number-input {
+  padding-right: 8.5rem;
+}
+
+.card-brand-icons {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.card-brand-icons img {
+  height: 1.375rem;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  opacity: 1;
+}
+
+.cvv-input {
+  padding-right: 2.75rem;
+}
+
+.cvv-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.cvv-icon img {
+  height: 1.1875rem;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  opacity: 1;
 }
 
 .portal-finance-checkout-form__triple {
@@ -2686,17 +2737,42 @@ select.portal-profile-input {
   }
 
   .portal-finance-checkout-form__input-wrap--card-number input {
-    padding-right: 7.4rem;
+    padding-right: 7.5rem;
   }
 
   .portal-finance-checkout-form__trailing-icons {
-    right: 0.45rem;
-    gap: 0.22rem;
+    right: 0.75rem;
+    gap: 0.35rem;
   }
 
   .portal-finance-checkout-form__trailing-icons img {
-    width: 1.15rem;
-    height: 0.78rem;
+    width: auto;
+    height: 1.1875rem;
+  }
+
+  .card-number-input {
+    padding-right: 7.5rem;
+  }
+
+  .card-brand-icons {
+    right: 0.75rem;
+    gap: 0.35rem;
+  }
+
+  .card-brand-icons img {
+    height: 1.1875rem;
+  }
+
+  .cvv-input {
+    padding-right: 2.5rem;
+  }
+
+  .cvv-icon {
+    right: 0.75rem;
+  }
+
+  .cvv-icon img {
+    height: 1.125rem;
   }
 
   .portal-finance-checkout-card__header--form {
