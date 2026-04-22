@@ -273,4 +273,25 @@ export async function getUrgentActiveClinicalBookingHoldForStudentPortal(student
         holdExpiresAt: exp,
     };
 }
+export async function getLatestClinicalBookingPaymentHoldStatusForStudentQuarter(studentId, term, year) {
+    if (!(await clinicalBookingPaymentHoldsTableExists()))
+        return null;
+    const sid = studentId.trim();
+    const tm = term.trim();
+    if (sid === "" || tm === "" || !Number.isFinite(year))
+        return null;
+    const [rows] = await pool.query(`SELECT TRIM(status) AS status
+       FROM clinical_booking_payment_holds
+      WHERE TRIM(student_id) = TRIM(?)
+        AND TRIM(term) = TRIM(?)
+        AND year = ?
+      ORDER BY id DESC
+      LIMIT 1`, [sid, tm, Math.trunc(year)]);
+    if (rows.length === 0)
+        return null;
+    const status = String(rows[0].status ?? "").trim();
+    if (status === "")
+        return null;
+    return status;
+}
 //# sourceMappingURL=clinicalBookingPaymentHoldRepository.js.map

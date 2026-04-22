@@ -5,9 +5,11 @@ import { useAccount } from '../../context/AccountContext'
 import {
   fetchAccountingLedger,
   fetchAccountingQuarters,
+  fetchAuthorizeCurrentTermSummary,
   type AccountingLedgerResponse,
   type AccountingLedgerRow,
   type AccountingQuarterOption,
+  type CurrentTermBillingSummaryResponse,
   type ClinicalBookingPaymentHoldLedger,
 } from '../../lib/api'
 import type { StudentPortalKey } from '../../lib/i18n'
@@ -167,12 +169,14 @@ export function AccountingLedgerSection() {
   const location = useLocation()
   const narrowMobile = useIsNarrowMobile()
   const dateLocale = locale === 'zh' ? 'zh-TW' : 'en-US'
-  const { currentStudentId, isAuthenticated } = useAccount()
+  const { currentStudentId, isAuthenticated, authToken } = useAccount()
   const [quarters, setQuarters] = useState<AccountingQuarterOption[]>([])
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [ledger, setLedger] = useState<AccountingLedgerResponse | null>(null)
   const [loadingQuarters, setLoadingQuarters] = useState(false)
   const [loadingLedger, setLoadingLedger] = useState(false)
+  const [loadingBillingSummary, setLoadingBillingSummary] = useState(false)
+  const [billingSummary, setBillingSummary] = useState<CurrentTermBillingSummaryResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ledgerReloadSeq, setLedgerReloadSeq] = useState(0)
   const [paymentToast, setPaymentToast] = useState<string | null>(null)
@@ -240,6 +244,29 @@ export function AccountingLedgerSection() {
   }, [location.pathname, location.search, location.state, navigate])
 
   useEffect(() => {
+    if (selectedQuarter == null) {
+      setBillingSummary(null)
+      return
+    }
+    const ac = new AbortController()
+    setLoadingBillingSummary(true)
+    ;(async () => {
+      try {
+        const summary = await fetchAuthorizeCurrentTermSummary(selectedQuarter.term, selectedQuarter.year, {
+          signal: ac.signal,
+          authToken: authToken?.trim() || undefined,
+        })
+        if (!ac.signal.aborted) setBillingSummary(summary)
+      } catch {
+        if (!ac.signal.aborted) setBillingSummary(null)
+      } finally {
+        if (!ac.signal.aborted) setLoadingBillingSummary(false)
+      }
+    })()
+    return () => ac.abort()
+  }, [authToken, selectedQuarter])
+
+  useEffect(() => {
     if (selectedQuarter == null || studentId === '') {
       setLedger(null)
       return
@@ -294,9 +321,11 @@ export function AccountingLedgerSection() {
     return null
   }
 
-  const makePaymentEnabled =
-    ledger != null && !loadingLedger && ledger.summary.balance > 0
   const showMakePaymentControl = selectedQuarter != null && quarters.length > 0
+  const tuitionDue = Math.max(0, billingSummary?.tuitionCharge.amountDue ?? 0)
+  const clinicDue = Math.max(0, billingSummary?.clinicFeeCharge.amountDue ?? 0)
+  const examDue = Math.max(0, billingSummary?.examFeeCharge.amountDue ?? 0)
+  const clinicStatus = billingSummary?.clinicFeeStatus ?? (clinicDue > 0 ? 'pending' : 'paid')
   return (
     <section className="portal-stack" aria-labelledby="accounting-ledger-heading">
       <div className="portal-account-ledger__toolbar">
@@ -304,31 +333,6 @@ export function AccountingLedgerSection() {
           {t('accountingLedgerByQuarter')}
         </h2>
         <div className="portal-account-ledger__toolbar-actions">
-          {showMakePaymentControl ? (
-            makePaymentEnabled ? (
-              <button
-                type="button"
-                className="portal-btn portal-btn--primary portal-account-ledger__pay-btn"
-                onClick={() => {
-                  const params = new URLSearchParams()
-                  params.set('term', selectedQuarter.term)
-                  params.set('year', String(selectedQuarter.year))
-                  params.set('label', selectedQuarter.label)
-                  navigate(`/finances/payment?${params.toString()}`)
-                }}
-              >
-                {t('makePayment')}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="portal-btn portal-btn--primary portal-account-ledger__pay-btn"
-                disabled={loadingLedger || ledger === null}
-              >
-                {t('makePayment')}
-              </button>
-            )
-          ) : null}
           <label className="portal-account-ledger__quarter-label" htmlFor="accounting-quarter-select">
             <span className="visually-hidden">{t('quarterVisuallyHidden')}</span>
             <select
@@ -354,6 +358,117 @@ export function AccountingLedgerSection() {
         <p className="portal-finance-payment-toast" role="status" aria-live="polite">
           {paymentToast}
         </p>
+      ) : null}
+
+      {showMakePaymentControl ? (
+        <section className="portal-card portal-finance-entry-actions" aria-labelledby="finance-entry-actions-heading">
+          <header className="portal-finance-entry-actions__header">
+            <h3 id="finance-entry-actions-heading" className="portal-section-heading">
+              Payment Actions
+            </h3>
+            <p className="portal-finance-entry-actions__subhead">
+              Tuition and clinic fee are paid in separate flows.
+            </p>
+          </header>
+          {loadingBillingSummary ? (
+            <p className="portal-inline-note portal-inline-note--flush" role="status">
+              Loading payment action status...
+            </p>
+          ) : null}
+          <div className="portal-finance-entry-actions__grid">
+            <article className="portal-finance-entry-card">
+              <h4 className="portal-finance-entry-card__title">Tuition</h4>
+              <p className="portal-finance-entry-card__status">Due: {formatMoney(tuitionDue)}</p>
+              <div className="portal-finance-entry-card__actions">
+                <button
+                  type="button"
+                  className="portal-btn portal-btn--secondary"
+                  onClick={() => {
+                    if (selectedQuarter == null) return
+                    const params = new URLSearchParams()
+                    params.set('term', selectedQuarter.term)
+                    params.set('year', String(selectedQuarter.year))
+                    params.set('label', selectedQuarter.label)
+                    navigate(`/finances/payment/tuition?${params.toString()}`)
+                  }}
+                >
+                  View Tuition Balance
+                </button>
+                <button
+                  type="button"
+                  className="portal-btn portal-btn--primary"
+                  onClick={() => {
+                    if (selectedQuarter == null) return
+                    const params = new URLSearchParams()
+                    params.set('term', selectedQuarter.term)
+                    params.set('year', String(selectedQuarter.year))
+                    params.set('label', selectedQuarter.label)
+                    navigate(`/finances/payment/tuition?${params.toString()}`)
+                  }}
+                  disabled={tuitionDue <= 0}
+                >
+                  Pay Tuition
+                </button>
+              </div>
+            </article>
+
+            <article className="portal-finance-entry-card">
+              <h4 className="portal-finance-entry-card__title">Clinic Fee</h4>
+              <p className="portal-finance-entry-card__status">
+                Status:{' '}
+                {clinicStatus === 'registration_cancelled'
+                  ? 'registration cancelled'
+                  : clinicStatus === 'expired'
+                    ? 'expired'
+                    : clinicStatus === 'paid'
+                      ? 'paid'
+                      : 'pending'}
+              </p>
+              <p className="portal-finance-entry-card__status">Due: {formatMoney(clinicDue)}</p>
+              <div className="portal-finance-entry-card__actions">
+                <button
+                  type="button"
+                  className="portal-btn portal-btn--secondary"
+                  onClick={() => {
+                    if (selectedQuarter == null) return
+                    const params = new URLSearchParams()
+                    params.set('term', selectedQuarter.term)
+                    params.set('year', String(selectedQuarter.year))
+                    params.set('label', selectedQuarter.label)
+                    navigate(`/finances/payment/clinic-fee?${params.toString()}`)
+                  }}
+                >
+                  View Clinic Fee Status
+                </button>
+                <button
+                  type="button"
+                  className="portal-btn portal-btn--primary"
+                  onClick={() => {
+                    if (selectedQuarter == null) return
+                    const params = new URLSearchParams()
+                    params.set('term', selectedQuarter.term)
+                    params.set('year', String(selectedQuarter.year))
+                    params.set('label', selectedQuarter.label)
+                    navigate(`/finances/payment/clinic-fee?${params.toString()}`)
+                  }}
+                  disabled={clinicDue <= 0 || clinicStatus !== 'pending'}
+                >
+                  Pay Clinic Fee
+                </button>
+              </div>
+            </article>
+
+            {examDue > 0 ? (
+              <article className="portal-finance-entry-card">
+                <h4 className="portal-finance-entry-card__title">Exam Fee</h4>
+                <p className="portal-finance-entry-card__status">Due: {formatMoney(examDue)}</p>
+                <p className="portal-finance-entry-card__status">
+                  Exam fee is tracked separately from tuition installments.
+                </p>
+              </article>
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
       {error ? (

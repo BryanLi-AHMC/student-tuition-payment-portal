@@ -425,3 +425,28 @@ export async function getUrgentActiveClinicalBookingHoldForStudentPortal(
     holdExpiresAt: exp,
   };
 }
+
+export async function getLatestClinicalBookingPaymentHoldStatusForStudentQuarter(
+  studentId: string,
+  term: string,
+  year: number,
+): Promise<ClinicalBookingPaymentHoldStatus | null> {
+  if (!(await clinicalBookingPaymentHoldsTableExists())) return null;
+  const sid = studentId.trim();
+  const tm = term.trim();
+  if (sid === "" || tm === "" || !Number.isFinite(year)) return null;
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT TRIM(status) AS status
+       FROM clinical_booking_payment_holds
+      WHERE TRIM(student_id) = TRIM(?)
+        AND TRIM(term) = TRIM(?)
+        AND year = ?
+      ORDER BY id DESC
+      LIMIT 1`,
+    [sid, tm, Math.trunc(year)],
+  );
+  if (rows.length === 0) return null;
+  const status = String((rows[0] as { status?: unknown }).status ?? "").trim();
+  if (status === "") return null;
+  return status as ClinicalBookingPaymentHoldStatus;
+}

@@ -4,17 +4,17 @@ import { Lock, ShieldCheck } from 'lucide-react'
 type PaymentCardFormProps = {
   amount: string
   cardNumber: string
-  expMonth: string
-  expYear: string
+  expirationDate: string
   cvv: string
   allowPartialPayment: boolean
+  lockedAmountNote?: string | null
+  submitLabel?: string
   busy: boolean
   scriptReady: boolean
   error: string | null
   onAmountChange: (next: string) => void
   onCardNumberChange: (next: string) => void
-  onExpMonthChange: (next: string) => void
-  onExpYearChange: (next: string) => void
+  onExpirationDateChange: (next: string) => void
   onCvvChange: (next: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onCancel: () => void
@@ -23,17 +23,17 @@ type PaymentCardFormProps = {
 export function PaymentCardForm({
   amount,
   cardNumber,
-  expMonth,
-  expYear,
+  expirationDate,
   cvv,
   allowPartialPayment,
+  lockedAmountNote,
+  submitLabel,
   busy,
   scriptReady,
   error,
   onAmountChange,
   onCardNumberChange,
-  onExpMonthChange,
-  onExpYearChange,
+  onExpirationDateChange,
   onCvvChange,
   onSubmit,
   onCancel,
@@ -67,36 +67,22 @@ export function PaymentCardForm({
               <img src="/visa.png" alt="" />
               <img src="/master.png" alt="" />
               <img src="/amex.png" alt="" />
-              <img src="/discover.jpg" alt="" />
+              <img src="/discover.png" alt="" />
             </div>
           </div>
         </label>
 
         <div className="portal-finance-checkout-form__triple">
           <label className="portal-finance-checkout-form__field">
-            <span>Exp. month</span>
+            <span>Exp. date</span>
             <input
               type="text"
               inputMode="numeric"
-              autoComplete="cc-exp-month"
-              placeholder="MM"
-              maxLength={2}
-              value={expMonth}
-              onChange={(event) => onExpMonthChange(event.target.value)}
-              disabled={busy}
-              required
-            />
-          </label>
-          <label className="portal-finance-checkout-form__field">
-            <span>Exp. year</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="cc-exp-year"
-              placeholder="YYYY"
-              maxLength={4}
-              value={expYear}
-              onChange={(event) => onExpYearChange(event.target.value)}
+              autoComplete="cc-exp"
+              placeholder="MM/YY"
+              maxLength={5}
+              value={expirationDate}
+              onChange={(event) => onExpirationDateChange(event.target.value)}
               disabled={busy}
               required
             />
@@ -106,9 +92,10 @@ export function PaymentCardForm({
             <div className="portal-finance-checkout-form__input-wrap portal-finance-checkout-form__input-wrap--cvv card-input-wrapper">
               <input
                 className="cvv-input"
-                type="password"
+                type="text"
                 inputMode="numeric"
                 autoComplete="cc-csc"
+                placeholder="CVC"
                 maxLength={4}
                 value={cvv}
                 onChange={(event) => onCvvChange(event.target.value)}
@@ -137,7 +124,9 @@ export function PaymentCardForm({
         </label>
 
         {!allowPartialPayment ? (
-          <p className="portal-finance-checkout-form__helper">This term requires full-balance payment. Amount is read-only.</p>
+          <p className="portal-finance-checkout-form__helper">
+            {lockedAmountNote ?? 'Amount is fixed for this payment.'}
+          </p>
         ) : null}
 
         <p className="portal-finance-checkout-form__trust">
@@ -171,7 +160,7 @@ export function PaymentCardForm({
             className="portal-btn portal-btn--primary portal-finance-checkout-form__btn"
             disabled={busy || !scriptReady}
           >
-            {busy ? 'Processing...' : 'Pay Now'}
+            {busy ? 'Processing...' : submitLabel ?? 'Pay Now'}
           </button>
         </div>
 

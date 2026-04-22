@@ -51,7 +51,14 @@ import {
   getAccountingLedger,
   getAccountingQuarters,
 } from "../controllers/studentLedgerController.js";
-import { postAuthorizeNetChargeHandler } from "../controllers/studentAuthorizePaymentController.js";
+import {
+  getAuthorizeClinicFeeSummaryHandler,
+  getAuthorizeCurrentTermSummaryHandler,
+  getAuthorizeTuitionSummaryHandler,
+  postAuthorizeNetClinicFeeChargeHandler,
+  postAuthorizeNetChargeHandler,
+  postAuthorizeNetTuitionChargeHandler,
+} from "../controllers/studentAuthorizePaymentController.js";
 import { getStudentAcademics } from "../controllers/studentAcademicsController.js";
 import {
   getAdminStudentCourseFeedback,
@@ -142,6 +149,20 @@ apiRouter.get("/health/db", getHealthDb);
 
 apiRouter.post("/auth/login", postStudentLogin);
 apiRouter.post("/payments/authorize/charge", postAuthorizeNetChargeHandler);
+apiRouter.post("/payments/authorize/tuition-charge", postAuthorizeNetTuitionChargeHandler);
+apiRouter.post(
+  "/payments/authorize/clinic-fee-charge",
+  postAuthorizeNetClinicFeeChargeHandler,
+);
+apiRouter.get(
+  "/payments/authorize/current-term-summary",
+  getAuthorizeCurrentTermSummaryHandler,
+);
+apiRouter.get("/payments/authorize/tuition-summary", getAuthorizeTuitionSummaryHandler);
+apiRouter.get(
+  "/payments/authorize/clinic-fee-summary",
+  getAuthorizeClinicFeeSummaryHandler,
+);
 
 apiRouter.post("/student/enroll", postStudentEnroll);
 apiRouter.post("/student/withdraw", postStudentWithdraw);

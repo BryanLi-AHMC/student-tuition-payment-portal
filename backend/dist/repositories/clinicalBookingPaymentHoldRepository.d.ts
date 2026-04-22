@@ -58,5 +58,6 @@ export declare function getUrgentActiveClinicalBookingHoldForStudentPortal(stude
     timetableId: number;
     holdExpiresAt: Date;
 } | null>;
+export declare function getLatestClinicalBookingPaymentHoldStatusForStudentQuarter(studentId: string, term: string, year: number): Promise<ClinicalBookingPaymentHoldStatus | null>;
 export {};
 //# sourceMappingURL=clinicalBookingPaymentHoldRepository.d.ts.map

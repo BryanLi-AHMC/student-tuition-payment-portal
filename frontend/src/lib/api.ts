@@ -1346,6 +1346,9 @@ export type AuthorizeNetOpaqueData = {
 export type AuthorizeNetChargeRequest = {
   term: string
   amount: string
+  chargeType?: 'tuition' | 'clinic_fee' | 'exam_fee' | 'late_fee'
+  paymentPlan?: 'full' | 'installment'
+  installmentCount?: 1 | 2 | 3
   opaqueData: AuthorizeNetOpaqueData
 }
 
@@ -1354,6 +1357,48 @@ export type AuthorizeNetChargeResponse = {
   amount: string
   providerTransactionId: string
   invoiceNumber: string
+}
+
+export type CurrentTermBillingCharge = {
+  type: 'tuition' | 'clinic_fee' | 'exam_fee' | 'late_fee'
+  term: string
+  amount: number
+  amountPaid: number
+  amountDue: number
+  status: 'pending' | 'paid'
+  dueDate: string | null
+  isInstallmentEligible: boolean
+}
+
+export type CurrentTermBillingSummaryResponse = {
+  term: string
+  year: number
+  paymentDeadline: string | null
+  tuitionCharge: CurrentTermBillingCharge
+  clinicFeeCharge: CurrentTermBillingCharge
+  clinicFeeStatus?: 'pending' | 'paid' | 'expired' | 'registration_cancelled'
+  examFeeCharge: CurrentTermBillingCharge
+  lateFeeCharge: CurrentTermBillingCharge
+  requiredBalanceDue: number
+  totalBalanceDue: number
+}
+
+export type TuitionBillingSummaryResponse = {
+  term: string
+  year: number
+  paymentDeadline: string | null
+  tuitionCharge: CurrentTermBillingCharge
+  lateFeeCharge: CurrentTermBillingCharge
+  examFeeCharge: CurrentTermBillingCharge
+  tuitionTotalDue: number
+}
+
+export type ClinicFeeBillingSummaryResponse = {
+  term: string
+  year: number
+  paymentDeadline: string | null
+  clinicFeeCharge: CurrentTermBillingCharge
+  clinicFeeStatus: 'pending' | 'paid' | 'expired' | 'registration_cancelled'
 }
 
 /** GET /api/students/:studentId/accounting/quarters — legacy `accounting` term/year list (real students). */
@@ -1429,6 +1474,177 @@ export async function postAuthorizeNetCharge(
     return data as AuthorizeNetChargeResponse
   }
   throw new Error('Unexpected Authorize.net charge response')
+}
+
+/** POST /api/payments/authorize/tuition-charge */
+export async function postAuthorizeNetTuitionCharge(
+  body: AuthorizeNetChargeRequest,
+  options?: { signal?: AbortSignal; authToken?: string },
+): Promise<AuthorizeNetChargeResponse> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+  if (options?.authToken != null && options.authToken.trim() !== '') {
+    headers.Authorization = `Bearer ${options.authToken.trim()}`
+  }
+  const data = (await fetchApiJson('/api/payments/authorize/tuition-charge', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: options?.signal,
+  })) as unknown
+  if (
+    data != null &&
+    typeof data === 'object' &&
+    (data as { ok?: unknown }).ok === true &&
+    typeof (data as { amount?: unknown }).amount === 'string' &&
+    typeof (data as { providerTransactionId?: unknown }).providerTransactionId === 'string' &&
+    typeof (data as { invoiceNumber?: unknown }).invoiceNumber === 'string'
+  ) {
+    return data as AuthorizeNetChargeResponse
+  }
+  throw new Error('Unexpected Authorize.net tuition charge response')
+}
+
+/** POST /api/payments/authorize/clinic-fee-charge */
+export async function postAuthorizeNetClinicFeeCharge(
+  body: AuthorizeNetChargeRequest,
+  options?: { signal?: AbortSignal; authToken?: string },
+): Promise<AuthorizeNetChargeResponse> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+  if (options?.authToken != null && options.authToken.trim() !== '') {
+    headers.Authorization = `Bearer ${options.authToken.trim()}`
+  }
+  const data = (await fetchApiJson('/api/payments/authorize/clinic-fee-charge', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: options?.signal,
+  })) as unknown
+  if (
+    data != null &&
+    typeof data === 'object' &&
+    (data as { ok?: unknown }).ok === true &&
+    typeof (data as { amount?: unknown }).amount === 'string' &&
+    typeof (data as { providerTransactionId?: unknown }).providerTransactionId === 'string' &&
+    typeof (data as { invoiceNumber?: unknown }).invoiceNumber === 'string'
+  ) {
+    return data as AuthorizeNetChargeResponse
+  }
+  throw new Error('Unexpected Authorize.net clinic fee charge response')
+}
+
+/** GET /api/payments/authorize/current-term-summary?term=&year= */
+export async function fetchAuthorizeCurrentTermSummary(
+  term: string,
+  year: number,
+  options?: { signal?: AbortSignal; authToken?: string },
+): Promise<CurrentTermBillingSummaryResponse> {
+  const headers: HeadersInit = {}
+  if (options?.authToken != null && options.authToken.trim() !== '') {
+    headers.Authorization = `Bearer ${options.authToken.trim()}`
+  }
+  const params = new URLSearchParams()
+  params.set('term', term.trim())
+  params.set('year', String(Math.trunc(year)))
+  const data = (await fetchApiJson(
+    `/api/payments/authorize/current-term-summary?${params.toString()}`,
+    {
+      headers,
+      signal: options?.signal,
+    },
+  )) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected current term billing summary response')
+  }
+  const d = data as Record<string, unknown>
+  const hasBasic =
+    typeof d.term === 'string' &&
+    typeof d.year === 'number' &&
+    d.tuitionCharge != null &&
+    d.clinicFeeCharge != null &&
+    d.examFeeCharge != null &&
+    d.lateFeeCharge != null &&
+    typeof d.requiredBalanceDue === 'number' &&
+    typeof d.totalBalanceDue === 'number'
+  if (!hasBasic) {
+    throw new Error('Unexpected current term billing summary response')
+  }
+  return d as unknown as CurrentTermBillingSummaryResponse
+}
+
+/** GET /api/payments/authorize/tuition-summary?term=&year= */
+export async function fetchAuthorizeTuitionSummary(
+  term: string,
+  year: number,
+  options?: { signal?: AbortSignal; authToken?: string },
+): Promise<TuitionBillingSummaryResponse> {
+  const headers: HeadersInit = {}
+  if (options?.authToken != null && options.authToken.trim() !== '') {
+    headers.Authorization = `Bearer ${options.authToken.trim()}`
+  }
+  const params = new URLSearchParams()
+  params.set('term', term.trim())
+  params.set('year', String(Math.trunc(year)))
+  const data = (await fetchApiJson(
+    `/api/payments/authorize/tuition-summary?${params.toString()}`,
+    {
+      headers,
+      signal: options?.signal,
+    },
+  )) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected tuition billing summary response')
+  }
+  const d = data as Record<string, unknown>
+  const hasBasic =
+    typeof d.term === 'string' &&
+    typeof d.year === 'number' &&
+    d.tuitionCharge != null &&
+    d.lateFeeCharge != null &&
+    d.examFeeCharge != null &&
+    typeof d.tuitionTotalDue === 'number'
+  if (!hasBasic) {
+    throw new Error('Unexpected tuition billing summary response')
+  }
+  return d as unknown as TuitionBillingSummaryResponse
+}
+
+/** GET /api/payments/authorize/clinic-fee-summary?term=&year= */
+export async function fetchAuthorizeClinicFeeSummary(
+  term: string,
+  year: number,
+  options?: { signal?: AbortSignal; authToken?: string },
+): Promise<ClinicFeeBillingSummaryResponse> {
+  const headers: HeadersInit = {}
+  if (options?.authToken != null && options.authToken.trim() !== '') {
+    headers.Authorization = `Bearer ${options.authToken.trim()}`
+  }
+  const params = new URLSearchParams()
+  params.set('term', term.trim())
+  params.set('year', String(Math.trunc(year)))
+  const data = (await fetchApiJson(
+    `/api/payments/authorize/clinic-fee-summary?${params.toString()}`,
+    {
+      headers,
+      signal: options?.signal,
+    },
+  )) as unknown
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Unexpected clinic fee billing summary response')
+  }
+  const d = data as Record<string, unknown>
+  const hasBasic =
+    typeof d.term === 'string' &&
+    typeof d.year === 'number' &&
+    d.clinicFeeCharge != null &&
+    typeof d.clinicFeeStatus === 'string'
+  if (!hasBasic) {
+    throw new Error('Unexpected clinic fee billing summary response')
+  }
+  return d as unknown as ClinicFeeBillingSummaryResponse
 }
 
 /** GET /api/admin/finance/students — paginated roster with quarter balance. */

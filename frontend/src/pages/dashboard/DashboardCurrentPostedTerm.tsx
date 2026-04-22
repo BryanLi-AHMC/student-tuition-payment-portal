@@ -16,19 +16,6 @@ function formatDashboardTermDate(iso: string | null, locale: string): string {
 
 type CurrentTermField = { id: string; label: string; value: string }
 
-function renderTermFieldColumn(items: CurrentTermField[]) {
-  return (
-    <dl className="portal-dashboard-current-term-card__column">
-      {items.map((item) => (
-        <div key={item.id} className="portal-dashboard-current-term-card__row">
-          <dt>{item.label}</dt>
-          <dd>{item.value}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}
-
 export function DashboardCurrentPostedTerm() {
   const { locale } = useLanguage()
   const t = useStudentPortalT()
@@ -92,24 +79,21 @@ export function DashboardCurrentPostedTerm() {
     )
   }
 
-  const leftColumn: CurrentTermField[] = [
+  const fields: CurrentTermField[] = [
     {
       id: 'term_label',
       label: t('currentAcademicTermTermRow'),
       value: term.term_label.trim() || '—',
     },
     {
-      id: 'registration_close',
-      label: t('currentAcademicTermRegistrationCloses'),
-      value: formatDashboardTermDate(term.registration_close, locale),
-    },
-  ]
-
-  const rightColumn: CurrentTermField[] = [
-    {
       id: 'payment_due',
       label: t('currentAcademicTermPaymentDeadline'),
       value: formatDashboardTermDate(term.payment_due_date, locale),
+    },
+    {
+      id: 'registration_close',
+      label: t('currentAcademicTermRegistrationCloses'),
+      value: formatDashboardTermDate(term.registration_close, locale),
     },
     {
       id: 'withdraw_deadline',
@@ -129,10 +113,14 @@ export function DashboardCurrentPostedTerm() {
       >
         {t('currentAcademicTermTitle')}
       </h2>
-      <div className="portal-dashboard-current-term-card__dl portal-dashboard-current-term-card__dl--two-col">
-        {renderTermFieldColumn(leftColumn)}
-        {renderTermFieldColumn(rightColumn)}
-      </div>
+      <dl className="portal-dashboard-current-term-card__dl">
+        {fields.map((item) => (
+          <div key={item.id} className="portal-dashboard-current-term-card__row">
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   )
 }
