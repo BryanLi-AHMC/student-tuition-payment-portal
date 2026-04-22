@@ -156,7 +156,6 @@ function DashboardWeekTimetableGrid({
   weekdayShort: (day: WeekdayKey) => string
 }) {
   const { visibleDays, gridStartMinutes, gridEndMinutes, blocksByDay } = model
-  const colCount = visibleDays.length
   const ticks = hourTickMinutes(gridStartMinutes, gridEndMinutes)
   const hourBands = (gridEndMinutes - gridStartMinutes) / 60
 
@@ -165,7 +164,6 @@ function DashboardWeekTimetableGrid({
       className="portal-dashboard-courses-timetable portal-dashboard-courses-timetable--grid"
       style={
         {
-          gridTemplateColumns: `var(--portal-timetable-time-col) repeat(${colCount}, 1fr)`,
           '--portal-timetable-hour-bands': String(hourBands),
         } as CSSProperties
       }

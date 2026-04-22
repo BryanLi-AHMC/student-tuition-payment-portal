@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
+import { getOpenAiEmbeddingModel, getOpenAiModel } from '../src/config/openai.js';
 
 type KnowledgeChunk = {
   id: string;
@@ -81,9 +82,11 @@ async function main(): Promise<void> {
   }
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const chatModel = getOpenAiModel();
+  const embeddingModel = getOpenAiEmbeddingModel();
 
   const embedRes = await client.embeddings.create({
-    model: 'text-embedding-3-small',
+    model: embeddingModel,
     input: TEST_QUESTION,
   });
   const questionEmbedding = embedRes.data[0]?.embedding;
@@ -110,7 +113,7 @@ Question:
 ${TEST_QUESTION}`;
 
   const completion = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: chatModel,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMessage },

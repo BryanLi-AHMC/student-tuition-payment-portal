@@ -1,8 +1,7 @@
 import { useAccount } from '../context/AccountContext'
 import { useLanguage, useStudentPortalT } from '@/LanguageContext'
 import { DashboardCoursesWidget } from './dashboard/DashboardCoursesWidget'
-import { DashboardCurrentPostedTerm } from './dashboard/DashboardCurrentPostedTerm'
-import { DashboardServiceLauncher } from './dashboard/DashboardServiceLauncher'
+import { DashboardSidebarCard } from './dashboard/DashboardSidebarCard'
 
 /** Prefer given name when legacy uses "Last, First"; otherwise first token of the display name. */
 function welcomeNameFromDisplay(name: string): string {
@@ -51,8 +50,7 @@ export function DashboardPage() {
 
       <div className="portal-dashboard-home-grid">
         <div className="portal-dashboard-home-primary">
-          <DashboardCurrentPostedTerm />
-          <DashboardServiceLauncher />
+          <DashboardSidebarCard />
         </div>
         <div className="portal-dashboard-home-aside">
           <DashboardCoursesWidget />

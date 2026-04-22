@@ -36,12 +36,41 @@ function ServiceTile({ service }: { service: DashboardService }) {
   )
 }
 
-export function DashboardServiceLauncher() {
+type DashboardServiceLauncherProps = {
+  embedded?: boolean
+  headingId?: string
+}
+
+export function DashboardServiceLauncher({
+  embedded = false,
+  headingId = 'portal-dashboard-services-heading',
+}: DashboardServiceLauncherProps) {
   const t = useStudentPortalT()
+  if (embedded) {
+    return (
+      <section className="portal-dashboard-sidebar-section" aria-labelledby={headingId}>
+        <h2 id={headingId} className="portal-dashboard-card-panel-title">
+          {t('services')}
+        </h2>
+        <ul className="portal-dashboard-service-list">
+          {DASHBOARD_SERVICES.map((service) => (
+            <ServiceTile key={service.to} service={service} />
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
   return (
-    <section className="portal-dashboard-services" aria-labelledby="portal-dashboard-services-heading">
+    <section
+      className="portal-dashboard-services"
+      aria-labelledby={headingId}
+    >
       <header className="portal-dashboard-services-head portal-dashboard-card-panel-head">
-        <h2 id="portal-dashboard-services-heading" className="portal-dashboard-card-panel-title">
+        <h2
+          id={headingId}
+          className="portal-dashboard-card-panel-title"
+        >
           {t('services')}
         </h2>
       </header>

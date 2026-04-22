@@ -93,11 +93,26 @@ function parseTermCode(raw) {
 function roundToMoney(v) {
     return Math.round(v * 100) / 100;
 }
-function isClinicFeeMemo(memo) {
-    return /clinic\s*(fee|insurance|insurances)/i.test(memo);
-}
 function isExamFeeMemo(memo) {
     return /exam\s*fee|exam/i.test(memo);
+}
+function isClinicChargeRow(args) {
+    const type = args.type.trim().toLowerCase();
+    const code = args.code.trim().toLowerCase();
+    const memo = args.memo.trim().toLowerCase();
+    const sourceType = String(args.sourceType ?? "")
+        .trim()
+        .toLowerCase();
+    if (type === "clinical")
+        return true;
+    if (sourceType === "system" &&
+        type === "adjustment" &&
+        /\bclinical\b/.test(memo)) {
+        return true;
+    }
+    if (/(clinic|clinical)/.test(code))
+        return true;
+    return /(clinic\s*(fee|insurance|insurances)|clinical\s*(fee|booking|appointment|slot|enrollment|request))/i.test(memo);
 }
 function isLateFeeRow(args) {
     if (String(args.sourceType ?? "").trim().toLowerCase() === "auto_late_fee") {
@@ -155,15 +170,21 @@ function summarizeTermChargesFromLedger(rows) {
         const credit = roundToMoney(Math.max(0, Number(row.credit) || 0));
         const memo = String(row.memo ?? "").trim();
         const type = String(row.type ?? "").trim();
+        const code = String(row.code ?? "").trim();
         if (debit > 0) {
             if (isLateFeeRow({ type, memo, sourceType: row.sourceType })) {
                 chargeTotals.late_fee = roundToMoney(chargeTotals.late_fee + debit);
             }
-            else if (isClinicFeeMemo(memo)) {
-                chargeTotals.clinic_fee = roundToMoney(chargeTotals.clinic_fee + debit);
-            }
             else if (isExamFeeMemo(memo)) {
                 chargeTotals.exam_fee = roundToMoney(chargeTotals.exam_fee + debit);
+            }
+            else if (isClinicChargeRow({
+                type,
+                code,
+                memo,
+                sourceType: row.sourceType,
+            })) {
+                chargeTotals.clinic_fee = roundToMoney(chargeTotals.clinic_fee + debit);
             }
             else if (type.toLowerCase() === "tuition") {
                 chargeTotals.tuition = roundToMoney(chargeTotals.tuition + debit);
@@ -231,7 +252,13 @@ function deadlineHasPassed(deadline) {
     return isoToday() > due;
 }
 async function resolveClinicFeeStatus(args) {
-    if (roundToMoney(Math.max(0, args.amountDue)) <= 0) {
+    const totalAssessed = roundToMoney(Math.max(0, args.amount));
+    const remainingDue = roundToMoney(Math.max(0, args.amountDue));
+    if (totalAssessed <= 0) {
+        // No clinic fee charge exists for this term; do not treat as paid by default.
+        return "pending";
+    }
+    if (remainingDue <= 0) {
         return "paid";
     }
     if (!deadlineHasPassed(args.paymentDeadline)) {
@@ -281,6 +308,7 @@ async function buildCurrentTermBillingSummary(args) {
         studentId: args.studentId,
         term: args.term,
         year: args.year,
+        amount: clinicFeeCharge.amount,
         amountDue: clinicFeeCharge.amountDue,
         paymentDeadline: args.paymentDeadline,
     });

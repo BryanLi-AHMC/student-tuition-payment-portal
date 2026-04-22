@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useStudentPortalT } from '@/LanguageContext'
 import { useAccount } from '@/context/AccountContext'
 import { PaymentCardForm } from '@/components/finance/PaymentCardForm'
 import { PaymentSummaryCard } from '@/components/finance/PaymentSummaryCard'
@@ -12,6 +13,7 @@ import {
   postAuthorizeNetClinicFeeCharge,
   type ClinicFeeBillingSummaryResponse,
 } from '@/lib/api'
+import type { StudentPortalKey } from '@/lib/i18n'
 import { formatMoney } from '@/lib/formatMoney'
 
 function roundMoney(n: number): number {
@@ -56,19 +58,33 @@ function termCodeFromQuarter(term: string, year: number): string {
   return `${year}-${suffix}`
 }
 
-function clinicStatusMessage(summary: ClinicFeeBillingSummaryResponse | null): string {
+function clinicStatusMessage(
+  summary: ClinicFeeBillingSummaryResponse | null,
+  t: (key: StudentPortalKey) => string,
+): string {
   if (summary == null) return ''
-  if (summary.clinicFeeStatus === 'paid') return 'Clinic fee is paid.'
+  if (summary.clinicFeeStatus === 'paid') return t('clinicFeeStatusPaid')
   if (summary.clinicFeeStatus === 'registration_cancelled') {
-    return 'Clinic fee deadline was missed and registration was cancelled with roster return.'
+    return t('clinicFeeStatusRegistrationCancelled')
   }
   if (summary.clinicFeeStatus === 'expired') {
-    return 'Clinic fee deadline has passed. Existing registration cancellation workflow is in progress.'
+    return t('clinicFeeStatusExpired')
   }
-  return 'Clinic fee is pending payment.'
+  return t('clinicFeeStatusPending')
+}
+
+function clinicFeeStatusLabel(
+  status: ClinicFeeBillingSummaryResponse['clinicFeeStatus'],
+  t: (key: StudentPortalKey) => string,
+): string {
+  if (status === 'paid') return t('paid')
+  if (status === 'registration_cancelled') return t('registrationCancelled')
+  if (status === 'expired') return t('expired')
+  return t('pending')
 }
 
 export function FinancesClinicFeePaymentPage() {
+  const t = useStudentPortalT()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { account, currentStudentId, authToken, isAuthenticated } = useAccount()
@@ -94,11 +110,11 @@ export function FinancesClinicFeePaymentPage() {
     return Number.isFinite(n) ? roundMoney(n) : Number.NaN
   }, [amount])
 
-  const studentName = account.student.name?.trim() || 'Student'
+  const studentName = account.student.name?.trim() || t('studentFallback')
   const displayStudentId = account.student.studentId?.trim() || studentId || '—'
-  const displayTerm = termLabel || portalTermLabel(account) || 'Selected term'
+  const displayTerm = termLabel || portalTermLabel(account) || t('selectedTerm')
   const termCode = termCodeFromQuarter(term, year)
-  const statusMessage = clinicStatusMessage(billingSummary)
+  const statusMessage = clinicStatusMessage(billingSummary, t)
   const canPay = billingSummary?.clinicFeeStatus === 'pending' && clinicDue > 0
 
   useEffect(() => {
@@ -125,7 +141,7 @@ export function FinancesClinicFeePaymentPage() {
           if (ac.signal.aborted) return
           const newest = quartersRes.quarters[0]
           if (newest == null) {
-            throw new Error('No payable term found for this account.')
+            throw new Error(t('noPayableTermFound'))
           }
           nextTerm = newest.term
           nextYear = newest.year
@@ -146,14 +162,14 @@ export function FinancesClinicFeePaymentPage() {
         }
       } catch (e) {
         if (ac.signal.aborted) return
-        setError(e instanceof Error ? e.message : 'Unable to load clinic fee details.')
+        setError(e instanceof Error ? e.message : t('unableToLoadClinicFeeDetails'))
       } finally {
         if (!ac.signal.aborted) setLoading(false)
       }
     })()
 
     return () => ac.abort()
-  }, [authToken, isAuthenticated, navigate, studentId, term, termLabel, year])
+  }, [authToken, isAuthenticated, navigate, studentId, term, termLabel, year, t])
 
   useEffect(() => {
     let mounted = true
@@ -165,12 +181,12 @@ export function FinancesClinicFeePaymentPage() {
       })
       .catch((e) => {
         if (!mounted) return
-        setError(e instanceof Error ? e.message : 'Unable to load payment script.')
+        setError(e instanceof Error ? e.message : t('unableToLoadPaymentScript'))
       })
     return () => {
       mounted = false
     }
-  }, [])
+  }, [t])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -180,48 +196,48 @@ export function FinancesClinicFeePaymentPage() {
     const clientKey = String(import.meta.env.VITE_AUTHORIZE_CLIENT_KEY ?? '').trim()
 
     if (apiLoginId === '' || clientKey === '') {
-      setError('Payment configuration is unavailable. Please contact support.')
+      setError(t('paymentConfigurationUnavailable'))
       setCvv('')
       return
     }
     if (!scriptReady) {
-      setError('Secure payment form is still loading. Please wait a moment and try again.')
+      setError(t('securePaymentFormStillLoading'))
       setCvv('')
       return
     }
     if (term.trim() === '' || !Number.isFinite(year)) {
-      setError('Billing term is unavailable. Please return to Finances and try again.')
+      setError(t('billingTermUnavailable'))
       setCvv('')
       return
     }
     if (!canPay) {
-      setError('Clinic fee is not currently payable from this page.')
+      setError(t('clinicFeeNotPayableFromPage'))
       setCvv('')
       return
     }
     if (!Number.isFinite(amountNum) || amountNum <= 0) {
-      setError('Enter a valid payment amount greater than 0.')
+      setError(t('enterValidPaymentAmount'))
       setCvv('')
       return
     }
     if (amountNum !== clinicDue) {
-      setError('Clinic fee payment amount must match the full amount due.')
+      setError(t('clinicFeeAmountMustMatchFull'))
       setCvv('')
       return
     }
     if (!/^\d{13,19}$/.test(cardNumber)) {
-      setError('Card number must be 13 to 19 digits.')
+      setError(t('cardNumberDigitsError'))
       setCvv('')
       return
     }
     const expirationParts = splitExpirationDate(expirationDate)
     if (expirationParts == null) {
-      setError('Expiration date must be in MM/YY format.')
+      setError(t('expirationFormatError'))
       setCvv('')
       return
     }
     if (!/^\d{3,4}$/.test(cvv)) {
-      setError('CVV must be 3 or 4 digits.')
+      setError(t('cvvDigitsError'))
       setCvv('')
       return
     }
@@ -250,7 +266,9 @@ export function FinancesClinicFeePaymentPage() {
         { authToken: authToken?.trim() || undefined },
       )
       setCvv('')
-      const successText = `Clinic fee payment of ${formatMoney(Number(result.amount))} posted successfully. Ref ${result.providerTransactionId}.`
+      const successText = t('clinicFeePaymentSuccess')
+        .replace('{amount}', formatMoney(Number(result.amount)))
+        .replace('{reference}', result.providerTransactionId)
       setSuccessMessage(successText)
       window.setTimeout(() => {
         navigate('/finances/overview', {
@@ -263,7 +281,7 @@ export function FinancesClinicFeePaymentPage() {
       }, 900)
     } catch (e) {
       setCvv('')
-      setError(e instanceof Error ? e.message : 'Payment could not be processed.')
+      setError(e instanceof Error ? e.message : t('paymentCouldNotBeProcessed'))
     } finally {
       setSubmitting(false)
     }
@@ -274,16 +292,16 @@ export function FinancesClinicFeePaymentPage() {
       <header className="portal-finance-checkout-page__header">
         <Link to="/finances/overview" className="portal-finance-checkout-page__back-link">
           <ChevronLeft size={16} aria-hidden="true" />
-          <span>Back to Finances</span>
+          <span>{t('backToFinances')}</span>
         </Link>
         <h2 className="portal-page-title portal-finance-checkout-page__title">
-          Pay Clinic Fee
+          {t('payClinicFee')}
         </h2>
       </header>
 
       {loading ? (
         <p className="portal-inline-note portal-inline-note--flush" role="status">
-          Loading clinic fee details...
+          {t('loadingClinicFeeDetails')}
         </p>
       ) : null}
 
@@ -299,36 +317,36 @@ export function FinancesClinicFeePaymentPage() {
             <section className="portal-card portal-finance-payment-option" aria-labelledby="clinic-fee-heading">
               <header className="portal-finance-payment-option__header">
                 <h2 id="clinic-fee-heading" className="portal-section-heading">
-                  Clinic Fee
+                  {t('clinicFee')}
                 </h2>
               </header>
               <dl className="portal-finance-checkout-summary">
                 <div className="portal-finance-checkout-summary__row">
-                  <dt>Clinic fee amount</dt>
+                  <dt>{t('clinicFeeAmount')}</dt>
                   <dd>{formatMoney(billingSummary.clinicFeeCharge.amount)}</dd>
                 </div>
                 <div className="portal-finance-checkout-summary__row">
-                  <dt>Clinic fee due now</dt>
+                  <dt>{t('clinicFeeDueNow')}</dt>
                   <dd>{formatMoney(clinicDue)}</dd>
                 </div>
                 <div className="portal-finance-checkout-summary__row">
-                  <dt>Status</dt>
-                  <dd>{billingSummary.clinicFeeStatus.replace(/_/g, ' ')}</dd>
+                  <dt>{t('status')}</dt>
+                  <dd>{clinicFeeStatusLabel(billingSummary.clinicFeeStatus, t)}</dd>
                 </div>
                 <div className="portal-finance-checkout-summary__row">
-                  <dt>Required deadline</dt>
-                  <dd>{billingSummary.paymentDeadline ?? 'Not set'}</dd>
+                  <dt>{t('requiredDeadline')}</dt>
+                  <dd>{billingSummary.paymentDeadline ?? t('notSet')}</dd>
                 </div>
               </dl>
               <p className="portal-finance-payment-option__note">{statusMessage}</p>
               <p className="portal-finance-payment-option__note">
-                Clinic fee supports one payment option only: full payment.
+                {t('clinicFeeSinglePaymentOnly')}
               </p>
             </section>
           ) : null}
           {!canPay ? (
             <p className="portal-inline-note portal-inline-note--flush" role="status">
-              Clinic fee is not currently due for payment.
+              {t('clinicFeeNotCurrentlyDue')}
             </p>
           ) : null}
           <div className="portal-finance-checkout-layout">
@@ -349,8 +367,8 @@ export function FinancesClinicFeePaymentPage() {
                   expirationDate={expirationDate}
                   cvv={cvv}
                   allowPartialPayment={false}
-                  lockedAmountNote="Clinic fee must be paid in one full payment."
-                  submitLabel="Pay Clinic Fee"
+                  lockedAmountNote={t('clinicFeeMustBeFullPayment')}
+                  submitLabel={t('payClinicFee')}
                   busy={submitting}
                   scriptReady={scriptReady}
                   error={error}

@@ -3,6 +3,7 @@ import { AMU_SCHOOL_FACTS } from "../config/schoolFacts.js";
 import { cosineSimilarity, loadKnowledgeChunks, } from "../lib/ragKnowledge.js";
 import { classifyStudentAiIntent, } from "./studentAiQuestionRouter.js";
 import { formatIdentityContextBlock, } from "./conversationFactsService.js";
+import { getOpenAiEmbeddingModel, getOpenAiModel, } from "../config/openai.js";
 const TOP_K = 5;
 const MAX_QUESTION_CHARS = 2000;
 const MAX_HISTORY_MESSAGES = 4;
@@ -553,7 +554,7 @@ async function rewriteQuestionForRetrieval(client, question, history, intent, gu
         : REWRITE_SYSTEM_ACADEMIC_STRICT;
     try {
         const completion = await withOpenAiRetry("rewriteQuestionForRetrieval", () => client.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: getOpenAiModel(),
             messages: [
                 {
                     role: "system",
@@ -1363,7 +1364,7 @@ export async function answerGeneralQuestion(question, rawHistory, options) {
         ? `Continue the same conversation topic using the recent context below. Resolve omitted references before answering.\n\n${formatRecentConversationBlock(history)}\n\n`
         : "";
     const completion = await withOpenAiRetry("answerGeneralQuestion", () => client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: getOpenAiModel(),
         messages: [
             { role: "system", content: buildGeneralSystemPrompt(q, options?.identityContext) },
             {
@@ -1385,7 +1386,7 @@ export async function answerStudentRecordQuestionFromFacts(question, studentFact
     const facts = studentFacts.trim();
     const identityBlock = formatIdentityContextForPrompt(identityContext);
     const completion = await withOpenAiRetry("answerStudentRecordQuestionFromFacts", () => client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: getOpenAiModel(),
         messages: [
             { role: "system", content: buildStudentRecordSystemPrompt(q, identityContext) },
             {
@@ -1414,7 +1415,7 @@ export async function answerGraduationQuestion(question, rawHistory, options) {
     const chunks = await getKnowledgeChunks();
     const retrievalQuery = await rewriteQuestionForRetrieval(client, q, history, "strict", undefined);
     const embedRes = await withOpenAiRetry("answerGraduationQuestion.embedding", () => client.embeddings.create({
-        model: "text-embedding-3-small",
+        model: getOpenAiEmbeddingModel(),
         input: retrievalQuery,
     }));
     const questionEmbedding = embedRes.data[0]?.embedding;
@@ -1434,7 +1435,7 @@ export async function answerGraduationQuestion(question, rawHistory, options) {
     const identityBlock = formatIdentityContextForPrompt(options?.identityContext);
     const contextBlock = formatRetrievedDocumentContextBlock(top);
     const completion = await withOpenAiRetry("answerGraduationQuestion.chat", () => client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: getOpenAiModel(),
         messages: [
             {
                 role: "system",
@@ -1474,7 +1475,7 @@ export async function answerAmuQuestion(question, rawHistory, options) {
     const chunks = await getKnowledgeChunks();
     const retrievalQuery = await rewriteQuestionForRetrieval(client, q, history, "strict", undefined);
     const embedRes = await withOpenAiRetry("answerAmuQuestion.embedding", () => client.embeddings.create({
-        model: "text-embedding-3-small",
+        model: getOpenAiEmbeddingModel(),
         input: retrievalQuery,
     }));
     const questionEmbedding = embedRes.data[0]?.embedding;
@@ -1525,7 +1526,7 @@ ${q}`;
         topRetrievedSource: top[0]?.chunk.source ?? null,
     });
     const completion = await withOpenAiRetry("answerAmuQuestion.chat", () => client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: getOpenAiModel(),
         messages: [
             {
                 role: "system",

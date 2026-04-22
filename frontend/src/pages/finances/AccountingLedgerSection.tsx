@@ -56,9 +56,11 @@ function formatRemainingHms(totalSeconds: number): string {
 function ClinicalBookingPaymentHoldCountdown({
   hold,
   t,
+  className,
 }: {
   hold: ClinicalBookingPaymentHoldLedger
   t: (key: StudentPortalKey) => string
+  className?: string
 }): ReactElement | null {
   const expiresMs = useMemo(() => {
     const ms = new Date(hold.holdExpiresAt.trim()).getTime()
@@ -80,14 +82,14 @@ function ClinicalBookingPaymentHoldCountdown({
   const remainingSec = Math.max(0, Math.floor((expiresMs - nowMs) / 1000))
   if (remainingSec <= 0) {
     return (
-      <p className="portal-inline-note portal-inline-note--flush" role="status">
+      <p className={`portal-inline-note portal-inline-note--flush ${className ?? ''}`.trim()} role="status">
         {t('clinicalBookingPaymentHoldExpired')}
       </p>
     )
   }
 
   return (
-    <p className="portal-inline-note portal-inline-note--flush" aria-live="polite">
+    <p className={`portal-inline-note portal-inline-note--flush ${className ?? ''}`.trim()} aria-live="polite">
       {t('clinicalBookingPaymentDueIn').replace('{time}', formatRemainingHms(remainingSec))}
     </p>
   )
@@ -311,7 +313,6 @@ export function AccountingLedgerSection() {
     if (error) {
       return (
         <section className="portal-stack" aria-live="polite">
-          <h2 className="portal-section-heading">{t('accountingLedgerByQuarter')}</h2>
           <p className="portal-inline-note portal-inline-note--flush" role="alert">
             {t('couldNotLoadAccountingQuarters')} {error}
           </p>
@@ -322,16 +323,10 @@ export function AccountingLedgerSection() {
   }
 
   const showMakePaymentControl = selectedQuarter != null && quarters.length > 0
-  const tuitionDue = Math.max(0, billingSummary?.tuitionCharge.amountDue ?? 0)
-  const clinicDue = Math.max(0, billingSummary?.clinicFeeCharge.amountDue ?? 0)
-  const examDue = Math.max(0, billingSummary?.examFeeCharge.amountDue ?? 0)
-  const clinicStatus = billingSummary?.clinicFeeStatus ?? (clinicDue > 0 ? 'pending' : 'paid')
+  const clinicActionDue = billingSummary == null ? null : Math.max(0, billingSummary.clinicFeeCharge.amountDue)
   return (
-    <section className="portal-stack" aria-labelledby="accounting-ledger-heading">
+    <section className="portal-stack" aria-label={t('accountingLedgerByQuarter')}>
       <div className="portal-account-ledger__toolbar">
-        <h2 id="accounting-ledger-heading" className="portal-section-heading">
-          {t('accountingLedgerByQuarter')}
-        </h2>
         <div className="portal-account-ledger__toolbar-actions">
           <label className="portal-account-ledger__quarter-label" htmlFor="accounting-quarter-select">
             <span className="visually-hidden">{t('quarterVisuallyHidden')}</span>
@@ -361,112 +356,43 @@ export function AccountingLedgerSection() {
       ) : null}
 
       {showMakePaymentControl ? (
-        <section className="portal-card portal-finance-entry-actions" aria-labelledby="finance-entry-actions-heading">
-          <header className="portal-finance-entry-actions__header">
-            <h3 id="finance-entry-actions-heading" className="portal-section-heading">
-              Payment Actions
-            </h3>
-            <p className="portal-finance-entry-actions__subhead">
-              Tuition and clinic fee are paid in separate flows.
-            </p>
-          </header>
+        <section className="portal-card portal-finance-entry-actions" aria-label={t('pageActionsAria')}>
           {loadingBillingSummary ? (
             <p className="portal-inline-note portal-inline-note--flush" role="status">
-              Loading payment action status...
+              {t('loadingPaymentActionStatus')}
             </p>
           ) : null}
           <div className="portal-finance-entry-actions__grid">
-            <article className="portal-finance-entry-card">
-              <h4 className="portal-finance-entry-card__title">Tuition</h4>
-              <p className="portal-finance-entry-card__status">Due: {formatMoney(tuitionDue)}</p>
-              <div className="portal-finance-entry-card__actions">
-                <button
-                  type="button"
-                  className="portal-btn portal-btn--secondary"
-                  onClick={() => {
-                    if (selectedQuarter == null) return
-                    const params = new URLSearchParams()
-                    params.set('term', selectedQuarter.term)
-                    params.set('year', String(selectedQuarter.year))
-                    params.set('label', selectedQuarter.label)
-                    navigate(`/finances/payment/tuition?${params.toString()}`)
-                  }}
-                >
-                  View Tuition Balance
-                </button>
-                <button
-                  type="button"
-                  className="portal-btn portal-btn--primary"
-                  onClick={() => {
-                    if (selectedQuarter == null) return
-                    const params = new URLSearchParams()
-                    params.set('term', selectedQuarter.term)
-                    params.set('year', String(selectedQuarter.year))
-                    params.set('label', selectedQuarter.label)
-                    navigate(`/finances/payment/tuition?${params.toString()}`)
-                  }}
-                  disabled={tuitionDue <= 0}
-                >
-                  Pay Tuition
-                </button>
-              </div>
-            </article>
+            <button
+              type="button"
+              className="portal-finance-entry-actions__button"
+              onClick={() => {
+                if (selectedQuarter == null) return
+                const params = new URLSearchParams()
+                params.set('term', selectedQuarter.term)
+                params.set('year', String(selectedQuarter.year))
+                params.set('label', selectedQuarter.label)
+                navigate(`/finances/payment/tuition?${params.toString()}`)
+              }}
+            >
+              {t('payTuition')}
+            </button>
+            <button
+              type="button"
+              className="portal-finance-entry-actions__button"
+              disabled={clinicActionDue != null && clinicActionDue <= 0}
+              onClick={() => {
+                if (selectedQuarter == null) return
+                const params = new URLSearchParams()
+                params.set('term', selectedQuarter.term)
+                params.set('year', String(selectedQuarter.year))
+                params.set('label', selectedQuarter.label)
+                navigate(`/finances/payment/clinic-fee?${params.toString()}`)
+              }}
+            >
+              {t('payClinicFee')}
+            </button>
 
-            <article className="portal-finance-entry-card">
-              <h4 className="portal-finance-entry-card__title">Clinic Fee</h4>
-              <p className="portal-finance-entry-card__status">
-                Status:{' '}
-                {clinicStatus === 'registration_cancelled'
-                  ? 'registration cancelled'
-                  : clinicStatus === 'expired'
-                    ? 'expired'
-                    : clinicStatus === 'paid'
-                      ? 'paid'
-                      : 'pending'}
-              </p>
-              <p className="portal-finance-entry-card__status">Due: {formatMoney(clinicDue)}</p>
-              <div className="portal-finance-entry-card__actions">
-                <button
-                  type="button"
-                  className="portal-btn portal-btn--secondary"
-                  onClick={() => {
-                    if (selectedQuarter == null) return
-                    const params = new URLSearchParams()
-                    params.set('term', selectedQuarter.term)
-                    params.set('year', String(selectedQuarter.year))
-                    params.set('label', selectedQuarter.label)
-                    navigate(`/finances/payment/clinic-fee?${params.toString()}`)
-                  }}
-                >
-                  View Clinic Fee Status
-                </button>
-                <button
-                  type="button"
-                  className="portal-btn portal-btn--primary"
-                  onClick={() => {
-                    if (selectedQuarter == null) return
-                    const params = new URLSearchParams()
-                    params.set('term', selectedQuarter.term)
-                    params.set('year', String(selectedQuarter.year))
-                    params.set('label', selectedQuarter.label)
-                    navigate(`/finances/payment/clinic-fee?${params.toString()}`)
-                  }}
-                  disabled={clinicDue <= 0 || clinicStatus !== 'pending'}
-                >
-                  Pay Clinic Fee
-                </button>
-              </div>
-            </article>
-
-            {examDue > 0 ? (
-              <article className="portal-finance-entry-card">
-                <h4 className="portal-finance-entry-card__title">Exam Fee</h4>
-                <p className="portal-finance-entry-card__status">Due: {formatMoney(examDue)}</p>
-                <p className="portal-finance-entry-card__status">
-                  Exam fee is tracked separately from tuition installments.
-                </p>
-              </article>
-            ) : null}
           </div>
         </section>
       ) : null}
@@ -487,60 +413,76 @@ export function AccountingLedgerSection() {
             <AccountingLedgerMobileCards ledger={ledger} dateLocale={dateLocale} t={t} />
           ) : (
             <div className="portal-table-wrap">
-              <table className="portal-table portal-table--courses">
+              <table className="portal-table portal-table--courses portal-table--ledger">
                 <caption className="visually-hidden">
                   {t('ledgerCaptionPrefix')} {ledger.term} {ledger.year}
                 </caption>
+                <colgroup>
+                  <col className="portal-table--ledger-col-date" />
+                  <col className="portal-table--ledger-col-type" />
+                  <col className="portal-table--ledger-col-code" />
+                  <col className="portal-table--ledger-col-description" />
+                  <col className="portal-table--ledger-col-charge" />
+                  <col className="portal-table--ledger-col-payment" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col">{t('date')}</th>
-                    <th scope="col">{t('type')}</th>
-                    <th scope="col">{t('code')}</th>
-                    <th scope="col">{t('description')}</th>
-                    <th scope="col">{t('charge')}</th>
-                    <th scope="col">{t('payment')}</th>
+                    <th scope="col" className="portal-table--ledger-col-center">{t('date')}</th>
+                    <th scope="col" className="portal-table--ledger-col-center">{t('type')}</th>
+                    <th scope="col" className="portal-table--ledger-col-center">{t('code')}</th>
+                    <th scope="col" className="portal-table--ledger-col-description">{t('description')}</th>
+                    <th scope="col" className="portal-table--ledger-col-money">{t('charge')}</th>
+                    <th scope="col" className="portal-table--ledger-col-money">{t('payment')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ledger.rows.map((row: AccountingLedgerRow, index) => (
                     <tr key={`${row.date}-${index}-${row.memo}`}>
-                      <td>{formatLedgerDate(row.date, dateLocale)}</td>
-                      <td className="portal-table-cell-capitalize">{dashText(row.type)}</td>
-                      <td>{dashText(row.code)}</td>
-                      <td>
-                        <div>{dashText(row.memo)}</div>
+                      <td className="portal-table--ledger-col-center">{formatLedgerDate(row.date, dateLocale)}</td>
+                      <td className="portal-table-cell-capitalize portal-table--ledger-col-center">{dashText(row.type)}</td>
+                      <td className="portal-table--ledger-col-center">{dashText(row.code)}</td>
+                      <td className="portal-table--ledger-col-description">
+                        <div className="portal-table--ledger-description-main">{dashText(row.memo)}</div>
                         {row.clinicalBookingPaymentHold != null ? (
                           <ClinicalBookingPaymentHoldCountdown
                             hold={row.clinicalBookingPaymentHold}
                             t={t}
+                            className="portal-table--ledger-description-subline"
                           />
                         ) : null}
                       </td>
-                      <td>{ledgerChargeCell(row.debit)}</td>
-                      <td>{ledgerPaymentCell(row.credit)}</td>
+                      <td className="portal-table--ledger-col-money">{ledgerChargeCell(row.debit)}</td>
+                      <td className="portal-table--ledger-col-money">{ledgerPaymentCell(row.credit)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr>
-                    <th scope="row" colSpan={4}>
+                  <tr className="portal-table--ledger-summary-row">
+                    <th scope="row" colSpan={4} className="portal-table--ledger-summary-label">
                       {t('totalCharges')}
                     </th>
-                    <td>{formatMoney(ledger.summary.totalCharges)}</td>
-                    <td>—</td>
+                    <td className="portal-table--ledger-col-money portal-table--ledger-summary-value">
+                      {formatMoney(ledger.summary.totalCharges)}
+                    </td>
+                    <td className="portal-table--ledger-col-money portal-table--ledger-summary-dash">—</td>
                   </tr>
-                  <tr>
-                    <th scope="row" colSpan={4}>
+                  <tr className="portal-table--ledger-summary-row">
+                    <th scope="row" colSpan={4} className="portal-table--ledger-summary-label">
                       {t('totalPayments')}
                     </th>
-                    <td>—</td>
-                    <td>{formatMoney(ledger.summary.totalPayments)}</td>
+                    <td className="portal-table--ledger-col-money portal-table--ledger-summary-dash">—</td>
+                    <td className="portal-table--ledger-col-money portal-table--ledger-summary-value">
+                      {formatMoney(ledger.summary.totalPayments)}
+                    </td>
                   </tr>
-                  <tr>
-                    <th scope="row" colSpan={4}>
+                  <tr className="portal-table--ledger-summary-row portal-table--ledger-summary-row--balance">
+                    <th scope="row" colSpan={4} className="portal-table--ledger-summary-label">
                       {t('balance')}
                     </th>
-                    <td colSpan={2}>{formatMoney(ledger.summary.balance)}</td>
+                    <td className="portal-table--ledger-col-money portal-table--ledger-summary-dash">—</td>
+                    <td className="portal-table--ledger-col-money portal-table--ledger-summary-value">
+                      {formatMoney(ledger.summary.balance)}
+                    </td>
                   </tr>
                 </tfoot>
               </table>

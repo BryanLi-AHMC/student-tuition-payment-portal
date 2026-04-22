@@ -16,7 +16,15 @@ function formatDashboardTermDate(iso: string | null, locale: string): string {
 
 type CurrentTermField = { id: string; label: string; value: string }
 
-export function DashboardCurrentPostedTerm() {
+type DashboardCurrentPostedTermProps = {
+  embedded?: boolean
+  headingId?: string
+}
+
+export function DashboardCurrentPostedTerm({
+  embedded = false,
+  headingId = 'portal-dashboard-current-term-heading',
+}: DashboardCurrentPostedTermProps) {
   const { locale } = useLanguage()
   const t = useStudentPortalT()
   const [loading, setLoading] = useState(true)
@@ -45,10 +53,20 @@ export function DashboardCurrentPostedTerm() {
   if (loading) {
     return (
       <section
-        className="portal-dashboard-current-term-card portal-card"
+        className={
+          embedded
+            ? 'portal-dashboard-sidebar-section'
+            : 'portal-dashboard-current-term-card portal-card'
+        }
         aria-busy="true"
         aria-live="polite"
+        aria-labelledby={embedded ? headingId : undefined}
       >
+        {embedded ? (
+          <h2 id={headingId} className="portal-dashboard-card-panel-title">
+            {t('currentAcademicTermTitle')}
+          </h2>
+        ) : null}
         <p className="portal-card-note">{t('loadingCurrentAcademicTerm')}</p>
       </section>
     )
@@ -56,8 +74,22 @@ export function DashboardCurrentPostedTerm() {
 
   if (error) {
     return (
-      <section className="portal-dashboard-current-term-card portal-card portal-dashboard-current-term-card--muted">
-        <h2 className="portal-dashboard-current-term-card__title">
+      <section
+        className={
+          embedded
+            ? 'portal-dashboard-sidebar-section portal-dashboard-current-term-card--muted'
+            : 'portal-dashboard-current-term-card portal-card portal-dashboard-current-term-card--muted'
+        }
+        aria-labelledby={headingId}
+      >
+        <h2
+          id={headingId}
+          className={
+            embedded
+              ? 'portal-dashboard-card-panel-title'
+              : 'portal-dashboard-current-term-card__title'
+          }
+        >
           {t('currentAcademicTermTitle')}
         </h2>
         <p className="portal-card-note">{t('couldNotLoadCurrentAcademicTerm')}</p>
@@ -68,10 +100,22 @@ export function DashboardCurrentPostedTerm() {
   if (term === null) {
     return (
       <section
-        className="portal-dashboard-current-term-card portal-card portal-dashboard-current-term-card--muted"
+        className={
+          embedded
+            ? 'portal-dashboard-sidebar-section portal-dashboard-current-term-card--muted'
+            : 'portal-dashboard-current-term-card portal-card portal-dashboard-current-term-card--muted'
+        }
         aria-live="polite"
+        aria-labelledby={headingId}
       >
-        <h2 className="portal-dashboard-current-term-card__title">
+        <h2
+          id={headingId}
+          className={
+            embedded
+              ? 'portal-dashboard-card-panel-title'
+              : 'portal-dashboard-current-term-card__title'
+          }
+        >
           {t('currentAcademicTermTitle')}
         </h2>
         <p className="portal-card-note">{t('noCurrentAcademicTermPosted')}</p>
@@ -104,12 +148,16 @@ export function DashboardCurrentPostedTerm() {
 
   return (
     <section
-      className="portal-dashboard-current-term-card portal-card"
-      aria-labelledby="portal-dashboard-current-term-heading"
+      className={
+        embedded ? 'portal-dashboard-sidebar-section' : 'portal-dashboard-current-term-card portal-card'
+      }
+      aria-labelledby={headingId}
     >
       <h2
-        id="portal-dashboard-current-term-heading"
-        className="portal-dashboard-current-term-card__title"
+        id={headingId}
+        className={
+          embedded ? 'portal-dashboard-card-panel-title' : 'portal-dashboard-current-term-card__title'
+        }
       >
         {t('currentAcademicTermTitle')}
       </h2>

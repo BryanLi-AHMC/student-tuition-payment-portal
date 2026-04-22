@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useStudentPortalT } from '@/LanguageContext'
 import { useAccount } from '@/context/AccountContext'
 import { PaymentCardForm } from '@/components/finance/PaymentCardForm'
 import { PaymentSummaryCard } from '@/components/finance/PaymentSummaryCard'
@@ -57,14 +58,8 @@ function termCodeFromQuarter(term: string, year: number): string {
   return `${year}-${suffix}`
 }
 
-function installmentOrdinal(n: number): string {
-  if (n === 1) return '1st'
-  if (n === 2) return '2nd'
-  if (n === 3) return '3rd'
-  return `${n}th`
-}
-
 export function FinancesPaymentPage() {
+  const t = useStudentPortalT()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { account, currentStudentId, authToken, isAuthenticated } = useAccount()
@@ -95,6 +90,7 @@ export function FinancesPaymentPage() {
       : billingSummary?.lateFeeCharge.amountDue ?? 0,
   )
   const tuitionDue = Math.max(0, billingSummary?.tuitionCharge.amountDue ?? 0)
+  const lateFeeDue = Math.max(0, billingSummary?.lateFeeCharge.amountDue ?? 0)
 
   const amountNum = useMemo(() => {
     const n = Number(amount)
@@ -105,28 +101,34 @@ export function FinancesPaymentPage() {
     () => calculateInstallmentSchedule(tuitionDue, installmentCount, serviceFeePerInstallment),
     [tuitionDue],
   )
+  const installmentSchedule = scheduleTotals.schedule
+  const firstInstallment = installmentSchedule[0] ?? null
+  const remainingAfterToday = useMemo(() => {
+    if (firstInstallment == null) return 0
+    return roundMoney(Math.max(0, scheduleTotals.totalPayableAmount - firstInstallment.totalDue))
+  }, [firstInstallment, scheduleTotals.totalPayableAmount])
   const amountDueToday = useMemo(() => {
     if (!installmentEligible || paymentPlan === 'full') return roundMoney(selectedChargeDue)
-    return roundMoney(scheduleTotals.schedule[0]?.totalDue ?? 0)
-  }, [installmentEligible, paymentPlan, scheduleTotals.schedule, selectedChargeDue])
+    return roundMoney(firstInstallment?.totalDue ?? 0)
+  }, [firstInstallment, installmentEligible, paymentPlan, selectedChargeDue])
   const submitLabel = useMemo(() => {
-    if (selectedChargeType === 'late_fee') return 'Pay Late Fee'
+    if (selectedChargeType === 'late_fee') return t('payLateFee')
     return paymentPlan === 'installment'
-      ? 'Continue to Installment Payment'
-      : 'Continue to Full Payment'
-  }, [paymentPlan, selectedChargeType])
+      ? t('continueToInstallmentPayment')
+      : t('continueToFullPayment')
+  }, [paymentPlan, selectedChargeType, t])
   const lockedAmountNote = useMemo(() => {
     if (selectedChargeType === 'late_fee') {
-      return 'Amount is fixed for the tuition late fee and is due now.'
+      return t('amountFixedForLateFee')
     }
     return paymentPlan === 'installment'
-      ? 'Amount reflects your first installment plus service fee.'
-      : 'Amount reflects the full tuition payment amount.'
-  }, [paymentPlan, selectedChargeType])
+      ? t('amountIncludesFirstInstallmentAndFee')
+      : t('amountMatchesFullTuition')
+  }, [paymentPlan, selectedChargeType, t])
 
-  const studentName = account.student.name?.trim() || 'Student'
+  const studentName = account.student.name?.trim() || t('studentFallback')
   const displayStudentId = account.student.studentId?.trim() || studentId || '—'
-  const displayTerm = termLabel || portalTermLabel(account) || 'Selected term'
+  const displayTerm = termLabel || portalTermLabel(account) || t('selectedTerm')
   const termCode = termCodeFromQuarter(term, year)
 
   useEffect(() => {
@@ -159,7 +161,7 @@ export function FinancesPaymentPage() {
           if (ac.signal.aborted) return
           const newest = quartersRes.quarters[0]
           if (newest == null) {
-            throw new Error('No payable term found for this account.')
+            throw new Error(t('noPayableTermFound'))
           }
           nextTerm = newest.term
           nextYear = newest.year
@@ -187,14 +189,14 @@ export function FinancesPaymentPage() {
         }
       } catch (e) {
         if (ac.signal.aborted) return
-        setError(e instanceof Error ? e.message : 'Unable to load payment details.')
+        setError(e instanceof Error ? e.message : t('unableToLoadPaymentDetails'))
       } finally {
         if (!ac.signal.aborted) setLoading(false)
       }
     })()
 
     return () => ac.abort()
-  }, [authToken, isAuthenticated, navigate, studentId, term, termLabel, year])
+  }, [authToken, isAuthenticated, navigate, studentId, term, termLabel, year, t])
 
   useEffect(() => {
     let mounted = true
@@ -206,12 +208,12 @@ export function FinancesPaymentPage() {
       })
       .catch((e) => {
         if (!mounted) return
-        setError(e instanceof Error ? e.message : 'Unable to load payment script.')
+        setError(e instanceof Error ? e.message : t('unableToLoadPaymentScript'))
       })
     return () => {
       mounted = false
     }
-  }, [])
+  }, [t])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -221,27 +223,27 @@ export function FinancesPaymentPage() {
     const clientKey = String(import.meta.env.VITE_AUTHORIZE_CLIENT_KEY ?? '').trim()
 
     if (apiLoginId === '' || clientKey === '') {
-      setError('Payment configuration is unavailable. Please contact support.')
+      setError(t('paymentConfigurationUnavailable'))
       setCvv('')
       return
     }
     if (!scriptReady) {
-      setError('Secure payment form is still loading. Please wait a moment and try again.')
+      setError(t('securePaymentFormStillLoading'))
       setCvv('')
       return
     }
     if (term.trim() === '' || !Number.isFinite(year)) {
-      setError('Billing term is unavailable. Please return to Finances and try again.')
+      setError(t('billingTermUnavailable'))
       setCvv('')
       return
     }
     if (selectedChargeDue <= 0) {
-      setError('There is no outstanding balance for the selected charge.')
+      setError(t('noOutstandingBalanceForCharge'))
       setCvv('')
       return
     }
     if (!Number.isFinite(amountNum) || amountNum <= 0) {
-      setError('Enter a valid payment amount greater than 0.')
+      setError(t('enterValidPaymentAmount'))
       setCvv('')
       return
     }
@@ -251,23 +253,23 @@ export function FinancesPaymentPage() {
         : selectedChargeDue,
     )
     if (amountNum > maxAllowedAmount) {
-      setError('Payment amount cannot exceed the amount due for this charge.')
+      setError(t('paymentAmountExceedsCharge'))
       setCvv('')
       return
     }
     if (!/^\d{13,19}$/.test(cardNumber)) {
-      setError('Card number must be 13 to 19 digits.')
+      setError(t('cardNumberDigitsError'))
       setCvv('')
       return
     }
     const expirationParts = splitExpirationDate(expirationDate)
     if (expirationParts == null) {
-      setError('Expiration date must be in MM/YY format.')
+      setError(t('expirationFormatError'))
       setCvv('')
       return
     }
     if (!/^\d{3,4}$/.test(cvv)) {
-      setError('CVV must be 3 or 4 digits.')
+      setError(t('cvvDigitsError'))
       setCvv('')
       return
     }
@@ -297,7 +299,9 @@ export function FinancesPaymentPage() {
         { authToken: authToken?.trim() || undefined },
       )
       setCvv('')
-      const successText = `Payment of ${formatMoney(Number(result.amount))} posted successfully. Ref ${result.providerTransactionId}.`
+      const successText = t('tuitionPaymentSuccess')
+        .replace('{amount}', formatMoney(Number(result.amount)))
+        .replace('{reference}', result.providerTransactionId)
       setSuccessMessage(successText)
       window.setTimeout(() => {
         navigate('/finances/overview', {
@@ -310,7 +314,7 @@ export function FinancesPaymentPage() {
       }, 900)
     } catch (e) {
       setCvv('')
-      setError(e instanceof Error ? e.message : 'Payment could not be processed.')
+      setError(e instanceof Error ? e.message : t('paymentCouldNotBeProcessed'))
     } finally {
       setSubmitting(false)
     }
@@ -321,16 +325,16 @@ export function FinancesPaymentPage() {
       <header className="portal-finance-checkout-page__header">
         <Link to="/finances/overview" className="portal-finance-checkout-page__back-link">
           <ChevronLeft size={16} aria-hidden="true" />
-          <span>Back to Finances</span>
+          <span>{t('backToFinances')}</span>
         </Link>
         <h2 className="portal-page-title portal-finance-checkout-page__title">
-          Pay Tuition
+          {t('payTuition')}
         </h2>
       </header>
 
       {loading ? (
         <p className="portal-inline-note portal-inline-note--flush" role="status">
-          Loading payment details...
+          {t('loadingPaymentDetails')}
         </p>
       ) : null}
 
@@ -343,113 +347,87 @@ export function FinancesPaymentPage() {
       {!loading ? (
         <>
           {billingSummary != null ? (
-            <section className="portal-card portal-finance-payment-option" aria-labelledby="tuition-flow-heading">
-              <header className="portal-finance-payment-option__header">
-                <h2 id="tuition-flow-heading" className="portal-section-heading">
-                  Tuition Payment
-                </h2>
-              </header>
+            <section className="portal-card portal-finance-payment-option" aria-label={t('tuitionPaymentSettingsAria')}>
               <dl className="portal-finance-checkout-summary">
                 <div className="portal-finance-checkout-summary__row">
-                  <dt>Total tuition charge</dt>
-                  <dd>{formatMoney(billingSummary.tuitionCharge.amount)}</dd>
-                </div>
-                <div className="portal-finance-checkout-summary__row">
-                  <dt>Tuition due</dt>
+                  <dt>{t('tuitionDue')}</dt>
                   <dd>{formatMoney(billingSummary.tuitionCharge.amountDue)}</dd>
                 </div>
-                <div className="portal-finance-checkout-summary__row">
-                  <dt>Exam fee due</dt>
-                  <dd>{formatMoney(billingSummary.examFeeCharge.amountDue)}</dd>
-                </div>
-                <div className="portal-finance-checkout-summary__row">
-                  <dt>Tuition late fee due</dt>
-                  <dd>{formatMoney(billingSummary.lateFeeCharge.amountDue)}</dd>
-                </div>
+                {lateFeeDue > 0 ? (
+                  <div className="portal-finance-checkout-summary__row">
+                    <dt>{t('lateFeeDue')}</dt>
+                    <dd>{formatMoney(lateFeeDue)}</dd>
+                  </div>
+                ) : null}
                 <div className="portal-finance-checkout-summary__row portal-finance-checkout-summary__row--strong">
-                  <dt>Tuition flow due</dt>
-                  <dd>{formatMoney(billingSummary.tuitionTotalDue)}</dd>
+                  <dt>{t('amountDueToday')}</dt>
+                  <dd>{formatMoney(amountDueToday)}</dd>
                 </div>
               </dl>
-              <div className="portal-finance-payment-option__cards" role="radiogroup" aria-label="Tuition charge type">
-                <button
-                  type="button"
-                  className={`portal-finance-payment-option__card ${selectedChargeType === 'tuition' ? 'is-selected' : ''}`}
-                  onClick={() => setSelectedChargeType('tuition')}
-                  disabled={billingSummary.tuitionCharge.amountDue <= 0}
-                >
-                  <span className="portal-finance-payment-option__card-content">
-                    <span className="portal-finance-payment-option__card-title">Pay Tuition</span>
-                    <span className="portal-finance-payment-option__card-copy">
-                      Tuition supports full payment or installment payment.
-                    </span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={`portal-finance-payment-option__card ${selectedChargeType === 'late_fee' ? 'is-selected' : ''}`}
-                  onClick={() => setSelectedChargeType('late_fee')}
-                  disabled={billingSummary.lateFeeCharge.amountDue <= 0}
-                >
-                  <span className="portal-finance-payment-option__card-content">
-                    <span className="portal-finance-payment-option__card-title">Pay Tuition Late Fee</span>
-                    <span className="portal-finance-payment-option__card-copy">
-                      Late fee applies to tuition only and must be paid in full.
-                    </span>
-                  </span>
-                </button>
-              </div>
               {selectedChargeType === 'tuition' ? (
-                <>
-                  <div className="portal-finance-payment-option__cards" role="radiogroup" aria-label="Tuition payment option">
-                    <button
-                      type="button"
-                      className={`portal-finance-payment-option__card ${paymentPlan === 'full' ? 'is-selected' : ''}`}
-                      onClick={() => setPaymentPlan('full')}
-                    >
-                      <span className="portal-finance-payment-option__card-content">
-                        <span className="portal-finance-payment-option__card-title">Pay in Full</span>
-                        <span className="portal-finance-payment-option__card-copy">
-                          Pay all unpaid tuition in one payment.
-                        </span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`portal-finance-payment-option__card ${paymentPlan === 'installment' ? 'is-selected' : ''}`}
-                      onClick={() => setPaymentPlan('installment')}
-                      disabled={billingSummary.tuitionCharge.amountDue <= 0}
-                    >
-                      <span className="portal-finance-payment-option__card-content">
-                        <span className="portal-finance-payment-option__card-title">Pay by Installments</span>
-                        <span className="portal-finance-payment-option__card-copy">
-                          3 installments with a $15 fee each installment.
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                  {paymentPlan === 'installment' ? (
-                    <section className="portal-finance-installment-schedule" aria-labelledby="tuition-installment-schedule-heading">
-                      <h3 id="tuition-installment-schedule-heading" className="portal-section-heading">
-                        Installment Schedule
-                      </h3>
-                      <ul className="portal-finance-installment-schedule__list">
-                        {scheduleTotals.schedule.map((row) => (
-                          <li key={row.installmentNumber}>
-                            {installmentOrdinal(row.installmentNumber)} installment: {formatMoney(row.tuitionAmount)} +{' '}
-                            {formatMoney(row.serviceFee)} service fee
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ) : null}
-                </>
+                <div className="portal-finance-payment-option__cards" role="radiogroup" aria-label={t('tuitionPaymentModeAria')}>
+                  <button
+                    type="button"
+                    className={`portal-finance-payment-option__card ${paymentPlan === 'full' ? 'is-selected' : ''}`}
+                    onClick={() => setPaymentPlan('full')}
+                    disabled={billingSummary.tuitionCharge.amountDue <= 0}
+                  >
+                    <span className="portal-finance-payment-option__card-title">{t('payInFull')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`portal-finance-payment-option__card ${paymentPlan === 'installment' ? 'is-selected' : ''}`}
+                    onClick={() => setPaymentPlan('installment')}
+                    disabled={billingSummary.tuitionCharge.amountDue <= 0}
+                  >
+                    <span className="portal-finance-payment-option__card-title">{t('payByInstallments')}</span>
+                  </button>
+                </div>
+              ) : null}
+              {selectedChargeType === 'tuition' &&
+              paymentPlan === 'installment' &&
+              tuitionDue > 0 &&
+              firstInstallment != null ? (
+                <section className="portal-finance-installment-schedule" aria-labelledby="installment-breakdown-heading">
+                  <h3 id="installment-breakdown-heading" className="portal-section-heading">
+                    {t('installmentPlanBreakdown')}
+                  </h3>
+                  <dl className="portal-finance-checkout-summary">
+                    <div className="portal-finance-checkout-summary__row portal-finance-checkout-summary__row--strong">
+                      <dt>{t('totalDueToday')}</dt>
+                      <dd>{formatMoney(firstInstallment.totalDue)}</dd>
+                    </div>
+                    <div className="portal-finance-checkout-summary__row">
+                      <dt>{t('remainingAfterToday')}</dt>
+                      <dd>{formatMoney(remainingAfterToday)}</dd>
+                    </div>
+                    <div className="portal-finance-checkout-summary__row">
+                      <dt>{t('totalInstallmentServiceFees')}</dt>
+                      <dd>{formatMoney(scheduleTotals.totalServiceFees)}</dd>
+                    </div>
+                  </dl>
+                  <ol className="portal-finance-installment-plan__list">
+                    {installmentSchedule.map((row) => (
+                      <li key={row.installmentNumber} className="portal-finance-installment-plan__item">
+                        <div className="portal-finance-installment-plan__item-header">
+                          <span>{t('paymentN').replace('{n}', String(row.installmentNumber))}</span>
+                          <strong>{formatMoney(row.totalDue)}</strong>
+                        </div>
+                        <p className="portal-finance-installment-plan__item-note">
+                          {t('installmentItemBreakdown')
+                            .replace('{tuition}', formatMoney(row.tuitionAmount))
+                            .replace('{fee}', formatMoney(row.serviceFee))}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
               ) : null}
             </section>
           ) : null}
           {billingSummary != null && billingSummary.tuitionTotalDue <= 0 ? (
             <p className="portal-inline-note portal-inline-note--flush" role="status">
-              Tuition and tuition late fee are fully paid for this term.
+              {t('tuitionAndLateFeePaid')}
             </p>
           ) : null}
           <div className="portal-finance-checkout-layout">

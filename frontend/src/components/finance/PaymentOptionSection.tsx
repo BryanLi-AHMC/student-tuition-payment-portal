@@ -1,5 +1,6 @@
 import { formatMoney } from '@/lib/formatMoney'
 import type { CurrentTermBillingCharge } from '@/lib/api'
+import { useStudentPortalT } from '@/LanguageContext'
 import {
   calculateInstallmentSchedule,
   type PaymentChargeType,
@@ -20,13 +21,6 @@ type PaymentOptionSectionProps = {
   onSelectChargeType: (next: PaymentChargeType) => void
 }
 
-function installmentOrdinal(n: number): string {
-  if (n === 1) return '1st'
-  if (n === 2) return '2nd'
-  if (n === 3) return '3rd'
-  return `${n}th`
-}
-
 export function PaymentOptionSection({
   tuitionCharge,
   clinicFeeCharge,
@@ -40,6 +34,7 @@ export function PaymentOptionSection({
   onPaymentPlanChange,
   onSelectChargeType,
 }: PaymentOptionSectionProps) {
+  const t = useStudentPortalT()
   const tuitionAmountDue = Math.max(0, tuitionCharge.amountDue)
   const schedule = calculateInstallmentSchedule(tuitionAmountDue, installmentCount, serviceFeePerInstallment)
   const hasAdditionalRequiredFees = clinicFeeCharge.amountDue > 0 || examFeeCharge.amountDue > 0
@@ -49,21 +44,21 @@ export function PaymentOptionSection({
       <section className="portal-card portal-finance-payment-option" aria-labelledby="payment-option-heading">
         <header className="portal-finance-payment-option__header">
           <h2 id="payment-option-heading" className="portal-section-heading">
-            Tuition
+            {t('tuition')}
           </h2>
         </header>
         <dl className="portal-finance-checkout-summary">
           <div className="portal-finance-checkout-summary__row">
-            <dt>Total tuition charge</dt>
+            <dt>{t('totalTuitionCharge')}</dt>
             <dd>{formatMoney(tuitionCharge.amount)}</dd>
           </div>
           <div className="portal-finance-checkout-summary__row portal-finance-checkout-summary__row--strong">
-            <dt>Tuition due now</dt>
+            <dt>{t('tuitionDueNow')}</dt>
             <dd>{formatMoney(tuitionAmountDue)}</dd>
           </div>
         </dl>
 
-        <div className="portal-finance-payment-option__cards" role="radiogroup" aria-label="Payment option">
+        <div className="portal-finance-payment-option__cards" role="radiogroup" aria-label={t('paymentOptionHeading')}>
           <button
             type="button"
             className={`portal-finance-payment-option__card ${paymentPlan === 'full' ? 'is-selected' : ''}`}
@@ -76,9 +71,9 @@ export function PaymentOptionSection({
             disabled={tuitionAmountDue <= 0}
           >
             <span className="portal-finance-payment-option__card-content">
-              <span className="portal-finance-payment-option__card-title">Pay in Full</span>
+              <span className="portal-finance-payment-option__card-title">{t('payInFull')}</span>
               <span className="portal-finance-payment-option__card-copy">
-                Pay all unpaid tuition for this term in one payment.
+                {t('payAllUnpaidTuitionOnePayment')}
               </span>
             </span>
           </button>
@@ -94,39 +89,41 @@ export function PaymentOptionSection({
             disabled={tuitionAmountDue <= 0}
           >
             <span className="portal-finance-payment-option__card-content">
-              <span className="portal-finance-payment-option__card-title">Pay by Installments</span>
+              <span className="portal-finance-payment-option__card-title">{t('payByInstallments')}</span>
               <span className="portal-finance-payment-option__card-copy">
-                Up to 3 installments per quarter. A $15 non-refundable service fee applies to each installment.
+                {t('upToThreeInstallmentsWithFee')}
               </span>
             </span>
           </button>
         </div>
-        <p className="portal-finance-payment-option__note">Installment plans apply to tuition only.</p>
+        <p className="portal-finance-payment-option__note">{t('installmentPlansTuitionOnly')}</p>
 
         {paymentPlan === 'installment' && tuitionAmountDue > 0 ? (
           <section className="portal-finance-installment-schedule" aria-labelledby="installment-schedule-heading">
             <h3 id="installment-schedule-heading" className="portal-section-heading">
-              Installment Schedule
+              {t('installmentSchedule')}
             </h3>
             <ul className="portal-finance-installment-schedule__list">
               {schedule.schedule.map((row) => (
                 <li key={row.installmentNumber}>
-                  {installmentOrdinal(row.installmentNumber)} installment: {formatMoney(row.tuitionAmount)} +{' '}
-                  {formatMoney(row.serviceFee)} service fee
+                  {t('nthInstallment')
+                    .replace('{n}', String(row.installmentNumber))
+                    .replace('{tuition}', formatMoney(row.tuitionAmount))
+                    .replace('{fee}', formatMoney(row.serviceFee))}
                 </li>
               ))}
             </ul>
             <dl className="portal-finance-checkout-summary">
               <div className="portal-finance-checkout-summary__row">
-                <dt>Total tuition amount</dt>
+                <dt>{t('totalTuitionAmount')}</dt>
                 <dd>{formatMoney(schedule.totalTuitionAmount)}</dd>
               </div>
               <div className="portal-finance-checkout-summary__row">
-                <dt>Total tuition service fees</dt>
+                <dt>{t('totalTuitionServiceFees')}</dt>
                 <dd>{formatMoney(schedule.totalServiceFees)}</dd>
               </div>
               <div className="portal-finance-checkout-summary__row portal-finance-checkout-summary__row--strong">
-                <dt>Total payable amount</dt>
+                <dt>{t('totalPayableAmount')}</dt>
                 <dd>{formatMoney(schedule.totalPayableAmount)}</dd>
               </div>
             </dl>
@@ -138,38 +135,38 @@ export function PaymentOptionSection({
         <section className="portal-card portal-finance-payment-option" aria-labelledby="additional-fees-heading">
           <header className="portal-finance-payment-option__header">
             <h2 id="additional-fees-heading" className="portal-section-heading">
-              Additional Required Fees
+              {t('additionalRequiredFees')}
             </h2>
           </header>
           <p className="portal-finance-payment-option__note">
-            Clinic and exam fees are separate required charges and are not eligible for installment plans.
+            {t('clinicAndExamFeesNotInstallmentEligible')}
           </p>
           <div className="portal-finance-required-fees">
             {clinicFeeCharge.amountDue > 0 ? (
               <div className="portal-finance-required-fees__row">
-                <span>Clinic Fee</span>
+                <span>{t('clinicFee')}</span>
                 <span>{formatMoney(clinicFeeCharge.amountDue)}</span>
-                <span>Due Now</span>
+                <span>{t('dueNow')}</span>
                 <button
                   type="button"
                   className={`portal-btn portal-btn--secondary ${selectedChargeType === 'clinic_fee' ? 'is-selected' : ''}`}
                   onClick={() => onSelectChargeType('clinic_fee')}
                 >
-                  Pay Now
+                  {t('payNow')}
                 </button>
               </div>
             ) : null}
             {examFeeCharge.amountDue > 0 ? (
               <div className="portal-finance-required-fees__row">
-                <span>Exam Fee</span>
+                <span>{t('examFee')}</span>
                 <span>{formatMoney(examFeeCharge.amountDue)}</span>
-                <span>Due Now</span>
+                <span>{t('dueNow')}</span>
                 <button
                   type="button"
                   className={`portal-btn portal-btn--secondary ${selectedChargeType === 'exam_fee' ? 'is-selected' : ''}`}
                   onClick={() => onSelectChargeType('exam_fee')}
                 >
-                  Pay Now
+                  {t('payNow')}
                 </button>
               </div>
             ) : null}
@@ -181,28 +178,30 @@ export function PaymentOptionSection({
         <section className="portal-card portal-finance-payment-option" aria-labelledby="late-fee-heading">
           <header className="portal-finance-payment-option__header">
             <h2 id="late-fee-heading" className="portal-section-heading">
-              Late Fee
+              {t('lateFee')}
             </h2>
           </header>
           <dl className="portal-finance-checkout-summary">
             <div className="portal-finance-checkout-summary__row portal-finance-checkout-summary__row--strong">
-              <dt>Late Fee</dt>
+              <dt>{t('lateFee')}</dt>
               <dd>{formatMoney(lateFeeCharge.amountDue)}</dd>
             </div>
           </dl>
           <p className="portal-finance-payment-option__note">
-            Applied because payment was not completed by the term payment deadline.
+            {t('lateFeeAppliedBecauseDeadlineMissed')}
           </p>
           <p className="portal-finance-payment-option__note">
-            A $30 late fee applies after the term payment deadline if any required current-term charges remain unpaid.
-            {paymentDeadline ? ` Payment deadline: ${paymentDeadline}.` : ''}
+            {t('lateFeeThirtyApplied')}
+            {paymentDeadline
+              ? ` ${t('paymentDeadlineLabel').replace('{date}', paymentDeadline)}`
+              : ''}
           </p>
           <button
             type="button"
             className={`portal-btn portal-btn--secondary ${selectedChargeType === 'late_fee' ? 'is-selected' : ''}`}
             onClick={() => onSelectChargeType('late_fee')}
           >
-            Pay Now
+            {t('payNow')}
           </button>
         </section>
       ) : null}

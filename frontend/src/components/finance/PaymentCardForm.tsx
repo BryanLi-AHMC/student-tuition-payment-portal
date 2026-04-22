@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
 import { Lock, ShieldCheck } from 'lucide-react'
+import { useStudentPortalT } from '@/LanguageContext'
 
 type PaymentCardFormProps = {
   amount: string
@@ -38,19 +39,21 @@ export function PaymentCardForm({
   onSubmit,
   onCancel,
 }: PaymentCardFormProps) {
+  const t = useStudentPortalT()
+
   return (
     <section className="portal-card portal-finance-checkout-card" aria-labelledby="payment-form-title">
       <header className="portal-finance-checkout-card__header portal-finance-checkout-card__header--form">
         <div>
           <h2 id="payment-form-title" className="portal-section-heading">
-            Card Payment
+            {t('cardPaymentTitle')}
           </h2>
         </div>
       </header>
 
       <form className="portal-finance-checkout-form" onSubmit={onSubmit}>
         <label className="portal-finance-checkout-form__field">
-          <span>Card number</span>
+          <span>{t('cardNumberLabel')}</span>
           <div className="portal-finance-checkout-form__input-wrap portal-finance-checkout-form__input-wrap--card-number card-input-wrapper">
             <input
               className="card-number-input"
@@ -74,12 +77,12 @@ export function PaymentCardForm({
 
         <div className="portal-finance-checkout-form__triple">
           <label className="portal-finance-checkout-form__field">
-            <span>Exp. date</span>
+            <span>{t('expDateLabel')}</span>
             <input
               type="text"
               inputMode="numeric"
               autoComplete="cc-exp"
-              placeholder="MM/YY"
+              placeholder={t('expDatePlaceholder')}
               maxLength={5}
               value={expirationDate}
               onChange={(event) => onExpirationDateChange(event.target.value)}
@@ -110,7 +113,7 @@ export function PaymentCardForm({
         </div>
 
         <label className="portal-finance-checkout-form__field">
-          <span>Amount to pay</span>
+          <span>{t('paymentSummaryAmountToPay')}</span>
           <input
             type="text"
             inputMode="decimal"
@@ -125,18 +128,18 @@ export function PaymentCardForm({
 
         {!allowPartialPayment ? (
           <p className="portal-finance-checkout-form__helper">
-            {lockedAmountNote ?? 'Amount is fixed for this payment.'}
+            {lockedAmountNote ?? t('amountFixedForPayment')}
           </p>
         ) : null}
 
         <p className="portal-finance-checkout-form__trust">
           <Lock size={14} aria-hidden="true" />
-          <span>Your payment information is securely transmitted to Authorize.net.</span>
+          <span>{t('secureTransmissionNotice')}</span>
         </p>
 
         {!scriptReady ? (
           <p className="portal-inline-note portal-inline-note--flush" role="status">
-            Secure payment fields are loading...
+            {t('secureFieldsLoading')}
           </p>
         ) : null}
 
@@ -153,20 +156,20 @@ export function PaymentCardForm({
             onClick={onCancel}
             disabled={busy}
           >
-            Back
+            {t('back')}
           </button>
           <button
             type="submit"
             className="portal-btn portal-btn--primary portal-finance-checkout-form__btn"
             disabled={busy || !scriptReady}
           >
-            {busy ? 'Processing...' : submitLabel ?? 'Pay Now'}
+            {busy ? t('processing') : submitLabel ?? t('payNow')}
           </button>
         </div>
 
         <p className="portal-finance-checkout-form__secure-row">
           <ShieldCheck size={14} aria-hidden="true" />
-          <span>Secure checkout</span>
+          <span>{t('secureCheckout')}</span>
         </p>
       </form>
     </section>

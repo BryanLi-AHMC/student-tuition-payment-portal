@@ -13,6 +13,10 @@ import {
   formatIdentityContextBlock,
   type IdentityContext,
 } from "./conversationFactsService.js";
+import {
+  getOpenAiEmbeddingModel,
+  getOpenAiModel,
+} from "../config/openai.js";
 
 const TOP_K = 5;
 const MAX_QUESTION_CHARS = 2000;
@@ -749,7 +753,7 @@ async function rewriteQuestionForRetrieval(
   try {
     const completion = await withOpenAiRetry("rewriteQuestionForRetrieval", () =>
       client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getOpenAiModel(),
       messages: [
         {
           role: "system",
@@ -1894,7 +1898,7 @@ export async function answerGeneralQuestion(
 
   const completion = await withOpenAiRetry("answerGeneralQuestion", () =>
     client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getOpenAiModel(),
     messages: [
       { role: "system", content: buildGeneralSystemPrompt(q, options?.identityContext) },
       {
@@ -1925,7 +1929,7 @@ export async function answerStudentRecordQuestionFromFacts(
 
   const completion = await withOpenAiRetry("answerStudentRecordQuestionFromFacts", () =>
     client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getOpenAiModel(),
     messages: [
       { role: "system", content: buildStudentRecordSystemPrompt(q, identityContext) },
       {
@@ -1970,7 +1974,7 @@ export async function answerGraduationQuestion(
 
   const embedRes = await withOpenAiRetry("answerGraduationQuestion.embedding", () =>
     client.embeddings.create({
-    model: "text-embedding-3-small",
+    model: getOpenAiEmbeddingModel(),
     input: retrievalQuery,
     }),
   );
@@ -1995,7 +1999,7 @@ export async function answerGraduationQuestion(
   const contextBlock = formatRetrievedDocumentContextBlock(top);
   const completion = await withOpenAiRetry("answerGraduationQuestion.chat", () =>
     client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getOpenAiModel(),
     messages: [
       {
         role: "system",
@@ -2051,7 +2055,7 @@ export async function answerAmuQuestion(
 
   const embedRes = await withOpenAiRetry("answerAmuQuestion.embedding", () =>
     client.embeddings.create({
-    model: "text-embedding-3-small",
+    model: getOpenAiEmbeddingModel(),
     input: retrievalQuery,
     }),
   );
@@ -2112,7 +2116,7 @@ ${q}`;
 
   const completion = await withOpenAiRetry("answerAmuQuestion.chat", () =>
     client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: getOpenAiModel(),
     messages: [
       {
         role: "system",

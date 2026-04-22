@@ -1,0 +1,27 @@
+const DEFAULT_OPENAI_MODEL = "gpt-5-thinking";
+const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
+function getTrimmedEnv(name) {
+    const value = process.env[name];
+    if (value == null)
+        return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+/**
+ * Source-of-truth model for text generation calls.
+ */
+export function getOpenAiModel() {
+    return getTrimmedEnv("OPENAI_MODEL") ?? DEFAULT_OPENAI_MODEL;
+}
+/**
+ * Embedding model defaults to OPENAI_MODEL, with an explicit embedding fallback.
+ */
+export function getOpenAiEmbeddingModel() {
+    return (getTrimmedEnv("OPENAI_EMBEDDING_MODEL") ??
+        getTrimmedEnv("OPENAI_MODEL") ??
+        DEFAULT_OPENAI_EMBEDDING_MODEL);
+}
+export function logOpenAiModelConfiguration() {
+    console.log(`[openai] model: ${getOpenAiModel()}`);
+}
+//# sourceMappingURL=openai.js.map

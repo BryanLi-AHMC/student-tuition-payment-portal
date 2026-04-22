@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import { PDFParse } from 'pdf-parse';
+import { getOpenAiEmbeddingModel } from '../src/config/openai.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKEND_ROOT = path.resolve(__dirname, '..');
@@ -13,7 +14,6 @@ const OUTPUT_PATH = path.join(KNOWLEDGE_DIR, 'build', 'knowledge_chunks.json');
 const CHUNK_SIZE = 1200;
 const OVERLAP = 200;
 const MIN_CHUNK_CHARS = 100;
-const EMBEDDING_MODEL = 'text-embedding-3-small' as const;
 const EMBED_BATCH_SIZE = 64;
 
 type KnowledgeChunk = {
@@ -92,11 +92,12 @@ async function extractPdfText(filePath: string): Promise<string> {
 }
 
 async function embedBatches(client: OpenAI, contents: string[]): Promise<number[][]> {
+  const embeddingModel = getOpenAiEmbeddingModel();
   const embeddings: number[][] = [];
   for (let i = 0; i < contents.length; i += EMBED_BATCH_SIZE) {
     const batch = contents.slice(i, i + EMBED_BATCH_SIZE);
     const res = await client.embeddings.create({
-      model: EMBEDDING_MODEL,
+      model: embeddingModel,
       input: batch,
     });
     const sorted = [...res.data].sort((a, b) => a.index - b.index);
@@ -146,7 +147,7 @@ if (pending.length === 0) {
   process.exit(1);
 }
 
-console.log(`Embedding ${pending.length} chunks (${EMBEDDING_MODEL})...`);
+console.log(`Embedding ${pending.length} chunks (${getOpenAiEmbeddingModel()})...`);
 const vectors = await embedBatches(
   client,
   pending.map((p) => p.content),
