@@ -1,8 +1,10 @@
+import { isClinicalBookingExpired } from "../clinicalBookingPolicy.js";
 import { pool } from "../lib/db.js";
 import { clinicalBookingPaymentHoldsTableExists, getUrgentActiveClinicalBookingHoldForStudentPortal, listActiveClinicalBookingPaymentHoldsForStudent, listDueActiveClinicalBookingPaymentHoldIds, listDueActiveClinicalBookingPaymentHoldIdsForStudent, listDueActiveClinicalBookingPaymentHoldIdsForTimetable, lockClinicalBookingPaymentHoldById, markClinicalBookingPaymentHoldSatisfiedOutsideTxn, updateClinicalBookingPaymentHoldStatus, voidSystemClinicalBillingAdjustmentByIdInConn, } from "../repositories/clinicalBookingPaymentHoldRepository.js";
 import { getClinicTimetableById } from "../repositories/clinicalTimetableRepository.js";
 import { buildClinicTimetableSlotLabel, formatClinicTimeHm, } from "./clinicalScheduleService.js";
 import { dropClinicalEnrollmentInConn } from "../repositories/clinicalEnrollmentRepository.js";
+export { isClinicalBookingExpired, isClinicalBookingExpired as isClinicalBookingPaymentHoldPastDeadline, } from "../clinicalBookingPolicy.js";
 async function loadStudentQuarterBalanceForClinicalHold(studentId, term, year) {
     const { getStudentQuarterBalance } = await import("./studentLedgerService.js");
     return getStudentQuarterBalance(studentId, term, year);
@@ -24,13 +26,6 @@ export function isClinicalBookingHoldFinanciallySatisfied(balanceBeforeCharge, c
     return currentBalance <= thr + 0.009;
 }
 /**
- * True when the hold window end is strictly before "now" (UTC clock on server).
- * Used with `status = 'active'` + unpaid balance checks to detect expiration.
- */
-export function isClinicalBookingPaymentHoldPastDeadline(holdExpiresAt, nowMs = Date.now()) {
-    return holdExpiresAt.getTime() <= nowMs;
-}
-/**
  * Summarizes the student's most urgent open clinical booking payment hold for the student portal.
  * DB row must be `active` and tied to an `enrolled` clinical enrollment.
  */
@@ -39,6 +34,8 @@ export async function getStudentPortalClinicalBookingHold(studentId) {
         return null;
     const row = await getUrgentActiveClinicalBookingHoldForStudentPortal(studentId);
     if (row == null)
+        return null;
+    if (isClinicalBookingExpired(row.holdExpiresAt))
         return null;
     const tt = await getClinicTimetableById(row.timetableId);
     const slotLabel = tt != null
@@ -54,7 +51,7 @@ export async function getStudentPortalClinicalBookingHold(studentId) {
     const endMs = row.holdExpiresAt.getTime();
     const diffSec = Math.floor((endMs - nowMs) / 1000);
     const remainingSeconds = Math.max(0, diffSec);
-    const holdStatus = endMs > nowMs ? "active" : "expired";
+    const holdStatus = "active";
     return {
         holdExpiresAt: row.holdExpiresAt.toISOString(),
         remainingSeconds,
@@ -110,7 +107,7 @@ export async function processDueClinicalBookingPaymentHoldIds(dueIds) {
                 stats.skipped += 1;
                 continue;
             }
-            if (hold.holdExpiresAt.getTime() > Date.now()) {
+            if (!isClinicalBookingExpired(hold.holdExpiresAt)) {
                 await conn.rollback();
                 stats.skipped += 1;
                 continue;
@@ -237,5 +234,18 @@ export async function runClinicalBookingPaymentHoldCleanup() {
     }
     const dueIds = await listDueActiveClinicalBookingPaymentHoldIds(200);
     return processDueClinicalBookingPaymentHoldIds(dueIds);
+}
+/**
+ * Revokes unpaid clinical registrations whose payment deadline has passed (student scope).
+ * Idempotent; delegates to {@link reconcileExpiredClinicalBookingHoldsForStudent}.
+ */
+export async function revokeExpiredClinicalBooking(studentId) {
+    return reconcileExpiredClinicalBookingHoldsForStudent(studentId);
+}
+/**
+ * Revokes overdue unpaid clinical registrations tied to a timetable slot (admin / slot views).
+ */
+export async function revokeExpiredClinicalBookingForTimetable(timetableId) {
+    return reconcileExpiredClinicalBookingHoldsForTimetable(timetableId);
 }
 //# sourceMappingURL=clinicalBookingPaymentHoldService.js.map

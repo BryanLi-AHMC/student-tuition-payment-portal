@@ -1,3 +1,4 @@
+export { proportionalProcessingFeeRefund } from "./creditCardProcessingFee.js";
 type OpaqueDataInput = {
     dataDescriptor: string;
     dataValue: string;
@@ -13,9 +14,15 @@ export type AuthorizeChargeBody = {
     paymentPlan: PaymentPlan;
     installmentCount: 1 | 2 | 3;
     opaqueData: OpaqueDataInput;
+    /** First 6–8 digits of the PAN (BIN); used only for credit vs debit fee rules. */
+    cardBinPrefix: string;
 };
 export type AuthorizeChargeResult = {
+    /** Total charged to the card (base + processing fee). */
     amount: string;
+    baseAmount: string;
+    processingFee: string;
+    cardFunding: "credit" | "debit" | "unknown";
     providerTransactionId: string;
     invoiceNumber: string;
 };
@@ -85,6 +92,6 @@ export declare function processAuthorizeNetStudentPayment(input: {
     paymentPlan: PaymentPlan;
     installmentCount: 1 | 2 | 3;
     opaqueData: OpaqueDataInput;
+    cardBinPrefix: string;
 }): Promise<AuthorizeChargeResult>;
-export {};
 //# sourceMappingURL=studentAuthorizePaymentService.d.ts.map

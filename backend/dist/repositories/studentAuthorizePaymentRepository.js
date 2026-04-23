@@ -37,7 +37,7 @@ export async function recordAuthorizeNetPayment(input) {
          VALUES (?, ?, ?, ?, 'authorize_net', ?, ?)`, [
                 input.studentId.trim(),
                 `${Math.trunc(input.year)}-${input.term.trim().slice(0, 3).toUpperCase()}`,
-                input.amount,
+                input.providerChargedAmount,
                 input.status,
                 input.providerTransactionId.trim(),
                 input.invoiceNumber.trim(),

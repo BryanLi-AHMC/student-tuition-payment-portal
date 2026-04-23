@@ -3,6 +3,7 @@ import { pool } from "../lib/db.js";
 import { listClinicalFinanceQuarterHintsForStudent } from "../repositories/clinicalEnrollmentRepository.js";
 import { listPortalScheduleTermsForStudent, loadPortalBillingAdjustmentsForQuarter, loadPortalTermBillingContext, } from "../repositories/studentAccountRepository.js";
 import { listLegacyAccountingQuarters, loadLegacyAccountingRows, } from "../repositories/studentLegacyAccountRepository.js";
+import { isClinicalBookingExpired } from "../clinicalBookingPolicy.js";
 import { listActiveClinicalBookingPaymentHoldsForStudentQuarter } from "../repositories/clinicalBookingPaymentHoldRepository.js";
 import { calculateCourseCharge, calculateInstallmentServiceFee, formatPortalLedgerCourseMemo, STANDARD_TERM_FEES, } from "./billingMath.js";
 import { termSortOrder } from "./studentAcademicCourseRecords.js";
@@ -111,6 +112,8 @@ function applyClinicalBookingPaymentHoldsToLedgerRows(rows, adjustments, holds) 
             continue;
         const h = byBill.get(b);
         if (!h)
+            continue;
+        if (isClinicalBookingExpired(h.holdExpiresAt, nowMs))
             continue;
         const exp = h.holdExpiresAt.getTime();
         const remainingSeconds = Math.max(0, Math.floor((exp - nowMs) / 1000));

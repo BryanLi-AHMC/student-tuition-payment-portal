@@ -6,7 +6,7 @@ import { createClinicalEnrollment, dropClinicalEnrollment, getClinicalEnrollment
 import { insertClinicalAssignment } from "../repositories/clinicalScheduleRepository.js";
 import { buildClinicTimetableSlotLabel, buildTimetableClinicalAssignmentPayload, ClinicalScheduleValidationError, formatClinicTimeHm, } from "./clinicalScheduleService.js";
 import { getStudentQuarterBalance } from "./studentLedgerService.js";
-import { reconcileExpiredClinicalBookingHoldsForStudent, reconcileExpiredClinicalBookingHoldsForTimetable, runDueClinicalBookingHoldCleanupBatches, } from "./clinicalBookingPaymentHoldService.js";
+import { reconcileExpiredClinicalBookingHoldsForTimetable, reconcilePaidClinicalBookingPaymentHoldsForStudent, revokeExpiredClinicalBooking, runDueClinicalBookingHoldCleanupBatches, } from "./clinicalBookingPaymentHoldService.js";
 import { getAdminClinicalEnrollmentGradeSnapshot } from "./adminMarksService.js";
 /**
  * Phase 2: flat fee for a new clinical timetable slot booking until per-slot pricing exists.
@@ -49,6 +49,8 @@ export async function listOpenClinicalSlotsForStudent(studentId, query) {
     const term = normalizeQueryTerm(query?.term ?? null);
     const year = normalizeQueryYear(query?.year ?? null);
     await runDueClinicalBookingHoldCleanupBatches();
+    await reconcilePaidClinicalBookingPaymentHoldsForStudent(sid);
+    await revokeExpiredClinicalBooking(sid);
     const [slots, mine] = await Promise.all([
         listAvailableClinicalEnrollmentSlots({
             year,
@@ -67,15 +69,25 @@ export async function listOpenClinicalSlotsForStudent(studentId, query) {
         alreadyEnrolled: activeTimetableIds.has(s.timetableId),
     }));
 }
-export async function listStudentClinicalEnrollmentRows(studentId, query) {
+/**
+ * Enrolled clinical timetable rows after query-time revocation of unpaid expired registrations.
+ * Single entry point for student schedule / roster-style reads.
+ */
+export async function getActiveClinicalBookings(studentId, query) {
     const sid = String(studentId ?? "").trim();
     if (sid === "") {
         throw new ClinicalScheduleValidationError("Student id is required");
     }
     const term = normalizeQueryTerm(query?.term ?? null);
     const year = normalizeQueryYear(query?.year ?? null);
+    await reconcilePaidClinicalBookingPaymentHoldsForStudent(sid);
+    await revokeExpiredClinicalBooking(sid);
+    await runDueClinicalBookingHoldCleanupBatches();
     const rows = await listStudentClinicalEnrollments(sid, { term, year });
     return rows.filter((r) => r.status.trim().toLowerCase() === "enrolled");
+}
+export async function listStudentClinicalEnrollmentRows(studentId, query) {
+    return getActiveClinicalBookings(studentId, query);
 }
 function totalTimetableCaps(tt) {
     return (Math.max(0, Math.trunc(tt.cap_100)) +
@@ -101,7 +113,7 @@ export async function enrollStudentInClinicalSlot(studentId, timetableId, seatBu
     if (!Number.isFinite(timetableId) || timetableId <= 0) {
         return { ok: false, error: "timetableId is required", status: 400 };
     }
-    await reconcileExpiredClinicalBookingHoldsForStudent(sid);
+    await revokeExpiredClinicalBooking(sid);
     const tt = await getClinicTimetableById(timetableId);
     if (tt == null) {
         return { ok: false, error: "Clinic slot not found.", status: 400 };
@@ -223,6 +235,7 @@ export async function listAdminClinicalSlotRoster(timetableId) {
     if (!Number.isFinite(timetableId) || timetableId <= 0) {
         return [];
     }
+    await runDueClinicalBookingHoldCleanupBatches();
     await reconcileExpiredClinicalBookingHoldsForTimetable(timetableId);
     const rows = await listActiveClinicalRosterForTimetable(timetableId);
     const snapshots = await Promise.all(rows.map((row) => getAdminClinicalEnrollmentGradeSnapshot({

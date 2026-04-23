@@ -12,6 +12,14 @@ export declare function listOpenClinicalSlotsForStudent(studentId: string, query
     term?: string | null;
     year?: string | number | null;
 }): Promise<OpenClinicalSlotForStudentDto[]>;
+/**
+ * Enrolled clinical timetable rows after query-time revocation of unpaid expired registrations.
+ * Single entry point for student schedule / roster-style reads.
+ */
+export declare function getActiveClinicalBookings(studentId: string, query?: {
+    term?: string | null;
+    year?: string | number | null;
+}): Promise<ClinicalEnrollmentStudentRow[]>;
 export declare function listStudentClinicalEnrollmentRows(studentId: string, query?: {
     term?: string | null;
     year?: string | number | null;

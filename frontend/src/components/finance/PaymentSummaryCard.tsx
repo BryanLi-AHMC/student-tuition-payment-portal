@@ -1,12 +1,22 @@
 import { formatMoney } from '@/lib/formatMoney'
 import { useStudentPortalT } from '@/LanguageContext'
 
+export type PaymentBreakdownLine = {
+  key: string
+  label: string
+  amount: number
+}
+
 type PaymentSummaryCardProps = {
   studentName: string
   studentId: string
   termLabel: string
   balanceDue: number
-  amountToPay: number
+  breakdownLines: PaymentBreakdownLine[]
+  creditCardFee: number
+  /** Total charged to the card (base + fee). */
+  totalCharged: number
+  cardFundingNote?: string | null
 }
 
 export function PaymentSummaryCard({
@@ -14,7 +24,10 @@ export function PaymentSummaryCard({
   studentId,
   termLabel,
   balanceDue,
-  amountToPay,
+  breakdownLines,
+  creditCardFee,
+  totalCharged,
+  cardFundingNote,
 }: PaymentSummaryCardProps) {
   const t = useStudentPortalT()
 
@@ -42,11 +55,28 @@ export function PaymentSummaryCard({
           <dt>{t('paymentSummaryBalanceDue')}</dt>
           <dd>{formatMoney(balanceDue)}</dd>
         </div>
+        {breakdownLines.map((row) => (
+          <div key={row.key} className="portal-finance-checkout-summary__row">
+            <dt>{row.label}</dt>
+            <dd>{formatMoney(row.amount)}</dd>
+          </div>
+        ))}
+        {creditCardFee > 0 ? (
+          <div className="portal-finance-checkout-summary__row">
+            <dt>{t('creditCardProcessingFeeLabel')}</dt>
+            <dd>{formatMoney(creditCardFee)}</dd>
+          </div>
+        ) : null}
         <div className="portal-finance-checkout-summary__row portal-finance-checkout-summary__row--strong">
-          <dt>{t('paymentSummaryAmountToPay')}</dt>
-          <dd>{formatMoney(amountToPay)}</dd>
+          <dt>{t('paymentSummaryTotalCharged')}</dt>
+          <dd>{formatMoney(totalCharged)}</dd>
         </div>
       </dl>
+      {cardFundingNote != null && cardFundingNote.trim() !== '' ? (
+        <p className="portal-finance-checkout-form__helper portal-finance-checkout-summary__funding-note" role="status">
+          {cardFundingNote}
+        </p>
+      ) : null}
     </section>
   )
 }

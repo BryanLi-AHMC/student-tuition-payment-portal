@@ -1,3 +1,4 @@
+import { CLINICAL_BOOKING_PAYMENT_WINDOW_HOURS } from "../clinicalBookingPolicy.js";
 import { pool } from "../lib/db.js";
 function clinicalChargeVoidSuffix(reason) {
     return reason === "manual_drop"
@@ -32,7 +33,7 @@ export async function insertClinicalBookingPaymentHold(params) {
         const [res] = await pool.execute(`INSERT INTO clinical_booking_payment_holds
       (clinical_enrollment_id, student_id, billing_adjustment_id, term, year,
        charge_amount, balance_before_charge, hold_expires_at, status)
-     SELECT ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 12 HOUR), 'active'
+     SELECT ?, ?, ?, ?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ${CLINICAL_BOOKING_PAYMENT_WINDOW_HOURS} HOUR), 'active'
        FROM DUAL
       WHERE NOT EXISTS (
         SELECT 1
@@ -237,6 +238,7 @@ export async function listActiveClinicalBookingPaymentHoldsForStudentQuarter(stu
         AND TRIM(term) = TRIM(?)
         AND year = ?
         AND status = 'active'
+        AND hold_expires_at > UTC_TIMESTAMP()
       ORDER BY id ASC
       LIMIT 50`, [sid, tm, Math.trunc(year)]);
     return rows.map((r) => {
@@ -291,6 +293,7 @@ export async function getUrgentActiveClinicalBookingHoldForStudentPortal(student
         AND TRIM(ce.student_id) = TRIM(h.student_id)
       WHERE TRIM(h.student_id) = TRIM(?)
         AND h.status = 'active'
+        AND h.hold_expires_at > UTC_TIMESTAMP()
         AND LOWER(TRIM(ce.status)) = 'enrolled'
       ORDER BY h.hold_expires_at ASC, h.id ASC
       LIMIT 1`, [sid]);

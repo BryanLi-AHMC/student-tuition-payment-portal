@@ -15,10 +15,13 @@ import {
 } from '@/lib/api'
 import type { StudentPortalKey } from '@/lib/i18n'
 import { formatMoney } from '@/lib/formatMoney'
-
-function roundMoney(n: number): number {
-  return Math.round(n * 100) / 100
-}
+import { cardBinPrefixFromPan, inferCardFundingFromPan } from '@/lib/cardFundingFromBin'
+import {
+  computeCreditCardProcessingFee,
+  roundMoney,
+  totalWithProcessingFee,
+} from '@/lib/creditCardProcessingFee'
+import type { PaymentBreakdownLine } from '@/components/finance/PaymentSummaryCard'
 
 function normalizeAmountInput(v: string): string {
   const trimmed = v.trim()
@@ -109,6 +112,32 @@ export function FinancesClinicFeePaymentPage() {
     const n = Number(amount)
     return Number.isFinite(n) ? roundMoney(n) : Number.NaN
   }, [amount])
+
+  const cardFunding = useMemo(() => inferCardFundingFromPan(cardNumber), [cardNumber])
+  const processingFee = useMemo(
+    () => (Number.isFinite(amountNum) ? computeCreditCardProcessingFee(amountNum, cardFunding) : 0),
+    [amountNum, cardFunding],
+  )
+  const totalCharged = useMemo(
+    () => (Number.isFinite(amountNum) ? totalWithProcessingFee(amountNum, cardFunding) : 0),
+    [amountNum, cardFunding],
+  )
+
+  const clinicBreakdownLines = useMemo((): PaymentBreakdownLine[] => {
+    if (!Number.isFinite(amountNum)) return []
+    return [
+      { key: 'tuition', label: t('paymentBreakdownTuition'), amount: 0 },
+      { key: 'clinic', label: t('paymentBreakdownClinicFee'), amount: amountNum },
+    ]
+  }, [amountNum, t])
+
+  const cardFundingNote = useMemo(() => {
+    const digits = cardNumber.replace(/\D/g, '')
+    if (digits.length < 6) return null
+    if (cardFunding === 'debit') return t('cardFundingDebitDetected')
+    if (cardFunding === 'credit') return t('cardFundingCreditDetected')
+    return t('cardFundingUnknown')
+  }, [cardFunding, cardNumber, t])
 
   const studentName = account.student.name?.trim() || t('studentFallback')
   const displayStudentId = account.student.studentId?.trim() || studentId || '—'
@@ -230,6 +259,12 @@ export function FinancesClinicFeePaymentPage() {
       setCvv('')
       return
     }
+    const cardBinPrefix = cardBinPrefixFromPan(cardNumber)
+    if (cardBinPrefix == null) {
+      setError(t('cardBinPrefixInvalid'))
+      setCvv('')
+      return
+    }
     const expirationParts = splitExpirationDate(expirationDate)
     if (expirationParts == null) {
       setError(t('expirationFormatError'))
@@ -262,6 +297,7 @@ export function FinancesClinicFeePaymentPage() {
           paymentPlan: 'full',
           installmentCount: 1,
           opaqueData,
+          cardBinPrefix,
         },
         { authToken: authToken?.trim() || undefined },
       )
@@ -356,7 +392,10 @@ export function FinancesClinicFeePaymentPage() {
                 studentId={displayStudentId}
                 termLabel={displayTerm}
                 balanceDue={clinicDue}
-                amountToPay={Number.isFinite(amountNum) ? amountNum : 0}
+                breakdownLines={clinicBreakdownLines}
+                creditCardFee={processingFee}
+                totalCharged={totalCharged}
+                cardFundingNote={cardFundingNote}
               />
             </div>
             {canPay ? (
@@ -368,6 +407,7 @@ export function FinancesClinicFeePaymentPage() {
                   cvv={cvv}
                   allowPartialPayment={false}
                   lockedAmountNote={t('clinicFeeMustBeFullPayment')}
+                  disclosureNote={t('creditCardProcessingFeeDisclosure')}
                   submitLabel={t('payClinicFee')}
                   busy={submitting}
                   scriptReady={scriptReady}

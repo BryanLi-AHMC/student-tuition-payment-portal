@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useStudentPortalT } from '@/LanguageContext'
 import { useAccount } from '@/context/AccountContext'
 import { PaymentCardForm } from '@/components/finance/PaymentCardForm'
-import { PaymentSummaryCard } from '@/components/finance/PaymentSummaryCard'
+import { PaymentSummaryCard, type PaymentBreakdownLine } from '@/components/finance/PaymentSummaryCard'
 import { portalTermLabel } from '@/lib/accountDisplay'
 import { dispatchAcceptData, loadAcceptJs } from '@/lib/authorizeNet'
 import {
@@ -15,10 +15,12 @@ import {
 } from '@/lib/api'
 import { formatMoney } from '@/lib/formatMoney'
 import { calculateInstallmentSchedule, type PaymentPlan } from '@/lib/paymentPlan'
-
-function roundMoney(n: number): number {
-  return Math.round(n * 100) / 100
-}
+import { cardBinPrefixFromPan, inferCardFundingFromPan } from '@/lib/cardFundingFromBin'
+import {
+  computeCreditCardProcessingFee,
+  roundMoney,
+  totalWithProcessingFee,
+} from '@/lib/creditCardProcessingFee'
 
 function normalizeAmountInput(v: string): string {
   const trimmed = v.trim()
@@ -97,12 +99,55 @@ export function FinancesPaymentPage() {
     return Number.isFinite(n) ? roundMoney(n) : Number.NaN
   }, [amount])
 
+  const cardFunding = useMemo(() => inferCardFundingFromPan(cardNumber), [cardNumber])
+  const processingFee = useMemo(
+    () => (Number.isFinite(amountNum) ? computeCreditCardProcessingFee(amountNum, cardFunding) : 0),
+    [amountNum, cardFunding],
+  )
+  const totalCharged = useMemo(
+    () => (Number.isFinite(amountNum) ? totalWithProcessingFee(amountNum, cardFunding) : 0),
+    [amountNum, cardFunding],
+  )
+
   const scheduleTotals = useMemo(
     () => calculateInstallmentSchedule(tuitionDue, installmentCount, serviceFeePerInstallment),
     [tuitionDue],
   )
   const installmentSchedule = scheduleTotals.schedule
   const firstInstallment = installmentSchedule[0] ?? null
+
+  const paymentBreakdownLines = useMemo((): PaymentBreakdownLine[] => {
+    if (!Number.isFinite(amountNum)) return []
+    if (selectedChargeType === 'tuition') {
+      if (paymentPlan === 'installment' && firstInstallment != null) {
+        const rows: PaymentBreakdownLine[] = [
+          { key: 'tuition', label: t('paymentBreakdownTuition'), amount: firstInstallment.tuitionAmount },
+        ]
+        if (firstInstallment.serviceFee > 0) {
+          rows.push({
+            key: 'svc',
+            label: t('installmentServiceFeeLine'),
+            amount: firstInstallment.serviceFee,
+          })
+        }
+        return rows
+      }
+      return [{ key: 'tuition', label: t('paymentBreakdownTuition'), amount: amountNum }]
+    }
+    return [
+      { key: 'tuition', label: t('paymentBreakdownTuition'), amount: 0 },
+      { key: 'late', label: t('paymentBreakdownLateFee'), amount: amountNum },
+    ]
+  }, [amountNum, firstInstallment, paymentPlan, selectedChargeType, t])
+
+  const cardFundingNote = useMemo(() => {
+    const digits = cardNumber.replace(/\D/g, '')
+    if (digits.length < 6) return null
+    if (cardFunding === 'debit') return t('cardFundingDebitDetected')
+    if (cardFunding === 'credit') return t('cardFundingCreditDetected')
+    return t('cardFundingUnknown')
+  }, [cardFunding, cardNumber, t])
+
   const remainingAfterToday = useMemo(() => {
     if (firstInstallment == null) return 0
     return roundMoney(Math.max(0, scheduleTotals.totalPayableAmount - firstInstallment.totalDue))
@@ -262,6 +307,12 @@ export function FinancesPaymentPage() {
       setCvv('')
       return
     }
+    const cardBinPrefix = cardBinPrefixFromPan(cardNumber)
+    if (cardBinPrefix == null) {
+      setError(t('cardBinPrefixInvalid'))
+      setCvv('')
+      return
+    }
     const expirationParts = splitExpirationDate(expirationDate)
     if (expirationParts == null) {
       setError(t('expirationFormatError'))
@@ -295,6 +346,7 @@ export function FinancesPaymentPage() {
           installmentCount:
             selectedChargeType === 'tuition' && paymentPlan === 'installment' ? installmentCount : 1,
           opaqueData,
+          cardBinPrefix,
         },
         { authToken: authToken?.trim() || undefined },
       )
@@ -437,7 +489,10 @@ export function FinancesPaymentPage() {
                 studentId={displayStudentId}
                 termLabel={displayTerm}
                 balanceDue={selectedChargeDue}
-                amountToPay={Number.isFinite(amountNum) ? amountNum : 0}
+                breakdownLines={paymentBreakdownLines}
+                creditCardFee={processingFee}
+                totalCharged={totalCharged}
+                cardFundingNote={cardFundingNote}
               />
             </div>
             <div className="portal-finance-checkout-layout__col">
@@ -448,6 +503,7 @@ export function FinancesPaymentPage() {
                 cvv={cvv}
                 allowPartialPayment={false}
                 lockedAmountNote={lockedAmountNote}
+                disclosureNote={t('creditCardProcessingFeeDisclosure')}
                 submitLabel={submitLabel}
                 busy={submitting}
                 scriptReady={scriptReady}

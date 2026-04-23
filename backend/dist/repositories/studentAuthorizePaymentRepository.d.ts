@@ -2,7 +2,10 @@ type RecordAuthorizePaymentInput = {
     studentId: string;
     term: string;
     year: number;
+    /** Amount credited to the student ledger (tuition / fee balance), excluding card processing fee. */
     amount: number;
+    /** Total settled with the card network (includes processing fee when applicable). */
+    providerChargedAmount: number;
     paidAt: string;
     method: string;
     description: string | null;

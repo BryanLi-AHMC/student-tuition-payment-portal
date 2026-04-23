@@ -47,8 +47,8 @@ export type ClinicalEnrollmentStudentRow = {
     site: string | null;
     createdAt: string;
     /**
-     * When present, this active enrollment has an open 12-hour clinical booking payment hold
-     * that expires at this instant (server UTC).
+     * When present, this active enrollment has an unpaid clinical booking charge whose
+     * payment deadline is this instant (UTC, set at registration).
      */
     paymentHoldExpiresAt: string | null;
 };

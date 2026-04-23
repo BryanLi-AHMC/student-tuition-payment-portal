@@ -4,7 +4,7 @@ import type { ScheduleRow } from '../types/billing'
 
 export { formatMoney } from './formatMoney'
 
-export const CARD_CONVENIENCE_RATE = 0.0285
+export const CARD_CONVENIENCE_RATE = 0.03
 
 /** Normalized backend origin (no trailing slash). Never includes `/api` — paths pass `/api/...` into `api()`. */
 export const API_BASE = String(import.meta.env.VITE_API_BASE_URL ?? '')
@@ -1350,11 +1350,16 @@ export type AuthorizeNetChargeRequest = {
   paymentPlan?: 'full' | 'installment'
   installmentCount?: 1 | 2 | 3
   opaqueData: AuthorizeNetOpaqueData
+  /** First 6–8 digits of the card; must match server-side BIN rules. */
+  cardBinPrefix: string
 }
 
 export type AuthorizeNetChargeResponse = {
   ok: true
   amount: string
+  baseAmount?: string
+  processingFee?: string
+  cardFunding?: 'credit' | 'debit' | 'unknown'
   providerTransactionId: string
   invoiceNumber: string
 }

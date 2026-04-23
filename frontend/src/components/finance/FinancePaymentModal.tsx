@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { postAuthorizeNetCharge } from '@/lib/api'
 import { formatMoney } from '@/lib/formatMoney'
+import { cardBinPrefixFromPan, inferCardFundingFromPan } from '@/lib/cardFundingFromBin'
+import {
+  computeCreditCardProcessingFee,
+  roundMoney,
+  totalWithProcessingFee,
+} from '@/lib/creditCardProcessingFee'
 
 type FinancePaymentModalProps = {
   isOpen: boolean
@@ -61,10 +67,6 @@ function buildTermDisplay(termCode: string, termLabel: string): string {
   const trimmed = termCode.trim()
   if (trimmed !== '') return trimmed
   return termLabel.trim()
-}
-
-function roundMoney(n: number): number {
-  return Math.round(n * 100) / 100
 }
 
 function normalizeAmountInput(v: string): string {
@@ -177,6 +179,16 @@ export function FinancePaymentModal({
     return null
   }, [amountNum, balanceDue])
 
+  const cardFunding = useMemo(() => inferCardFundingFromPan(cardNumber), [cardNumber])
+  const processingFee = useMemo(
+    () => (Number.isFinite(amountNum) ? computeCreditCardProcessingFee(amountNum, cardFunding) : 0),
+    [amountNum, cardFunding],
+  )
+  const totalCharged = useMemo(
+    () => (Number.isFinite(amountNum) ? totalWithProcessingFee(amountNum, cardFunding) : 0),
+    [amountNum, cardFunding],
+  )
+
   if (!isOpen) {
     return null
   }
@@ -204,6 +216,12 @@ export function FinancePaymentModal({
     }
     if (!/^\d{13,19}$/.test(cardNumber)) {
       setError('Card number must be 13 to 19 digits.')
+      setCvv('')
+      return
+    }
+    const cardBinPrefix = cardBinPrefixFromPan(cardNumber)
+    if (cardBinPrefix == null) {
+      setError('Enter at least the first 6 digits of the card number.')
       setCvv('')
       return
     }
@@ -242,7 +260,11 @@ export function FinancePaymentModal({
         {
           term: buildTermDisplay(termCode, termLabel),
           amount: amountNum.toFixed(2),
+          chargeType: 'tuition',
+          paymentPlan: 'full',
+          installmentCount: 1,
           opaqueData,
+          cardBinPrefix,
         },
         { authToken: authToken?.trim() || undefined },
       )
@@ -315,6 +337,38 @@ export function FinancePaymentModal({
           />
         </label>
 
+        {cardNumber.replace(/\D/g, '').length >= 6 && Number.isFinite(amountNum) ? (
+          <div className="portal-finance-payment-modal__fee-preview" role="region" aria-label="Payment breakdown">
+            <dl className="portal-finance-payment-modal__fee-dl">
+              <div className="portal-finance-payment-modal__fee-row">
+                <dt>Tuition</dt>
+                <dd>{formatMoney(amountNum)}</dd>
+              </div>
+              <div className="portal-finance-payment-modal__fee-row">
+                <dt>Fees</dt>
+                <dd>{formatMoney(0)}</dd>
+              </div>
+              {processingFee > 0 ? (
+                <div className="portal-finance-payment-modal__fee-row">
+                  <dt>Credit Card Fee (3%)</dt>
+                  <dd>{formatMoney(processingFee)}</dd>
+                </div>
+              ) : null}
+              <div className="portal-finance-payment-modal__fee-row portal-finance-payment-modal__fee-row--total">
+                <dt>Total</dt>
+                <dd>{formatMoney(totalCharged)}</dd>
+              </div>
+            </dl>
+            <p className="portal-finance-payment-modal__fee-note" role="status">
+              {cardFunding === 'debit'
+                ? 'Debit card detected — no processing fee.'
+                : cardFunding === 'credit'
+                  ? 'Credit card detected.'
+                  : 'Card type unclear — no processing fee added.'}
+            </p>
+          </div>
+        ) : null}
+
         <div className="portal-finance-payment-modal__expiry-row">
           <label className="portal-finance-payment-modal__field">
             <span>Expiration Month (MM)</span>
@@ -357,6 +411,10 @@ export function FinancePaymentModal({
             required
           />
         </label>
+
+        <p className="portal-inline-note portal-inline-note--flush">
+          A 3% credit card processing fee will be applied to credit card payments.
+        </p>
 
         <p className="portal-inline-note portal-inline-note--flush">
           Your payment information is securely transmitted to Authorize.net.

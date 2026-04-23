@@ -159,10 +159,14 @@ export async function postAuthorizeNetChargeHandler(
       paymentPlan: parsed.value.paymentPlan,
       installmentCount: parsed.value.installmentCount,
       opaqueData: parsed.value.opaqueData,
+      cardBinPrefix: parsed.value.cardBinPrefix,
     });
     res.json({
       ok: true,
       amount: result.amount,
+      baseAmount: result.baseAmount,
+      processingFee: result.processingFee,
+      cardFunding: result.cardFunding,
       providerTransactionId: result.providerTransactionId,
       invoiceNumber: result.invoiceNumber,
     });
@@ -225,10 +229,14 @@ export async function postAuthorizeNetTuitionChargeHandler(
       paymentPlan: parsed.value.paymentPlan,
       installmentCount: parsed.value.installmentCount,
       opaqueData: parsed.value.opaqueData,
+      cardBinPrefix: parsed.value.cardBinPrefix,
     });
     res.json({
       ok: true,
       amount: result.amount,
+      baseAmount: result.baseAmount,
+      processingFee: result.processingFee,
+      cardFunding: result.cardFunding,
       providerTransactionId: result.providerTransactionId,
       invoiceNumber: result.invoiceNumber,
     });
@@ -281,10 +289,14 @@ export async function postAuthorizeNetClinicFeeChargeHandler(
       paymentPlan: "full",
       installmentCount: 1,
       opaqueData: parsed.value.opaqueData,
+      cardBinPrefix: parsed.value.cardBinPrefix,
     });
     res.json({
       ok: true,
       amount: result.amount,
+      baseAmount: result.baseAmount,
+      processingFee: result.processingFee,
+      cardFunding: result.cardFunding,
       providerTransactionId: result.providerTransactionId,
       invoiceNumber: result.invoiceNumber,
     });

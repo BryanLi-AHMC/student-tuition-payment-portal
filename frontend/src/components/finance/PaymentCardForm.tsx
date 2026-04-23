@@ -9,6 +9,8 @@ type PaymentCardFormProps = {
   cvv: string
   allowPartialPayment: boolean
   lockedAmountNote?: string | null
+  /** Shown under the form (e.g. card processing fee policy). */
+  disclosureNote?: string | null
   submitLabel?: string
   busy: boolean
   scriptReady: boolean
@@ -28,6 +30,7 @@ export function PaymentCardForm({
   cvv,
   allowPartialPayment,
   lockedAmountNote,
+  disclosureNote,
   submitLabel,
   busy,
   scriptReady,
@@ -130,6 +133,10 @@ export function PaymentCardForm({
           <p className="portal-finance-checkout-form__helper">
             {lockedAmountNote ?? t('amountFixedForPayment')}
           </p>
+        ) : null}
+
+        {disclosureNote != null && disclosureNote.trim() !== '' ? (
+          <p className="portal-finance-checkout-form__helper portal-finance-checkout-form__disclosure">{disclosureNote}</p>
         ) : null}
 
         <p className="portal-finance-checkout-form__trust">

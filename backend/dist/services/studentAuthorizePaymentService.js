@@ -3,9 +3,13 @@ import { getPostedToDashboardTerm } from "./academicTermService.js";
 import { getAccountingLedgerPayload } from "./studentLedgerService.js";
 import { chargeAuthorizeOpaqueData } from "./authorizeNetGatewayService.js";
 import { recordAuthorizeNetPayment } from "../repositories/studentAuthorizePaymentRepository.js";
-import { hasSystemLateFeeForQuarter, insertSystemLateFee, LATE_FEE_DESCRIPTION, } from "../repositories/adminFinanceRepository.js";
-import { reconcileExpiredClinicalBookingHoldsForStudent } from "./clinicalBookingPaymentHoldService.js";
+import { inferCardFundingFromBinPrefix, normalizeCardBinPrefix, } from "./cardFundingFromBin.js";
+import { totalChargeWithProcessingFee } from "./creditCardProcessingFee.js";
+export { proportionalProcessingFeeRefund } from "./creditCardProcessingFee.js";
+import { hasSystemLateFeeForQuarter, insertSystemLateFee, } from "../repositories/adminFinanceRepository.js";
+import { revokeExpiredClinicalBooking } from "./clinicalBookingPaymentHoldService.js";
 import { getLatestClinicalBookingPaymentHoldStatusForStudentQuarter } from "../repositories/clinicalBookingPaymentHoldRepository.js";
+import { isClinicBucketCharge, isExamFeeMemo, isLateFeeRow, isTuitionBucketCharge, } from "./billingChargeBuckets.js";
 function roundMoney(n) {
     return Math.round(n * 100) / 100;
 }
@@ -93,33 +97,6 @@ function parseTermCode(raw) {
 function roundToMoney(v) {
     return Math.round(v * 100) / 100;
 }
-function isExamFeeMemo(memo) {
-    return /exam\s*fee|exam/i.test(memo);
-}
-function isClinicChargeRow(args) {
-    const type = args.type.trim().toLowerCase();
-    const code = args.code.trim().toLowerCase();
-    const memo = args.memo.trim().toLowerCase();
-    const sourceType = String(args.sourceType ?? "")
-        .trim()
-        .toLowerCase();
-    if (type === "clinical")
-        return true;
-    if (sourceType === "system" &&
-        type === "adjustment" &&
-        /\bclinical\b/.test(memo)) {
-        return true;
-    }
-    if (/(clinic|clinical)/.test(code))
-        return true;
-    return /(clinic\s*(fee|insurance|insurances)|clinical\s*(fee|booking|appointment|slot|enrollment|request))/i.test(memo);
-}
-function isLateFeeRow(args) {
-    if (String(args.sourceType ?? "").trim().toLowerCase() === "auto_late_fee") {
-        return true;
-    }
-    return new RegExp(`^${LATE_FEE_DESCRIPTION}$`, "i").test(args.memo.trim());
-}
 function inferPaymentChargeTypeFromMemo(memo) {
     const m = memo.trim().toLowerCase();
     const explicit = /authorize\.net\s+(tuition|clinic_fee|exam_fee|late_fee)\b/.exec(m);
@@ -178,7 +155,7 @@ function summarizeTermChargesFromLedger(rows) {
             else if (isExamFeeMemo(memo)) {
                 chargeTotals.exam_fee = roundToMoney(chargeTotals.exam_fee + debit);
             }
-            else if (isClinicChargeRow({
+            else if (isClinicBucketCharge({
                 type,
                 code,
                 memo,
@@ -186,7 +163,12 @@ function summarizeTermChargesFromLedger(rows) {
             })) {
                 chargeTotals.clinic_fee = roundToMoney(chargeTotals.clinic_fee + debit);
             }
-            else if (type.toLowerCase() === "tuition") {
+            else if (isTuitionBucketCharge({
+                type,
+                code,
+                memo,
+                sourceType: row.sourceType,
+            })) {
                 chargeTotals.tuition = roundToMoney(chargeTotals.tuition + debit);
             }
         }
@@ -255,7 +237,13 @@ async function resolveClinicFeeStatus(args) {
     const totalAssessed = roundToMoney(Math.max(0, args.amount));
     const remainingDue = roundToMoney(Math.max(0, args.amountDue));
     if (totalAssessed <= 0) {
-        // No clinic fee charge exists for this term; do not treat as paid by default.
+        const latestHoldStatus = await getLatestClinicalBookingPaymentHoldStatusForStudentQuarter(args.studentId, args.term, args.year);
+        if (latestHoldStatus === "expired_auto_dropped" ||
+            latestHoldStatus === "cancelled_enrollment_inactive" ||
+            latestHoldStatus === "cancelled_manual_drop" ||
+            latestHoldStatus === "cancelled_superseded") {
+            return "registration_cancelled";
+        }
         return "pending";
     }
     if (remainingDue <= 0) {
@@ -264,13 +252,15 @@ async function resolveClinicFeeStatus(args) {
     if (!deadlineHasPassed(args.paymentDeadline)) {
         return "pending";
     }
-    await reconcileExpiredClinicalBookingHoldsForStudent(args.studentId);
+    await revokeExpiredClinicalBooking(args.studentId);
     const latestHoldStatus = await getLatestClinicalBookingPaymentHoldStatusForStudentQuarter(args.studentId, args.term, args.year);
     if (latestHoldStatus === "expired_auto_dropped" ||
-        latestHoldStatus === "cancelled_enrollment_inactive") {
+        latestHoldStatus === "cancelled_enrollment_inactive" ||
+        latestHoldStatus === "cancelled_manual_drop" ||
+        latestHoldStatus === "cancelled_superseded") {
         return "registration_cancelled";
     }
-    return "expired";
+    return "registration_cancelled";
 }
 export async function evaluateLateFeeForCurrentTerm(studentId, term, year, paymentDeadline) {
     const due = typeof paymentDeadline === "string" ? paymentDeadline.trim() : "";
@@ -401,6 +391,7 @@ export function parseAuthorizeChargeBody(raw) {
     const parsedInstallmentCount = parseInstallmentCount(o.installmentCount);
     const installmentCount = parsedInstallmentCount ?? 3;
     const opaque = o.opaqueData;
+    const cardBinPrefix = normalizeCardBinPrefix(o.cardBinPrefix ?? o.cardBinSix);
     if (term === "") {
         return { ok: false, error: "term is required." };
     }
@@ -438,6 +429,12 @@ export function parseAuthorizeChargeBody(raw) {
             error: "opaqueData must include dataDescriptor and dataValue.",
         };
     }
+    if (cardBinPrefix == null) {
+        return {
+            ok: false,
+            error: "cardBinPrefix must be the first 6–8 digits of the card number.",
+        };
+    }
     return {
         ok: true,
         value: {
@@ -450,6 +447,7 @@ export function parseAuthorizeChargeBody(raw) {
                 dataDescriptor: descriptor,
                 dataValue: value,
             },
+            cardBinPrefix,
         },
     };
 }
@@ -485,32 +483,43 @@ export async function processAuthorizeNetStudentPayment(input) {
     if (amount > maxAllowedForCharge) {
         throw new Error("Payment amount cannot exceed the amount due for this charge.");
     }
+    const cardFunding = inferCardFundingFromBinPrefix(input.cardBinPrefix);
+    const { base, fee, total } = totalChargeWithProcessingFee(amount, cardFunding);
     const invoiceNumber = invoiceNumberFor(input.studentId);
     const referenceId = referenceIdFor(input.studentId);
     const charged = await chargeAuthorizeOpaqueData({
-        amount,
+        amount: total,
         opaqueData: input.opaqueData,
         invoiceNumber,
         referenceId,
         studentId: input.studentId,
         termCode: parsedTerm.termCode,
     });
+    const feePart = fee > 0
+        ? ` card fee ${fee.toFixed(2)} total charged ${total.toFixed(2)}`
+        : ` total charged ${total.toFixed(2)}`;
+    const baseDescription = input.paymentPlan === "installment"
+        ? `Authorize.net ${input.chargeType} installment ${input.installmentCount} payment ${charged.transactionId}`
+        : `Authorize.net ${input.chargeType} payment ${charged.transactionId}`;
+    const description = `${baseDescription}${feePart}`.slice(0, 255);
     await recordAuthorizeNetPayment({
         studentId: input.studentId,
         term: parsedTerm.term,
         year: parsedTerm.year,
-        amount,
+        amount: base,
+        providerChargedAmount: total,
         paidAt: new Date().toISOString().slice(0, 10),
         method: "authorize_net",
-        description: input.paymentPlan === "installment"
-            ? `Authorize.net ${input.chargeType} installment ${input.installmentCount} payment ${charged.transactionId}`.slice(0, 255)
-            : `Authorize.net ${input.chargeType} payment ${charged.transactionId}`.slice(0, 255),
+        description,
         providerTransactionId: charged.transactionId,
         invoiceNumber,
         status: "succeeded",
     });
     return {
-        amount: amount.toFixed(2),
+        amount: total.toFixed(2),
+        baseAmount: base.toFixed(2),
+        processingFee: fee.toFixed(2),
+        cardFunding,
         providerTransactionId: charged.transactionId,
         invoiceNumber,
     };

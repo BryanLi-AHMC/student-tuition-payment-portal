@@ -1,3 +1,4 @@
+export { isClinicalBookingExpired, isClinicalBookingExpired as isClinicalBookingPaymentHoldPastDeadline, } from "../clinicalBookingPolicy.js";
 /**
  * Whether the student's current quarter balance indicates this clinical booking charge
  * is covered, using the snapshot taken at charge time (`balanceBeforeCharge`).
@@ -9,11 +10,6 @@
  *   immediately after posting this clinical debit).
  */
 export declare function isClinicalBookingHoldFinanciallySatisfied(balanceBeforeCharge: number, chargeAmount: number, currentBalance: number): boolean;
-/**
- * True when the hold window end is strictly before "now" (UTC clock on server).
- * Used with `status = 'active'` + unpaid balance checks to detect expiration.
- */
-export declare function isClinicalBookingPaymentHoldPastDeadline(holdExpiresAt: Date, nowMs?: number): boolean;
 export type StudentPortalClinicalBookingHoldDto = {
     holdExpiresAt: string;
     remainingSeconds: number;
@@ -59,4 +55,13 @@ export declare function runDueClinicalBookingHoldCleanupBatches(opts?: {
  * Marks satisfied holds and auto-drops overdue unpaid clinical bookings (idempotent).
  */
 export declare function runClinicalBookingPaymentHoldCleanup(): Promise<ClinicalBookingPaymentHoldCleanupStats>;
+/**
+ * Revokes unpaid clinical registrations whose payment deadline has passed (student scope).
+ * Idempotent; delegates to {@link reconcileExpiredClinicalBookingHoldsForStudent}.
+ */
+export declare function revokeExpiredClinicalBooking(studentId: string): Promise<ClinicalBookingPaymentHoldCleanupStats>;
+/**
+ * Revokes overdue unpaid clinical registrations tied to a timetable slot (admin / slot views).
+ */
+export declare function revokeExpiredClinicalBookingForTimetable(timetableId: number): Promise<ClinicalBookingPaymentHoldCleanupStats>;
 //# sourceMappingURL=clinicalBookingPaymentHoldService.d.ts.map
