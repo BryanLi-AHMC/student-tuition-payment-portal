@@ -401,14 +401,23 @@ function parseAdminStudentsExportBody(
   };
 }
 
+function parseClinicalSummaryQueryParam(raw: unknown): boolean {
+  const truthy = (v: unknown): boolean =>
+    v === "1" || v === "true" || v === "yes";
+  if (truthy(raw)) return true;
+  if (Array.isArray(raw)) return raw.some((v) => truthy(v));
+  return false;
+}
+
 export async function getAdminStudents(
   req: Request,
   res: Response,
 ): Promise<void> {
   try {
-    const rawClinical = req.query.clinicalSummary;
-    const includeClinicalSummary =
-      rawClinical === "1" || rawClinical === "true" || rawClinical === "yes";
+    /** Opt-in only; default is no clinical batch work on the roster. */
+    const includeClinicalSummary = parseClinicalSummaryQueryParam(
+      req.query.clinicalSummary,
+    );
     const page = parsePositiveIntParam(
       req.query.page,
       ADMIN_STUDENT_LIST_DEFAULT_PAGE,

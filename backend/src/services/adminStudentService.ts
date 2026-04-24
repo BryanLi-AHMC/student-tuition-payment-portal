@@ -322,7 +322,7 @@ export async function listAdminStudentsPage(options: {
   const loaYear = options.loaYear;
   const offset = (page - 1) * pageSize;
 
-  const total = await countLegacyAdminStudentListRows(pool, {
+  const listQuery = {
     search,
     program,
     track,
@@ -331,55 +331,63 @@ export async function listAdminStudentsPage(options: {
     loa,
     loaQuarter,
     loaYear,
-  });
-  const rows = await listLegacyAdminStudentListRowsPage(pool, {
-    search,
-    program,
-    track,
-    entryYear,
-    intakeCode,
-    loa,
-    loaQuarter,
-    loaYear,
-    limit: pageSize,
-    offset,
-  });
-  const enrollmentFilterOptions = await buildAdminStudentEnrollmentFilterOptions({
-    search,
-    program,
-    track,
-    entryYear,
-    intakeCode,
-    loa,
-    loaQuarter,
-    loaYear,
-  });
-  const base = rows.map((row) => mapRowToListItem(row as Record<string, unknown>));
-  let items: AdminStudentListItem[];
-  if (!options.includeClinicalSummary) {
-    items = base;
-  } else {
+  };
+
+  console.time("[admin students] list total");
+  try {
+    console.time("[admin students] base query");
+    let total: number;
+    let rows: Awaited<ReturnType<typeof listLegacyAdminStudentListRowsPage>>;
+    let enrollmentFilterOptions: AdminStudentEnrollmentFilterOptions;
     try {
-      const byId = await batchBuildClinicalProgressForStudentIds(
-        pool,
-        base.map((b) => b.studentId),
-      );
-      items = base.map((item) => {
-        const cp = byId.get(item.studentId.trim());
-        if (!cp) {
-          return item;
-        }
-        return {
-          ...item,
-          clinicalProgressSummary: clinicalProgressToListSummary(cp),
-        };
-      });
-    } catch (e) {
-      console.error("[admin] batch clinical progress failed (list)", e);
-      items = base;
+      [total, rows, enrollmentFilterOptions] = await Promise.all([
+        countLegacyAdminStudentListRows(pool, listQuery),
+        listLegacyAdminStudentListRowsPage(pool, {
+          ...listQuery,
+          limit: pageSize,
+          offset,
+        }),
+        buildAdminStudentEnrollmentFilterOptions(listQuery),
+      ]);
+    } finally {
+      console.timeEnd("[admin students] base query");
     }
+
+    const base = rows.map((row) =>
+      mapRowToListItem(row as Record<string, unknown>),
+    );
+    let items: AdminStudentListItem[];
+    /** Roster clinical columns only when `clinicalSummary=1` is explicitly requested. */
+    if (options.includeClinicalSummary !== true) {
+      items = base;
+    } else {
+      console.time("[admin students] clinical summary");
+      try {
+        const byId = await batchBuildClinicalProgressForStudentIds(
+          pool,
+          base.map((b) => b.studentId),
+        );
+        items = base.map((item) => {
+          const cp = byId.get(item.studentId.trim());
+          if (!cp) {
+            return item;
+          }
+          return {
+            ...item,
+            clinicalProgressSummary: clinicalProgressToListSummary(cp),
+          };
+        });
+      } catch (e) {
+        console.error("[admin] batch clinical progress failed (list)", e);
+        items = base;
+      } finally {
+        console.timeEnd("[admin students] clinical summary");
+      }
+    }
+    return { items, total, page, pageSize, enrollmentFilterOptions };
+  } finally {
+    console.timeEnd("[admin students] list total");
   }
-  return { items, total, page, pageSize, enrollmentFilterOptions };
 }
 
 function csvEscapeCell(value: string): string {

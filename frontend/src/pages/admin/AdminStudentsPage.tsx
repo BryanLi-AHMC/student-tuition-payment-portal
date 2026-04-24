@@ -132,6 +132,7 @@ export function AdminStudentsPage() {
     setError(null)
     ;(async () => {
       try {
+        // Roster only: do not pass `clinicalSummary` (no per-page clinical batch on GET /api/admin/students).
         const res = await fetchAdminStudents({
           signal: ac.signal,
           page,
