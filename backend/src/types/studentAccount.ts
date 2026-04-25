@@ -1,4 +1,4 @@
-export type BillingCategory = "tuition" | "clinical" | "fees" | "other";
+export type BillingCategory = "tuition" | "clinical" | "fees" | "other" | "exam";
 
 export type BillingLineItem = {
   description: string;
@@ -154,6 +154,7 @@ export type CourseRecord = {
 
 export type BillingAdjustmentSource =
   | "manual"
+  | "admin_manual_charge"
   | "system_late_fee"
   | "system_clinical"
   | "system_late_fee_reversal";

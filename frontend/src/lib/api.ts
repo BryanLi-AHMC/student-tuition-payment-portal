@@ -1492,6 +1492,18 @@ export type AccountingLedgerRow = {
   isEditable?: boolean
   isDeletable?: boolean
   clinicalBookingPaymentHold?: ClinicalBookingPaymentHoldLedger | null
+  billingAdjustmentSource?: string
+  billingAdjustmentCategory?: 'tuition' | 'clinical' | 'fees' | 'other' | 'exam'
+}
+
+export type TuitionPayFlowLedgerSummary = {
+  tuitionCharges: number
+  lateFees: number
+  tuitionPaymentsApplied: number
+  lateFeePaymentsApplied: number
+  tuitionBalanceDue: number
+  tuitionChargeAmountDue: number
+  lateFeeChargeAmountDue: number
 }
 
 export type AccountingLedgerResponse = {
@@ -1504,6 +1516,8 @@ export type AccountingLedgerResponse = {
     totalPayments: number
     balance: number
   }
+  /** Matches student Pay Tuition (portal presentation, tuition + late fee buckets). */
+  tuitionPayFlowSummary?: TuitionPayFlowLedgerSummary | null
 }
 
 export type AuthorizeNetOpaqueData = {
@@ -1976,7 +1990,7 @@ export type PostAdminFinanceChargeBody = {
   year: number
   description: string
   amount: number
-  category?: 'fees' | 'other' | 'tuition' | 'clinical'
+  category?: 'fees' | 'other' | 'tuition' | 'clinical' | 'exam'
 }
 
 export type PostAdminFinancePaymentBody = {

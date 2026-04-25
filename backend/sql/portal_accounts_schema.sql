@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS portal_billing_adjustments (
   year INT NOT NULL,
   description VARCHAR(255) NOT NULL,
   amount DECIMAL(12, 2) NOT NULL,
-  category ENUM('tuition', 'clinical', 'fees', 'other') NOT NULL,
+  category ENUM('tuition', 'clinical', 'fees', 'other', 'exam') NOT NULL,
   adjustment_source VARCHAR(64) NOT NULL DEFAULT 'manual' COMMENT 'manual|system_late_fee|system_clinical',
   clinical_enrollment_id INT NULL COMMENT 'clinical_enrollments.id when this row is a system clinical slot booking charge',
   reversal_of_adjustment_id BIGINT NULL COMMENT 'links compensating rows (e.g. system_late_fee_reversal) to the original adjustment id',

@@ -14,12 +14,9 @@ import {
 } from "../repositories/adminFinanceRepository.js";
 import { revokeExpiredClinicalBooking } from "./clinicalBookingPaymentHoldService.js";
 import { getLatestClinicalBookingPaymentHoldStatusForStudentQuarter } from "../repositories/clinicalBookingPaymentHoldRepository.js";
-import {
-  isClinicBucketCharge,
-  isExamFeeMemo,
-  isLateFeeRow,
-  isTuitionBucketCharge,
-} from "./billingChargeBuckets.js";
+import { resolveCanonicalStudentExternalId } from "../repositories/studentIdentityRepository.js";
+import { computeTuitionBalanceSnapshot } from "./tuitionBalanceService.js";
+import type { LedgerRowForTuitionFlow } from "./ledgerTuitionFlowMath.js";
 
 type OpaqueDataInput = {
   dataDescriptor: string;
@@ -168,21 +165,6 @@ function roundToMoney(v: number): number {
   return Math.round(v * 100) / 100;
 }
 
-function inferPaymentChargeTypeFromMemo(memo: string): PaymentChargeType | null {
-  const m = memo.trim().toLowerCase();
-  const explicit = /authorize\.net\s+(tuition|clinic_fee|exam_fee|late_fee)\b/.exec(
-    m,
-  );
-  if (explicit) {
-    return explicit[1] as PaymentChargeType;
-  }
-  if (/\btuition\b/.test(m)) return "tuition";
-  if (/clinic/.test(m)) return "clinic_fee";
-  if (/exam/.test(m)) return "exam_fee";
-  if (/late\s*payment\s*fee|late\s*fee/.test(m)) return "late_fee";
-  return null;
-}
-
 function buildTermBucket(
   type: PaymentChargeType,
   term: string,
@@ -203,124 +185,6 @@ function buildTermBucket(
     dueDate,
     isInstallmentEligible: isInstallmentEligible(type),
   };
-}
-
-function summarizeTermChargesFromLedger(
-  rows: Array<{
-    type: string;
-    code: string;
-    memo: string;
-    debit: number;
-    credit: number;
-    sourceType?: string;
-    billingAdjustmentSource?: string;
-  }>,
-): {
-  chargeTotals: Record<PaymentChargeType, number>;
-  paymentTotals: Record<PaymentChargeType, number>;
-  unassignedPayments: number;
-} {
-  const chargeTotals: Record<PaymentChargeType, number> = {
-    tuition: 0,
-    clinic_fee: 0,
-    exam_fee: 0,
-    late_fee: 0,
-  };
-  const paymentTotals: Record<PaymentChargeType, number> = {
-    tuition: 0,
-    clinic_fee: 0,
-    exam_fee: 0,
-    late_fee: 0,
-  };
-  let totalCredits = 0;
-  for (const row of rows) {
-    const debit = roundToMoney(Math.max(0, Number(row.debit) || 0));
-    const credit = roundToMoney(Math.max(0, Number(row.credit) || 0));
-    const memo = String(row.memo ?? "").trim();
-    const type = String(row.type ?? "").trim();
-    const code = String(row.code ?? "").trim();
-    if (debit > 0) {
-      if (isLateFeeRow({ type, memo, sourceType: row.sourceType })) {
-        chargeTotals.late_fee = roundToMoney(chargeTotals.late_fee + debit);
-      } else if (isExamFeeMemo(memo)) {
-        chargeTotals.exam_fee = roundToMoney(chargeTotals.exam_fee + debit);
-      } else if (
-        isClinicBucketCharge({
-          type,
-          code,
-          memo,
-          sourceType: row.sourceType,
-        })
-      ) {
-        chargeTotals.clinic_fee = roundToMoney(chargeTotals.clinic_fee + debit);
-      } else if (
-        isTuitionBucketCharge({
-          type,
-          code,
-          memo,
-          sourceType: row.sourceType,
-        })
-      ) {
-        chargeTotals.tuition = roundToMoney(chargeTotals.tuition + debit);
-      }
-    }
-    if (credit > 0) {
-      totalCredits = roundToMoney(totalCredits + credit);
-      let inferred = inferPaymentChargeTypeFromMemo(memo);
-      if (
-        inferred == null &&
-        String(row.billingAdjustmentSource ?? "").trim() ===
-          "system_late_fee_reversal"
-      ) {
-        inferred = "late_fee";
-      }
-      if (inferred != null) {
-        paymentTotals[inferred] = roundToMoney(paymentTotals[inferred] + credit);
-      }
-    }
-  }
-
-  const typedPayments = roundToMoney(
-    paymentTotals.tuition +
-      paymentTotals.clinic_fee +
-      paymentTotals.exam_fee +
-      paymentTotals.late_fee,
-  );
-  return {
-    chargeTotals,
-    paymentTotals,
-    unassignedPayments: roundToMoney(Math.max(0, totalCredits - typedPayments)),
-  };
-}
-
-function distributeUnassignedPayments(
-  chargeTotals: Record<PaymentChargeType, number>,
-  paymentTotals: Record<PaymentChargeType, number>,
-  unassignedPayments: number,
-): Record<PaymentChargeType, number> {
-  const paid: Record<PaymentChargeType, number> = {
-    tuition: 0,
-    clinic_fee: 0,
-    exam_fee: 0,
-    late_fee: 0,
-  };
-  let carry = roundToMoney(Math.max(0, unassignedPayments));
-  const order: PaymentChargeType[] = [
-    "tuition",
-    "clinic_fee",
-    "exam_fee",
-    "late_fee",
-  ];
-  for (const key of order) {
-    const target = roundToMoney(Math.max(0, chargeTotals[key]));
-    if (target <= 0) continue;
-    const direct = roundToMoney(Math.max(0, paymentTotals[key]));
-    const remainingAfterDirect = roundToMoney(Math.max(0, target - direct));
-    const allocation = roundToMoney(Math.min(remainingAfterDirect, carry));
-    carry = roundToMoney(Math.max(0, carry - allocation));
-    paid[key] = roundToMoney(Math.min(target, direct + allocation));
-  }
-  return paid;
 }
 
 function deadlineHasPassed(deadline: string | null): boolean {
@@ -383,9 +247,11 @@ async function resolveClinicFeeStatus(args: {
 
 async function buildCurrentTermBillingSummary(args: {
   studentId: string;
+  requestedStudentId: string;
   term: string;
   year: number;
   paymentDeadline: string | null;
+  emitTuitionSummaryDebugLog?: boolean;
 }): Promise<CurrentTermBillingSummary> {
   const ledger = await getAccountingLedgerPayload(
     args.studentId,
@@ -393,13 +259,18 @@ async function buildCurrentTermBillingSummary(args: {
     args.year,
     { studentPortalLedgerPresentation: true },
   );
-  const rows = ledger?.rows ?? [];
-  const summarized = summarizeTermChargesFromLedger(rows);
-  const paid = distributeUnassignedPayments(
-    summarized.chargeTotals,
-    summarized.paymentTotals,
-    summarized.unassignedPayments,
-  );
+  const rows = (ledger?.rows ?? []) as LedgerRowForTuitionFlow[];
+  const details = computeTuitionBalanceSnapshot({
+    requestedStudentId: args.requestedStudentId,
+    resolvedStudentId: args.studentId,
+    term: ledger?.term ?? args.term,
+    year: ledger?.year ?? args.year,
+    rows,
+  });
+  const summarized = {
+    chargeTotals: details.chargeTotals as Record<PaymentChargeType, number>,
+  };
+  const paid = details.paidAllocations as Record<PaymentChargeType, number>;
   const tuitionCharge = buildTermBucket(
     "tuition",
     args.term,
@@ -440,6 +311,21 @@ async function buildCurrentTermBillingSummary(args: {
     tuitionCharge.amountDue + clinicFeeCharge.amountDue + examFeeCharge.amountDue,
   );
   const totalBalanceDue = roundToMoney(requiredBalanceDue + lateFeeCharge.amountDue);
+  if (args.emitTuitionSummaryDebugLog === true) {
+    console.log("[tuition-summary]", {
+      requestedStudentId: args.requestedStudentId,
+      resolvedStudentId: args.studentId,
+      term: args.term,
+      year: args.year,
+      tuitionCharges: details.tuitionCharges,
+      tuitionAdjustments: details.tuitionAdjustments,
+      tuitionPayments: details.tuitionPayments,
+      lateFees: details.lateFees,
+      excludedClinical: details.excludedClinical,
+      excludedExam: details.excludedExam,
+      tuitionBalanceDue: details.tuitionBalanceDue,
+    });
+  }
   return {
     term: args.term,
     year: args.year,
@@ -457,21 +343,27 @@ async function buildCurrentTermBillingSummary(args: {
 export async function getCurrentTermBillingSummary(input: {
   studentId: string;
   termInput: string;
+  emitTuitionSummaryDebugLog?: boolean;
 }): Promise<CurrentTermBillingSummary> {
   const parsed = parseTermCode(input.termInput);
   if (!parsed) {
     throw new Error("term must be in `YYYY-TERM` format (example: 2027-SPR).");
   }
+  const requested = input.studentId.trim();
+  const canonical =
+    (await resolveCanonicalStudentExternalId(pool, requested)) ?? requested;
   const { paymentDueDate } = await getFinanceQuarterDdlFromAcademicTerms(
     pool,
     parsed.term,
     parsed.year,
   );
   return buildCurrentTermBillingSummary({
-    studentId: input.studentId,
+    studentId: canonical,
+    requestedStudentId: requested,
     term: parsed.term,
     year: parsed.year,
     paymentDeadline: paymentDueDate,
+    emitTuitionSummaryDebugLog: input.emitTuitionSummaryDebugLog === true,
   });
 }
 
@@ -497,7 +389,10 @@ export async function getTuitionOnlyBillingSummary(input: {
   studentId: string;
   termInput: string;
 }): Promise<TuitionOnlyBillingSummary> {
-  const summary = await getCurrentTermBillingSummary(input);
+  const summary = await getCurrentTermBillingSummary({
+    ...input,
+    emitTuitionSummaryDebugLog: true,
+  });
   return {
     term: summary.term,
     year: summary.year,

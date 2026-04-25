@@ -9,6 +9,7 @@ import {
   putAdminFinancePayment,
   type AccountingLedgerResponse,
   type AccountingLedgerRow,
+  type TuitionPayFlowLedgerSummary,
 } from '../../lib/api'
 import { formatMoney } from '../../lib/formatMoney'
 
@@ -30,7 +31,26 @@ function textOrDash(s: string): string {
   return t === '' ? '—' : t
 }
 
-type ChargeCategory = 'fees' | 'other' | 'tuition' | 'clinical'
+function tuitionPayFlowFootRow(
+  summary: TuitionPayFlowLedgerSummary | null | undefined,
+): ReactNode {
+  if (summary == null) return null
+  return (
+    <tr>
+      <td colSpan={4} className="admin-finance-totals__label">
+        <strong>Pay Tuition balance</strong>
+        <span className="portal-text-muted" style={{ fontWeight: 'normal', marginLeft: 8 }}>
+          (tuition + late fee; matches student portal)
+        </span>
+      </td>
+      <td className="admin-table-numeric" colSpan={3}>
+        <strong>{formatMoney(summary.tuitionBalanceDue)}</strong>
+      </td>
+    </tr>
+  )
+}
+
+type ChargeCategory = 'fees' | 'other' | 'tuition' | 'clinical' | 'exam'
 
 function rowStableKey(r: AccountingLedgerRow, idx: number): string {
   const id = r.sourceId
@@ -70,7 +90,7 @@ export function AdminFinanceLedgerPanel({
 
   const [chargeDesc, setChargeDesc] = useState('')
   const [chargeAmount, setChargeAmount] = useState('')
-  const [chargeCategory, setChargeCategory] = useState<ChargeCategory>('fees')
+  const [chargeCategory, setChargeCategory] = useState<ChargeCategory>('tuition')
   const [chargeErr, setChargeErr] = useState<string | null>(null)
   const [chargeSubmitting, setChargeSubmitting] = useState(false)
 
@@ -555,6 +575,7 @@ export function AdminFinanceLedgerPanel({
                   <strong>{formatMoney(ledger.summary.balance)}</strong>
                 </td>
               </tr>
+              {tuitionPayFlowFootRow(ledger.tuitionPayFlowSummary)}
             </tfoot>
           </table>
         </div>
@@ -624,6 +645,7 @@ export function AdminFinanceLedgerPanel({
                 <option value="fees">fees</option>
                 <option value="tuition">tuition</option>
                 <option value="clinical">clinical</option>
+                <option value="exam">exam</option>
                 <option value="other">other</option>
               </select>
             </div>
@@ -807,6 +829,7 @@ export function AdminFinanceLedgerPanel({
                 <option value="fees">fees</option>
                 <option value="tuition">tuition</option>
                 <option value="clinical">clinical</option>
+                <option value="exam">exam</option>
                 <option value="other">other</option>
               </select>
             </div>

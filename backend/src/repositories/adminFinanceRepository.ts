@@ -4,7 +4,7 @@ import type { Pool, PoolConnection } from "mysql2/promise";
 /** Pool or transaction connection for inserts. */
 export type PortalBillingSqlExecutor = Pool | PoolConnection;
 
-export type PortalBillingCategory = "tuition" | "clinical" | "fees" | "other";
+export type PortalBillingCategory = "tuition" | "clinical" | "fees" | "other" | "exam";
 
 function termSortOrder(term: string): number {
   switch (term.trim().toUpperCase()) {
@@ -471,6 +471,7 @@ export async function insertPortalBillingAdjustment(
     category: PortalBillingCategory;
     adjustmentSource?:
       | "manual"
+      | "admin_manual_charge"
       | "system_late_fee"
       | "system_clinical"
       | "system_late_fee_reversal";
@@ -800,7 +801,7 @@ export async function updateManualBillingAdjustment(
     `UPDATE portal_billing_adjustments
      SET description = ?, amount = ?, category = ?
      WHERE id = ?
-       AND adjustment_source = 'manual'`,
+       AND adjustment_source IN ('manual', 'admin_manual_charge')`,
     [
       params.description.trim(),
       params.amount,
@@ -821,7 +822,7 @@ export async function deleteManualBillingAdjustment(
   const [res] = await pool.execute(
     `DELETE FROM portal_billing_adjustments
      WHERE id = ?
-       AND adjustment_source = 'manual'`,
+       AND adjustment_source IN ('manual', 'admin_manual_charge')`,
     [Math.trunc(id)],
   );
   const ok = (res as { affectedRows?: number }).affectedRows ?? 0;

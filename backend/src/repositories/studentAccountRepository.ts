@@ -50,7 +50,13 @@ function asCourseType(raw: unknown): CourseRecord["type"] {
 
 function asBillingCategory(raw: unknown): BillingCategory {
   const s = String(raw);
-  if (s === "tuition" || s === "clinical" || s === "fees" || s === "other") {
+  if (
+    s === "tuition" ||
+    s === "clinical" ||
+    s === "fees" ||
+    s === "other" ||
+    s === "exam"
+  ) {
     return s;
   }
   return "other";
@@ -61,6 +67,7 @@ function asAdjustmentSource(raw: unknown): BillingAdjustmentSource {
   if (s === "system_late_fee") return "system_late_fee";
   if (s === "system_clinical") return "system_clinical";
   if (s === "system_late_fee_reversal") return "system_late_fee_reversal";
+  if (s === "admin_manual_charge") return "admin_manual_charge";
   return "manual";
 }
 
@@ -182,6 +189,48 @@ export async function listPortalScheduleTermsForStudent(
          ELSE 0
        END DESC`,
     [studentExternalId],
+  );
+  return rows.map((r) => ({
+    term: String(r.term),
+    year: Number(r.year),
+  }));
+}
+
+/**
+ * Distinct term/year pairs from portal enrollments, billing adjustments, and payments.
+ * Ensures admin-posted charges appear in student quarter pickers even without enrollments.
+ */
+export async function listPortalFinanceActivityTermsForStudent(
+  pool: Pool,
+  studentExternalId: string,
+): Promise<{ term: string; year: number }[]> {
+  const sid = studentExternalId.trim();
+  if (sid === "") return [];
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT DISTINCT term, year
+     FROM (
+       SELECT term, year
+       FROM portal_enrollments
+       WHERE student_external_id = ?
+       UNION
+       SELECT term, year
+       FROM portal_billing_adjustments
+       WHERE student_external_id = ?
+       UNION
+       SELECT term, year
+       FROM portal_payments
+       WHERE student_external_id = ?
+     ) u
+     WHERE TRIM(term) <> ''
+     ORDER BY year DESC,
+       CASE UPPER(TRIM(term))
+         WHEN 'FALL' THEN 4
+         WHEN 'SUMMER' THEN 3
+         WHEN 'SPRING' THEN 2
+         WHEN 'WINTER' THEN 1
+         ELSE 0
+       END DESC`,
+    [sid, sid, sid],
   );
   return rows.map((r) => ({
     term: String(r.term),

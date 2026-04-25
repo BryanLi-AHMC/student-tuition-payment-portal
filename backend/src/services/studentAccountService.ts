@@ -21,7 +21,7 @@ import {
 } from "../repositories/studentLegacyAccountRepository.js";
 import {
   findLatestTermYearForStudent,
-  listPortalScheduleTermsForStudent,
+  listPortalFinanceActivityTermsForStudent,
   loadAccountContext,
 } from "../repositories/studentAccountRepository.js";
 import {
@@ -217,7 +217,7 @@ async function getDemoStudentAccountPayload(
   studentId: string,
   termYear: AccountTermYearInput,
 ): Promise<StudentAccountPayload | null> {
-  const listedPairs = await listPortalScheduleTermsForStudent(
+  const listedPairs = await listPortalFinanceActivityTermsForStudent(
     pool,
     studentId,
   ).catch(() => [] as { term: string; year: number }[]);
@@ -323,7 +323,7 @@ async function getRealStudentAccountPayload(
     listLegacyRegistrationTermsForStudent(pool, studentId),
     listPortalEnrollmentRowsForStudentAcademics(studentId),
     findLatestPortalEnrollmentTermYear(studentId),
-    listPortalScheduleTermsForStudent(pool, studentId).catch(
+    listPortalFinanceActivityTermsForStudent(pool, studentId).catch(
       () => [] as { term: string; year: number }[],
     ),
     findLatestLegacyTermYear(pool, studentId),
