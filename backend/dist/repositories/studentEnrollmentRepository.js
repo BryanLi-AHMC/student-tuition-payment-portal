@@ -140,8 +140,7 @@ export async function listStudentHistoricalCourseReferences(studentExternalId) {
        INNER JOIN portal_courses pc
          ON pc.course_id COLLATE utf8mb4_unicode_ci =
             e.course_id COLLATE utf8mb4_unicode_ci
-       WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-             CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci`, [sid]),
+       WHERE TRIM(e.student_external_id) = TRIM(?)`, [sid]),
         listMarksForStudent(pool, sid),
     ]);
     for (const row of portalRows) {
@@ -208,8 +207,7 @@ export async function enrollStudentInSections(studentExternalId, term, year, sec
             }
             const courseId = resolved.courseId;
             const [[existing]] = await conn.query(`SELECT id, status FROM portal_enrollments
-         WHERE student_external_id COLLATE utf8mb4_unicode_ci =
-               CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+         WHERE TRIM(student_external_id) = TRIM(?)
            AND course_section_id = ?
            AND term COLLATE utf8mb4_unicode_ci =
                CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
@@ -276,8 +274,7 @@ export async function listStudentEnrolledSectionsForTerm(studentExternalId, term
     const countSql = `
     SELECT COUNT(*) AS cnt
     FROM portal_enrollments e
-    WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-          CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    WHERE TRIM(e.student_external_id) = TRIM(?)
       AND e.term COLLATE utf8mb4_unicode_ci =
           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
       AND e.year = ?
@@ -333,8 +330,7 @@ export async function listStudentEnrolledSectionsForTerm(studentExternalId, term
     LEFT JOIN courses cat
       ON TRIM(cat.code) COLLATE utf8mb4_unicode_ci =
          TRIM(COALESCE(cs_direct.course_code, cs_leg.course_code)) COLLATE utf8mb4_unicode_ci
-    WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-          CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    WHERE TRIM(e.student_external_id) = TRIM(?)
       AND e.term COLLATE utf8mb4_unicode_ci =
           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
       AND e.year = ?
@@ -409,9 +405,9 @@ export async function listPortalEnrollmentRosterBySectionId(sectionId) {
      FROM portal_enrollments e
      INNER JOIN course_sections cs
        ON e.course_section_id = cs.id
-     LEFT JOIN students s
-       ON TRIM(s.id) COLLATE utf8mb4_unicode_ci =
-          TRIM(e.student_external_id) COLLATE utf8mb4_unicode_ci
+    LEFT JOIN students s
+      -- Legacy student identifiers are latin1 in this database; avoid forcing utf8mb4 collation here.
+      ON TRIM(s.id) = TRIM(e.student_external_id)
      WHERE e.course_section_id = ?
      ORDER BY
        CASE WHEN s.name IS NULL OR TRIM(s.name) = '' THEN 1 ELSE 0 END ASC,
@@ -533,8 +529,7 @@ export async function listPortalEnrollmentTermsForStudent(studentExternalId) {
        TRIM(e.term) AS term,
        e.year AS year
      FROM portal_enrollments e
-     WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+     WHERE TRIM(e.student_external_id) = TRIM(?)
      GROUP BY TRIM(e.term), e.year
      ORDER BY e.year DESC,
        ${portalQuarterOrderSql("e.term")} DESC`, [sid]);
@@ -588,8 +583,7 @@ export async function listPortalEnrollmentHistoryForStudentTerm(studentExternalI
               TRIM(e.term) COLLATE utf8mb4_unicode_ci
           AND cs2.year = e.year
       )
-    WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-          CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    WHERE TRIM(e.student_external_id) = TRIM(?)
       AND TRIM(e.term) COLLATE utf8mb4_unicode_ci =
           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
       AND e.year = ?
@@ -625,8 +619,7 @@ export async function findLatestPortalEnrollmentTermYear(studentExternalId) {
     const sid = studentExternalId.trim();
     const [rows] = await pool.query(`SELECT TRIM(e.term) AS term, e.year
      FROM portal_enrollments e
-     WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+     WHERE TRIM(e.student_external_id) = TRIM(?)
      ORDER BY e.year DESC,
        CASE UPPER(TRIM(e.term))
          WHEN 'FALL' THEN 4
@@ -697,8 +690,7 @@ export async function listPortalEnrollmentRowsForStudentAcademics(studentExterna
           cs2.id ASC
         LIMIT 1
       )
-    WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-          CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    WHERE TRIM(e.student_external_id) = TRIM(?)
     ORDER BY e.year DESC,
       CASE UPPER(TRIM(e.term))
         WHEN 'FALL' THEN 4
@@ -769,8 +761,7 @@ export async function softWithdrawPortalEnrollmentByCourseSection(studentExterna
     SET
       e.status = 'withdrawn',
       e.withdrawn_at = NOW()
-    WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-          CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    WHERE TRIM(e.student_external_id) = TRIM(?)
       AND e.term COLLATE utf8mb4_unicode_ci =
           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
       AND e.year = ?
@@ -824,8 +815,7 @@ export async function deletePortalEnrollmentByStudentCourseTermYear(studentExter
     SET
       e.status = 'withdrawn',
       e.withdrawn_at = NOW()
-    WHERE e.student_external_id COLLATE utf8mb4_unicode_ci =
-          CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+    WHERE TRIM(e.student_external_id) = TRIM(?)
       AND pc.course_code COLLATE utf8mb4_unicode_ci =
           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
       AND e.term COLLATE utf8mb4_unicode_ci =
@@ -841,8 +831,7 @@ export async function getPortalStudentDisplayName(studentExternalId) {
     const sid = studentExternalId.trim();
     const [rows] = await pool.query(`SELECT TRIM(ps.full_name) AS full_name
      FROM portal_students ps
-     WHERE ps.student_external_id COLLATE utf8mb4_unicode_ci =
-           CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci
+     WHERE TRIM(ps.student_external_id) = TRIM(?)
      LIMIT 1`, [sid]);
     const row = rows[0];
     if (row == null)
