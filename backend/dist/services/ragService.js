@@ -6,7 +6,7 @@ import { CHAT_MODEL, assertChatModelForCompletions, createOpenAiEmbeddingVectors
 import { buildRetrievalQueryVariants, detectCatalogProgramHint, isWeakCatalogRetrieval, rerankCatalogChunksWithKeywordBoosts, rankCatalogChunksByEmbeddingMaxWithHint, selectCatalogChunksForContext, } from "../lib/catalogRetrieval.js";
 import { env } from "../config/env.js";
 const MAX_QUESTION_CHARS = 2000;
-const MAX_HISTORY_MESSAGES = 4;
+const MAX_HISTORY_MESSAGES = 6;
 const MAX_HISTORY_USER_TURNS = 2;
 const MAX_HISTORY_CONTENT_CHARS = 500;
 const MAX_REWRITE_OUTPUT_CHARS = 320;
@@ -191,6 +191,16 @@ If a question is AMU-related:
 NEVER mix the two:
 - do NOT use general knowledge to answer AMU-specific questions
 - do NOT invent AMU facts
+
+### NUMERIC SOURCE DISCIPLINE
+
+When giving any number (credits, missing credits, required credits, charges, payments, balance, due amounts):
+- use only numbers that appear in the provided evidence blocks
+- do not invent or approximate missing values
+- if a value is missing in evidence, say it is unavailable in verified evidence
+- when a number comes from graduation evaluation, present it as system evaluation output
+- if missing credits are not provided by graduation evaluation, compute only when both required credits and completed credits are explicitly provided in evidence
+- if required credits are unavailable and missing credits are unavailable, do not compute missing credits
 
 ### SELF-REFERENTIAL USER FACTS
 
@@ -774,6 +784,8 @@ If the context fully answers the question, answer clearly and directly.
 If the context only partially answers, explicitly separate what is confirmed and what is missing.
 If the detail is not found in retrieved context, say exactly: "I do not see this detail in the available AMU catalog context".
 Never hallucinate AMU policy, credits, tuition, or rules.
+When reporting numbers, cite them from evidence wording, such as completed credits from student record and missing credits from system graduation evaluation.
+If required credits are missing from catalog context and missing credits are not in graduation evaluation, do not compute missing credits.
 For policy-only questions, never claim "from your record".
 If student-specific confirmation is missing for mixed questions, say "I don't have enough information from your records to confirm this."
 Keep the answer natural, concise, and grounded.
@@ -788,6 +800,7 @@ Do not infer missing enrollments, credits, grades, courses, terms, or other AMU-
 If the student record facts say academic history coverage is partial, do not turn a missing record into a definitive "no".
 Use "I cannot confirm from the available records" for historical negatives when coverage is partial.
 If the facts do not support the answer, say "I don't have enough information from your records to confirm this."
+When reporting credits, balance, charges, payments, or due amounts, use only values explicitly present in evidence.
 Keep the answer natural, concise, and grounded.
 ${languageInstructionForLlm(question, identityContext)}`;
 }
@@ -1292,19 +1305,30 @@ export async function answerEvidenceDrivenQuestion(input) {
     const catalogEvidence = input.catalogEvidence ?? [];
     const studentEvidence = input.studentEvidence?.trim() ?? "";
     const courseEvidence = input.courseEvidence?.trim() ?? "";
+    const financeEvidence = input.financeEvidence?.trim() ?? "";
+    const numericSources = input.numericSources ?? [];
     const hasStudentEvidence = studentEvidence.length > 0;
     const hasCourseEvidence = courseEvidence.length > 0;
-    const pipeline = hasStudentEvidence || hasCourseEvidence ? "mixed" : "policy";
-    const mergedStudentContext = [studentEvidence, courseEvidence].filter((v) => v.length > 0).join("\n\n") || null;
+    const hasFinanceEvidence = financeEvidence.length > 0;
+    const pipeline = hasStudentEvidence || hasCourseEvidence || hasFinanceEvidence ? "mixed" : "policy";
+    const mergedStudentContext = [studentEvidence, courseEvidence, financeEvidence]
+        .filter((v) => v.length > 0)
+        .join("\n\n") || null;
+    const numericSourceBlock = numericSources.length > 0
+        ? `Numeric source labels:\n${numericSources.map((item) => `- ${item}`).join("\n")}`
+        : "";
+    const mergedContextWithNumericSources = numericSourceBlock.length > 0
+        ? [mergedStudentContext, numericSourceBlock].filter((v) => v != null).join("\n\n")
+        : mergedStudentContext;
     if (!catalogRequested) {
-        if (!hasStudentEvidence && !hasCourseEvidence) {
+        if (!hasStudentEvidence && !hasCourseEvidence && !hasFinanceEvidence) {
             return answerGeneralQuestion(q, history, { identityContext: input.identityContext });
         }
-        return answerStudentRecordQuestionFromFacts(q, mergedStudentContext ?? "No verified student evidence available.", input.identityContext);
+        return answerStudentRecordQuestionFromFacts(q, mergedContextWithNumericSources ?? "No verified student evidence available.", input.identityContext);
     }
     return answerAmuQuestion(q, history, {
         pipeline,
-        studentContext: mergedStudentContext,
+        studentContext: mergedContextWithNumericSources,
         catalogEvidence,
         identityContext: input.identityContext,
     });

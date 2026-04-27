@@ -8711,6 +8711,12 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
   text-overflow: ellipsis;
 }
 
+.admin-course-sections-page
+  .admin-course-sections-table
+  .admin-course-sections-table__header-label--mobile {
+  display: none;
+}
+
 .admin-course-sections-page .admin-course-sections-table th:last-child,
 .admin-course-sections-page .admin-course-sections-table td:last-child {
   text-align: center;
@@ -10544,5 +10550,17 @@ select.admin-student-edit-control {
 @media (max-width: 900px) {
   .admin-course-sections-page .admin-course-sections-table th {
     letter-spacing: 0.05em;
+  }
+
+  .admin-course-sections-page
+    .admin-course-sections-table
+    .admin-course-sections-table__header-label--desktop {
+    display: none;
+  }
+
+  .admin-course-sections-page
+    .admin-course-sections-table
+    .admin-course-sections-table__header-label--mobile {
+    display: block;
   }
 }

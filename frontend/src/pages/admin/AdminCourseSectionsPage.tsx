@@ -91,6 +91,8 @@ function toggleWeekday(
 type AdminCourseSectionsTableColumn = {
   key: string
   label: string
+  mobileLabel?: string
+  title?: string
   width: number
   align?: 'left' | 'center'
 }
@@ -98,8 +100,21 @@ type AdminCourseSectionsTableColumn = {
 const ADMIN_COURSE_SECTIONS_TABLE_COLUMNS: AdminCourseSectionsTableColumn[] = [
   { key: 'section', label: 'Section', width: 80 },
   { key: 'course_title', label: 'Course Title', width: 200 },
-  { key: 'prerequisite', label: 'Prerequisite', width: 190 },
-  { key: 'credits', label: 'Credits', width: 80, align: 'center' },
+  {
+    key: 'prerequisite',
+    label: 'Prereq',
+    mobileLabel: 'Pre',
+    title: 'Prerequisite',
+    width: 190,
+  },
+  {
+    key: 'credits',
+    label: 'Credits',
+    mobileLabel: 'Cr',
+    title: 'Credits',
+    width: 80,
+    align: 'center',
+  },
   { key: 'track', label: 'Track', width: 120 },
   { key: 'weekdays', label: 'Weekdays', width: 100 },
   { key: 'start', label: 'Start', width: 90 },
@@ -127,7 +142,20 @@ function AdminCourseSectionsTableHead() {
               textAlign: column.align === 'center' ? 'center' : undefined,
             }}
           >
-            <span className="admin-course-sections-table__header-label">{column.label}</span>
+            <span
+              className="admin-course-sections-table__header-label admin-course-sections-table__header-label--desktop"
+              title={column.title}
+            >
+              {column.label}
+            </span>
+            {column.mobileLabel != null ? (
+              <span
+                className="admin-course-sections-table__header-label admin-course-sections-table__header-label--mobile"
+                title={column.title}
+              >
+                {column.mobileLabel}
+              </span>
+            ) : null}
           </th>
         ))}
       </tr>

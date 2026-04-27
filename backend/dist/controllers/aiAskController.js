@@ -1,11 +1,13 @@
 import { verifyStudentAccessToken } from "../lib/studentAuthToken.js";
 import { RagQuestionValidationError, answerEvidenceDrivenQuestion, answerGeneralQuestion, answerLocalSearchQuestion, answerSchoolFactQuestion, plainTextFormatter, planShortConversationMemory, retrieveCatalogEvidenceForQuestion, } from "../services/ragService.js";
-import { classifyStudentAiIntent, needsCatalogEvidence, needsCourseEvidence, needsStudentEvidence, } from "../services/studentAiQuestionRouter.js";
+import { classifyStudentAiIntent, needsCatalogEvidence, needsCourseEvidence, needsFinanceEvidence, needsStudentEvidence, detectGraduationEligibilityQuestion, } from "../services/studentAiQuestionRouter.js";
 import { evaluateCourseEligibility, isLikelyPassingGrade, isLikelyCourseRelatedQuery, isShortCourseLikeQuery, loadStudentAcademicCourseContext, parsePrerequisiteRules, resolveAmuCourse, } from "../services/courseEligibilityService.js";
 import { buildStudentRecordFactsForQuestion, } from "../services/studentRecordAiService.js";
+import { evaluateStudentGraduation, formatGraduationEvaluationFacts, } from "../services/graduationEvaluationService.js";
 import { getStudentAcademicsPayload } from "../services/studentAcademicsService.js";
 import { getLegacyStudentProfile } from "../services/studentProfileService.js";
 import { getStudentTranscriptPreviewPayload } from "../services/studentTranscriptService.js";
+import { getStudentAccountPayload } from "../services/studentAccountService.js";
 import { buildSafeLoggedInUserContext, sanitizeConversationFacts, } from "../services/conversationFactsService.js";
 function formatResponseAnswer(result) {
     return {
@@ -18,6 +20,45 @@ function buildEvidenceUnavailableMessage(question) {
     return zh
         ? "我目前缺少完成此问题所需的 AMU 证据。请提供更具体的课程代码、项目（如 MAHM 或 DAHM）或目录年份，我可以基于可检索到的 AMU 目录和你的可用学业记录重新判断。"
         : "I do not currently have enough AMU evidence to answer this reliably. Please share a specific course code, program (such as MAHM or DAHM), or catalog year, and I can re-check using available AMU catalog context and your student record evidence.";
+}
+function sumByDescription(items, re) {
+    return Math.round(items.reduce((total, item) => (re.test(item.description) ? total + item.amount : total), 0) *
+        100) / 100;
+}
+function buildFinanceEvidence(accountPayload) {
+    if (accountPayload == null)
+        return null;
+    const termLabel = `${accountPayload.term} ${accountPayload.year}`;
+    const lineItems = accountPayload.lineItems ?? [];
+    return {
+        source: "student_billing_db",
+        term: termLabel,
+        charges: accountPayload.summary.totalCharges,
+        payments: accountPayload.summary.payments,
+        balance: accountPayload.summary.outstandingBalance,
+        dueDate: accountPayload.installmentSchedule[0]?.dueDate ?? undefined,
+        lateFees: sumByDescription(lineItems, /late fee|滞纳|滯納/i),
+        clinicalFees: Math.round(lineItems
+            .filter((item) => item.category === "clinical")
+            .reduce((total, item) => total + item.amount, 0) * 100) / 100,
+        examFees: Math.round(lineItems
+            .filter((item) => item.category === "exam")
+            .reduce((total, item) => total + item.amount, 0) * 100) / 100,
+    };
+}
+function formatFinanceEvidenceForPrompt(financeEvidence) {
+    return [
+        "Finance Evidence",
+        `- Source: ${financeEvidence.source}`,
+        `- Term: ${financeEvidence.term ?? "Unavailable"}`,
+        `- Total charges: ${financeEvidence.charges ?? "Unavailable"}`,
+        `- Total payments: ${financeEvidence.payments ?? "Unavailable"}`,
+        `- Outstanding balance: ${financeEvidence.balance ?? "Unavailable"}`,
+        `- Next due date: ${financeEvidence.dueDate ?? "Unavailable"}`,
+        `- Late fees: ${financeEvidence.lateFees ?? "Unavailable"}`,
+        `- Clinical fees: ${financeEvidence.clinicalFees ?? "Unavailable"}`,
+        `- Exam fees: ${financeEvidence.examFees ?? "Unavailable"}`,
+    ].join("\n");
 }
 function readQuestion(req) {
     const body = req.body;
@@ -71,6 +112,7 @@ function buildStudentCourseContextText(input) {
  * Body: {
  *   question: string,
  *   history?: { role: 'user' | 'assistant', content: string }[],
+ *   messages?: { role: 'user' | 'assistant', content: string }[],
  *   conversationFacts?: { statedName?: string, preferredLanguage?: 'en' | 'zh' }
  * }
  */
@@ -105,11 +147,25 @@ export async function postAiAsk(req, res) {
         res.status(400).json({ error: "history must be an array when provided" });
         return;
     }
+    if (body != null &&
+        typeof body === "object" &&
+        Object.prototype.hasOwnProperty.call(body, "messages") &&
+        body.messages != null &&
+        !Array.isArray(body.messages)) {
+        res.status(400).json({ error: "messages must be an array when provided" });
+        return;
+    }
     const rawHistory = body != null &&
         typeof body === "object" &&
         Object.prototype.hasOwnProperty.call(body, "history")
         ? body.history
         : undefined;
+    const rawMessages = body != null &&
+        typeof body === "object" &&
+        Object.prototype.hasOwnProperty.call(body, "messages")
+        ? body.messages
+        : undefined;
+    const incomingHistory = rawHistory ?? rawMessages;
     const rawConversationFacts = body != null &&
         typeof body === "object" &&
         Object.prototype.hasOwnProperty.call(body, "conversationFacts")
@@ -125,16 +181,21 @@ export async function postAiAsk(req, res) {
             safeProfile: buildSafeLoggedInUserContext(authStudent.studentId, profile),
         };
         const initialIntent = classifyStudentAiIntent(q);
-        const memoryPlan = planShortConversationMemory(q, rawHistory, initialIntent);
+        const memoryPlan = planShortConversationMemory(q, incomingHistory, initialIntent);
         const routedIntent = memoryPlan.effectiveIntent;
         const wantsStudentEvidence = needsStudentEvidence(q);
         const wantsCatalogEvidence = needsCatalogEvidence(q);
         const wantsCourseEvidence = needsCourseEvidence(q);
+        const wantsFinanceData = needsFinanceEvidence(q);
+        const needsGraduationEvaluation = detectGraduationEligibilityQuestion(q);
         const shortCourseLike = isShortCourseLikeQuery(q);
         let studentEvidence = null;
         let courseEvidence = null;
         let catalogEvidence;
         let weakCatalogRetrieval = false;
+        let financeEvidence;
+        let financeEvidenceUnavailable = false;
+        const numericSources = new Set();
         console.debug("[ai/ask] detected intent", {
             initialIntent,
             effectiveIntent: routedIntent,
@@ -146,6 +207,8 @@ export async function postAiAsk(req, res) {
             wantsCatalogEvidence,
             wantsCourseEvidence,
             shortCourseLike,
+            wantsFinanceData,
+            needsGraduationEvaluation,
         });
         if (wantsStudentEvidence) {
             const academics = await getStudentAcademicsPayload(authStudent.studentId);
@@ -189,6 +252,31 @@ export async function postAiAsk(req, res) {
             const recordFacts = await buildStudentRecordFactsForQuestion(authStudent.studentId, q);
             if (recordFacts != null) {
                 studentEvidence = recordFacts.contextText;
+            }
+        }
+        if (needsGraduationEvaluation) {
+            const graduation = await evaluateStudentGraduation(authStudent.studentId);
+            const graduationFacts = formatGraduationEvaluationFacts(graduation);
+            studentEvidence =
+                studentEvidence != null && studentEvidence.trim() !== ""
+                    ? `${studentEvidence}\n\n${graduationFacts}`
+                    : graduationFacts;
+            numericSources.add("student_record.completedCredits");
+            numericSources.add("graduation_evaluation.missingCredits");
+            numericSources.add("catalog.requiredCredits");
+        }
+        if (wantsFinanceData) {
+            const accountPayload = await getStudentAccountPayload(authStudent.studentId, {
+                mode: "auto",
+            });
+            const builtFinanceEvidence = buildFinanceEvidence(accountPayload);
+            if (builtFinanceEvidence != null) {
+                financeEvidence = builtFinanceEvidence;
+                numericSources.add("finance.balance");
+                numericSources.add("finance.payments");
+            }
+            else {
+                financeEvidenceUnavailable = true;
             }
         }
         if (routedIntent === "general") {
@@ -297,6 +385,18 @@ export async function postAiAsk(req, res) {
                 });
             }
         }
+        if (wantsFinanceData &&
+            financeEvidenceUnavailable &&
+            studentEvidence == null &&
+            (catalogEvidence?.length ?? 0) === 0 &&
+            courseEvidence == null) {
+            res.status(200).json({
+                question: q,
+                answer: "我目前可用的已验证财务缴费数据不足，暂时无法可靠回答你的财务金额问题。请稍后重试或联系财务办公室核对最新账单与付款记录。",
+                sources: [],
+            });
+            return;
+        }
         console.debug("[ai/ask] pipeline used", {
             pipeline: "unified_evidence",
             finalPipeline: "evidence_driven",
@@ -304,15 +404,30 @@ export async function postAiAsk(req, res) {
             hasCatalogEvidence: (catalogEvidence?.length ?? 0) > 0,
             hasCourseEvidence: courseEvidence != null,
             weakCatalogRetrieval,
+            hasFinanceEvidence: financeEvidence != null,
+            hasConversationContext: (memoryPlan.history?.length ?? 0) > 0,
+            numericSources: [...numericSources],
         });
         const result = await answerEvidenceDrivenQuestion({
             question: q,
             studentEvidence,
             catalogEvidence,
             courseEvidence,
+            financeEvidence: financeEvidence != null
+                ? formatFinanceEvidenceForPrompt(financeEvidence)
+                : financeEvidenceUnavailable
+                    ? "Finance Evidence\n- Source: student_billing_db\n- Verified finance data status: unavailable or insufficient for this request"
+                    : undefined,
+            numericSources: [...numericSources],
             identityContext,
             history: memoryPlan.history,
         });
+        console.debug("[AI Evidence] hasStudentEvidence", studentEvidence != null);
+        console.debug("[AI Evidence] hasCatalogEvidence", (catalogEvidence?.length ?? 0) > 0);
+        console.debug("[AI Evidence] hasCourseEvidence", courseEvidence != null);
+        console.debug("[AI Evidence] hasFinanceEvidence", financeEvidence != null);
+        console.debug("[AI Evidence] hasConversationContext", (memoryPlan.history?.length ?? 0) > 0);
+        console.debug("[AI Evidence] numericSources", [...numericSources]);
         res.status(200).json(formatResponseAnswer(result));
     }
     catch (e) {

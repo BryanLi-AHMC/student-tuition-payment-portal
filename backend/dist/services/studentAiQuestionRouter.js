@@ -15,6 +15,10 @@ function hasPolicyCue(value) {
     return (/\b(policy|handbook|catalog|rule|rules|requirement|requirements|deadline|deadlines|prerequisite|prerequisites|graduation|attendance|probation|refund|withdrawal policy|withdrawal|add\/drop|registration policy|tuition|fee|fees|payment|clinical|clerkship|practicum|internship|hours)\b/i.test(value) ||
         /政策|规定|要求|规则|退选|退课|先修|先决|学费|费用|缴费|退款|毕业要求|目录|手册|deadline|withdrawal|prerequisite|临床|诊所|实习|见习|学时|时数|出席|考勤|出勤|旷课|加退选/.test(value));
 }
+function hasFinanceTopicCue(value) {
+    return (/\b(finance|financial|billing|bill|invoice|tuition|payment|paid|unpaid|balance|amount due|amount paid|installment|late fee|clinical fee|exam fee)\b/i.test(value) ||
+        /财务|繳費|缴费|学费|學費|账单|帳單|账务|帳務|付款|支付|余额|餘額|欠费|欠費|发票|發票|分期|滞纳金|滯納金|临床费|臨床費|考试费|考試費/.test(value));
+}
 /** Casual writing help without AMU policy context — keep on general chat path. */
 function isConversationalWritingAssistOnly(question) {
     const t = question.trim();
@@ -278,9 +282,14 @@ export function needsStudentEvidence(question) {
     const normalized = lower(question);
     return (hasPersonalStudentCue(normalized) ||
         detectStudentRecordQuestion(question) != null ||
-        detectGraduationEligibilityQuestion(question));
+        detectGraduationEligibilityQuestion(question) ||
+        hasFinanceTopicCue(normalized));
 }
 export function needsCourseEvidence(question) {
     return extractCourseCode(question) != null || detectCourseEligibilityIntent(question);
+}
+export function needsFinanceEvidence(question) {
+    const normalized = lower(question);
+    return hasFinanceTopicCue(normalized);
 }
 //# sourceMappingURL=studentAiQuestionRouter.js.map

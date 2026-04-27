@@ -68,6 +68,17 @@ function hasPolicyCue(value: string): boolean {
   );
 }
 
+function hasFinanceTopicCue(value: string): boolean {
+  return (
+    /\b(finance|financial|billing|bill|invoice|tuition|payment|paid|unpaid|balance|amount due|amount paid|installment|late fee|clinical fee|exam fee)\b/i.test(
+      value,
+    ) ||
+    /财务|繳費|缴费|学费|學費|账单|帳單|账务|帳務|付款|支付|余额|餘額|欠费|欠費|发票|發票|分期|滞纳金|滯納金|临床费|臨床費|考试费|考試費/.test(
+      value,
+    )
+  );
+}
+
 /** Casual writing help without AMU policy context — keep on general chat path. */
 function isConversationalWritingAssistOnly(question: string): boolean {
   const t = question.trim();
@@ -528,10 +539,16 @@ export function needsStudentEvidence(question: string): boolean {
   return (
     hasPersonalStudentCue(normalized) ||
     detectStudentRecordQuestion(question) != null ||
-    detectGraduationEligibilityQuestion(question)
+    detectGraduationEligibilityQuestion(question) ||
+    hasFinanceTopicCue(normalized)
   );
 }
 
 export function needsCourseEvidence(question: string): boolean {
   return extractCourseCode(question) != null || detectCourseEligibilityIntent(question);
+}
+
+export function needsFinanceEvidence(question: string): boolean {
+  const normalized = lower(question);
+  return hasFinanceTopicCue(normalized);
 }

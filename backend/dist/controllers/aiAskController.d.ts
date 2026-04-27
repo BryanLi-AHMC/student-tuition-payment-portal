@@ -4,6 +4,7 @@ import type { Request, Response } from "express";
  * Body: {
  *   question: string,
  *   history?: { role: 'user' | 'assistant', content: string }[],
+ *   messages?: { role: 'user' | 'assistant', content: string }[],
  *   conversationFacts?: { statedName?: string, preferredLanguage?: 'en' | 'zh' }
  * }
  */

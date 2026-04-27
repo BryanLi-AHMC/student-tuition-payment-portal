@@ -38,4 +38,5 @@ export declare function classifyStudentAiIntent(question: string): StudentAiInte
 export declare function needsCatalogEvidence(question: string): boolean;
 export declare function needsStudentEvidence(question: string): boolean;
 export declare function needsCourseEvidence(question: string): boolean;
+export declare function needsFinanceEvidence(question: string): boolean;
 //# sourceMappingURL=studentAiQuestionRouter.d.ts.map

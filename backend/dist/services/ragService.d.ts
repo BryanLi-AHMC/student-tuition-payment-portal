@@ -42,6 +42,8 @@ export type UnifiedEvidenceInput = {
     studentEvidence?: string | null;
     catalogEvidence?: RetrievedChunk[];
     courseEvidence?: string | null;
+    financeEvidence?: string | null;
+    numericSources?: string[];
     identityContext?: IdentityContext | null;
     history?: unknown;
 };
