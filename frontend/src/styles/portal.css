@@ -8680,9 +8680,9 @@ table.portal-academics-transcript-sheet__table.portal-academics-portal-grades-ta
 /* Course Sections page only: English / Chinese timetable tables (overrides .portal-table last-col right align) */
 .admin-course-sections-page .admin-course-sections-table {
   table-layout: fixed;
-  width: 100%;
-  /* Keep column widths stable; wrapper handles horizontal scroll on narrow screens. */
-  min-width: 88.75rem;
+  width: 1780px;
+  min-width: 1780px;
+  max-width: none;
 }
 
 .admin-course-sections-page .admin-course-sections-table th,
@@ -10485,6 +10485,11 @@ select.admin-student-edit-control {
     min-height: 2.5rem;
     white-space: normal;
   }
+}
+
+.admin-course-sections-page .portal-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .admin-course-sections-page .admin-course-sections-list .portal-table-wrap {

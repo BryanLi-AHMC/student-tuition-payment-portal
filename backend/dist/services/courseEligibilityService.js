@@ -20,6 +20,33 @@ function extractLikelyCourseNameToken(question) {
         .trim();
     if (compact.length < 2 || compact.length > 20)
         return null;
+    const lowerCompact = compact.toLowerCase();
+    const genericEnglishTokens = new Set([
+        "course",
+        "courses",
+        "class",
+        "classes",
+        "registration",
+        "register",
+        "credit",
+        "credits",
+        "gpa",
+        "grades",
+        "grade",
+        "transcript",
+        "tuition",
+        "payment",
+        "policy",
+        "program",
+        "graduation",
+        "requirement",
+        "requirements",
+    ]);
+    if (genericEnglishTokens.has(lowerCompact))
+        return null;
+    if (/学分|毕业|学费|缴费|付款|payment|tuition|program|graduation|requirement|requirements|policy/i.test(compact)) {
+        return null;
+    }
     if (/^[a-z]{1,20}$/i.test(compact))
         return compact.toLowerCase();
     if (/^[\u4E00-\u9FFF]{2,20}$/.test(compact))
@@ -80,15 +107,29 @@ export function isLikelyCourseRelatedQuery(question) {
     if (q === "")
         return false;
     const lower = q.toLowerCase();
-    if (/\b([a-z]{2,6})[\s-]?(\d{3}[a-z]?)\b/i.test(q))
+    const hasCourseCode = /\b([a-z]{2,6})[\s-]?(\d{3}[a-z]?)\b/i.test(q);
+    if (hasCourseCode)
+        return true;
+    const isBroadNonCourseQuestion = /我(现在)?修了多少学分|my\s+credits|completed\s+credits|my\s+completed\s+credits|my\s+transcript|my\s+gpa|my\s+grades/i.test(lower) ||
+        /毕业需要多少学分|graduation\s+requirement|program\s+credits|一个学分多少钱|我的学费是多少|payment\s+standard|tuition|payment|policy|program|graduation|学分多少钱|学费|缴费|付款/.test(q);
+    if (isBroadNonCourseQuestion)
+        return false;
+    const prerequisiteIntent = detectPrerequisiteQuestion(q);
+    const eligibilityIntent = detectEligibilityQuestion(q);
+    const hasIntent = prerequisiteIntent || eligibilityIntent;
+    const hasLikelyCourseName = extractLikelyCourseNameToken(q) != null;
+    if (hasIntent && hasLikelyCourseName)
+        return true;
+    const shortCourseLike = isShortCourseLikeQuery(q);
+    if (shortCourseLike)
         return true;
     if (/\b(course|class|prerequisite|prereq|co-?requisite|register|registration|eligible)\b/i.test(lower)) {
-        return true;
+        return hasLikelyCourseName;
     }
     if (/课程|先修|先决|选课|注册|我可以选|能选吗|能不能修|还差什么课|eligible/.test(q)) {
-        return true;
+        return hasLikelyCourseName || hasIntent;
     }
-    return extractLikelyCourseNameToken(q) != null;
+    return false;
 }
 export function isShortCourseLikeQuery(question) {
     const q = question.trim();

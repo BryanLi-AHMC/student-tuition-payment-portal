@@ -201,6 +201,10 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
     const isGraduationBackendQuestion =
       isGraduationQuestion || isGraduationRequirementCreditsQuestion;
     const isCourseEligibilityQuestion = detectCourseEligibilityIntent(q);
+    const courseCodeDetected = /\b([a-z]{2,6})[\s-]?(\d{3}[a-z]?)\b/i.test(q);
+    const prerequisiteIntent = detectPrerequisiteQuestion(q);
+    const eligibilityIntent = detectEligibilityQuestion(q);
+    const shortCourseLike = isShortCourseLikeQuery(q);
     console.debug("[ai/ask] detected intent", {
       initialIntent,
       effectiveIntent: routedIntent,
@@ -211,123 +215,11 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
       isGraduationQuestion,
       isGraduationRequirementCreditsQuestion,
       isCourseEligibilityQuestion,
+      courseCodeDetected,
+      prerequisiteIntent,
+      eligibilityIntent,
+      shortCourseLike,
     });
-
-    const isLikelyCourseQuery = isLikelyCourseRelatedQuery(q);
-    if (isLikelyCourseQuery) {
-      const studentCourseContext = await loadStudentAcademicCourseContext(
-        authStudent.studentId,
-      );
-      const resolved = await resolveAmuCourse(q, studentCourseContext);
-      if (resolved.status === "ambiguous") {
-        const options = resolved.matches
-          .slice(0, 4)
-          .map((match) => formatMatchedCourseLabel(match))
-          .join("；");
-        res.status(200).json({
-          question: q,
-          answer: `我找到了多个可能匹配的 AMU 课程：${options}。请提供课程代码或完整课程名称，我可以继续为你精确查询。`,
-          sources: [],
-        });
-        return;
-      }
-
-      if (resolved.status === "no_match") {
-        if (isShortCourseLikeQuery(q)) {
-          res.status(200).json({
-            question: q,
-            answer:
-              "我目前没有在可用的 AMU 课程资料中找到这个课程。请提供课程代码或完整课程名称，我可以再帮你查。",
-            sources: [],
-          });
-          return;
-        }
-      } else {
-        const studentContextText = buildStudentCourseContextText(studentCourseContext);
-        const resolvedCourse = resolved.course;
-        const isPrerequisite = detectPrerequisiteQuestion(q);
-        const isEligibility = detectEligibilityQuestion(q);
-        const rules = parsePrerequisiteRules(resolvedCourse);
-
-        if (isPrerequisite) {
-          if ((resolvedCourse.prerequisiteText ?? "").trim() !== "") {
-            const ragResult = await answerAmuQuestion(
-              `${resolvedCourse.code} prerequisite requirement`,
-              memoryPlan.history,
-              {
-                pipeline: "policy",
-                identityContext,
-              },
-            );
-            res.status(200).json(
-              formatResponseAnswer({
-                ...ragResult,
-                answer: `${resolvedCourse.code} 的先修要求是：${resolvedCourse.prerequisiteText}\n\n基于可用的 AMU 目录上下文，补充说明：${ragResult.answer}`,
-              }),
-            );
-            return;
-          }
-          res.status(200).json({
-            question: q,
-            answer: `我找到了 ${resolvedCourse.code}，但目前可用的 AMU 课程资料没有列出明确先修要求。建议向 Academic Advising 确认。`,
-            sources: [],
-          });
-          return;
-        }
-
-        if (isEligibility) {
-          const eligibility = evaluateCourseEligibility({
-            targetCourse: resolvedCourse,
-            prerequisites: rules,
-            studentCompletedCourses: studentCourseContext.completedCourses.map((c) => ({
-              code: c.code,
-              passed: isLikelyPassingGrade(c.grade),
-            })),
-            studentEnrollments: studentCourseContext.currentRegistrations.map((r) => ({
-              code: r.code,
-              status: "active",
-            })),
-          });
-          if (eligibility.eligible === true) {
-            res.status(200).json({
-              question: q,
-              answer: `根据你当前可用的 AMU 学业记录，你目前满足 ${resolvedCourse.code} 的已解析先修要求，可以尝试选课。`,
-              sources: [],
-            });
-            return;
-          }
-          if (eligibility.missingPrerequisites.length > 0) {
-            res.status(200).json({
-              question: q,
-              answer: `根据你当前可用的 AMU 学业记录，你选 ${resolvedCourse.code} 还缺这些已解析先修课：${eligibility.missingPrerequisites.join("、")}。`,
-              sources: [],
-            });
-            return;
-          }
-          res.status(200).json({
-            question: q,
-            answer: `我找到了 ${resolvedCourse.code}，但基于当前可用 AMU 课程资料无法明确解析完整先修规则，所以暂时无法确定你是否可以选这门课。`,
-            sources: [],
-          });
-          return;
-        }
-
-        const result = await answerAmuQuestion(
-          `${q}\n\nUse this resolved AMU course as the target course: ${resolvedCourse.code} ${resolvedCourse.engName ?? ""} ${resolvedCourse.chiName ?? ""}`.trim(),
-          memoryPlan.history,
-          {
-            pipeline: "mixed",
-            studentContext: buildResolvedCourseContextText(
-              resolvedCourse,
-              studentContextText,
-            ),
-            identityContext,
-          },
-        );
-        res.status(200).json(formatResponseAnswer(result));
-        return;
-      }
-    }
 
     if (
       isGraduationBackendQuestion ||
@@ -382,6 +274,45 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
       }
     }
 
+    if (routedIntent === "student_record") {
+      const recordFacts = await buildStudentRecordFactsForQuestion(
+        authStudent.studentId,
+        q,
+      );
+      if (recordFacts != null) {
+        console.debug("[ai/ask] pipeline used", {
+          pipeline: "student_record",
+          finalPipeline: "student_record",
+          deterministicStudentFactsUsed: true,
+          ragUsed: true,
+          helperCount: recordFacts.usedHelpers.length,
+        });
+        const result = await answerStudentRecordQuestionFromFacts(
+          q,
+          recordFacts.contextText,
+          identityContext,
+        );
+        res.status(200).json(formatResponseAnswer(result));
+        return;
+      }
+      console.debug("[ai/ask] pipeline used", {
+        pipeline: "student_record",
+        finalPipeline: "student_record",
+        deterministicStudentFactsUsed: false,
+        ragUsed: false,
+      });
+      console.error("[AI DEBUG] student_record fell through without deterministic facts", {
+        studentId: authStudent.studentId,
+        question: q,
+      });
+      res.status(200).json({
+        question: q,
+        answer: buildEvidenceUnavailableMessage(q),
+        sources: [],
+      });
+      return;
+    }
+
     if (isGraduationBackendQuestion) {
       const evaluation = await evaluateGraduation(authStudent.studentId);
       const structuredEvaluation = formatGraduationEvaluationFacts(evaluation);
@@ -397,6 +328,7 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
       });
       console.debug("[ai/ask] pipeline used", {
         pipeline: "graduation_evaluation",
+        finalPipeline: "graduation_evaluation",
         eligible: evaluation.eligible,
         ruleSetId: evaluation.ruleSetId,
         missingCourseCount: evaluation.missingCourses.length,
@@ -414,6 +346,7 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
     if (routedIntent === "general") {
       console.debug("[ai/ask] pipeline used", {
         pipeline: "general",
+        finalPipeline: "general",
         answerMode: "normal_chat",
       });
       const result = await answerGeneralQuestion(q, memoryPlan.history, {
@@ -424,59 +357,150 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
     }
 
     if (routedIntent === "school_fact") {
-      console.debug("[ai/ask] pipeline used", { pipeline: "school_fact" });
+      console.debug("[ai/ask] pipeline used", {
+        pipeline: "school_fact",
+        finalPipeline: "policy_rag",
+      });
       const result = await answerSchoolFactQuestion(q);
       res.status(200).json(formatResponseAnswer(result));
       return;
     }
 
     if (routedIntent === "local_search") {
-      console.debug("[ai/ask] pipeline used", { pipeline: "local_search" });
+      console.debug("[ai/ask] pipeline used", {
+        pipeline: "local_search",
+        finalPipeline: "policy_rag",
+      });
       const result = await answerLocalSearchQuestion(q);
       res.status(200).json(formatResponseAnswer(result));
       return;
     }
 
-    if (routedIntent === "student_record") {
-      const recordFacts = await buildStudentRecordFactsForQuestion(
+    const isLikelyCourseQuery = isLikelyCourseRelatedQuery(q);
+    if (isLikelyCourseQuery) {
+      console.debug("[ai/ask] course routing selected", {
+        finalPipeline: "course_resolution",
+        courseCodeDetected,
+        shortCourseLike,
+        prerequisiteIntent,
+        eligibilityIntent,
+      });
+      const studentCourseContext = await loadStudentAcademicCourseContext(
         authStudent.studentId,
-        q,
       );
-      if (recordFacts != null) {
-        console.debug("[ai/ask] pipeline used", {
-          pipeline: "student_record",
-          deterministicStudentFactsUsed: true,
-          ragUsed: true,
-          helperCount: recordFacts.usedHelpers.length,
+      const resolved = await resolveAmuCourse(q, studentCourseContext);
+      if (resolved.status === "ambiguous") {
+        const options = resolved.matches
+          .slice(0, 4)
+          .map((match) => formatMatchedCourseLabel(match))
+          .join("；");
+        res.status(200).json({
+          question: q,
+          answer: `我找到了多个可能匹配的 AMU 课程：${options}。请提供课程代码或完整课程名称，我可以继续为你精确查询。`,
+          sources: [],
         });
-        const result = await answerStudentRecordQuestionFromFacts(
-          q,
-          recordFacts.contextText,
-          identityContext,
+        return;
+      }
+
+      if (resolved.status === "no_match") {
+        if (shortCourseLike) {
+          res.status(200).json({
+            question: q,
+            answer:
+              "我目前没有在可用的 AMU 课程资料中找到这个课程。请提供课程代码或完整课程名称，我可以再帮你查。",
+            sources: [],
+          });
+          return;
+        }
+      } else {
+        const studentContextText = buildStudentCourseContextText(studentCourseContext);
+        const resolvedCourse = resolved.course;
+        const rules = parsePrerequisiteRules(resolvedCourse);
+
+        if (prerequisiteIntent) {
+          if ((resolvedCourse.prerequisiteText ?? "").trim() !== "") {
+            const ragResult = await answerAmuQuestion(
+              `${resolvedCourse.code} prerequisite requirement`,
+              memoryPlan.history,
+              {
+                pipeline: "policy",
+                identityContext,
+              },
+            );
+            res.status(200).json(
+              formatResponseAnswer({
+                ...ragResult,
+                answer: `${resolvedCourse.code} 的先修要求是：${resolvedCourse.prerequisiteText}\n\n基于可用的 AMU 目录上下文，补充说明：${ragResult.answer}`,
+              }),
+            );
+            return;
+          }
+          res.status(200).json({
+            question: q,
+            answer: `我找到了 ${resolvedCourse.code}，但目前可用的 AMU 课程资料没有列出明确先修要求。建议向 Academic Advising 确认。`,
+            sources: [],
+          });
+          return;
+        }
+
+        if (eligibilityIntent) {
+          const eligibility = evaluateCourseEligibility({
+            targetCourse: resolvedCourse,
+            prerequisites: rules,
+            studentCompletedCourses: studentCourseContext.completedCourses.map((c) => ({
+              code: c.code,
+              passed: isLikelyPassingGrade(c.grade),
+            })),
+            studentEnrollments: studentCourseContext.currentRegistrations.map((r) => ({
+              code: r.code,
+              status: "active",
+            })),
+          });
+          if (eligibility.eligible === true) {
+            res.status(200).json({
+              question: q,
+              answer: `根据你当前可用的 AMU 学业记录，你目前满足 ${resolvedCourse.code} 的已解析先修要求，可以尝试选课。`,
+              sources: [],
+            });
+            return;
+          }
+          if (eligibility.missingPrerequisites.length > 0) {
+            res.status(200).json({
+              question: q,
+              answer: `根据你当前可用的 AMU 学业记录，你选 ${resolvedCourse.code} 还缺这些已解析先修课：${eligibility.missingPrerequisites.join("、")}。`,
+              sources: [],
+            });
+            return;
+          }
+          res.status(200).json({
+            question: q,
+            answer: `我找到了 ${resolvedCourse.code}，但基于当前可用 AMU 课程资料无法明确解析完整先修规则，所以暂时无法确定你是否可以选这门课。`,
+            sources: [],
+          });
+          return;
+        }
+
+        const result = await answerAmuQuestion(
+          `${q}\n\nUse this resolved AMU course as the target course: ${resolvedCourse.code} ${resolvedCourse.engName ?? ""} ${resolvedCourse.chiName ?? ""}`.trim(),
+          memoryPlan.history,
+          {
+            pipeline: "mixed",
+            studentContext: buildResolvedCourseContextText(
+              resolvedCourse,
+              studentContextText,
+            ),
+            identityContext,
+          },
         );
         res.status(200).json(formatResponseAnswer(result));
         return;
       }
-      console.debug("[ai/ask] pipeline used", {
-        pipeline: "student_record",
-        deterministicStudentFactsUsed: false,
-        ragUsed: false,
-      });
-      console.error("[AI DEBUG] student_record fell through without deterministic facts", {
-        studentId: authStudent.studentId,
-        question: q,
-      });
-      res.status(200).json({
-        question: q,
-        answer: buildEvidenceUnavailableMessage(q),
-        sources: [],
-      });
-      return;
     }
 
     if (routedIntent === "policy") {
       console.debug("[ai/ask] pipeline used", {
         pipeline: "policy",
+        finalPipeline: "policy_rag",
         answerMode: "catalog_rag",
       });
       const result = await answerAmuQuestion(q, memoryPlan.history, {
@@ -507,6 +531,7 @@ export async function postAiAsk(req: Request, res: Response): Promise<void> {
 
     console.debug("[ai/ask] pipeline used", {
       pipeline: "mixed",
+      finalPipeline: "policy_rag",
       answerMode: "catalog_rag_with_student_context",
       deterministicStudentFactsUsed: true,
       ragUsed: true,
