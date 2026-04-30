@@ -44,6 +44,10 @@ import {
   putAdminFinancePaymentByIdHandler,
   putFinanceQuarterSettings,
 } from "../controllers/adminFinanceController.js";
+import {
+  getAdminCourseCategories,
+  patchAdminCatalogCourse,
+} from "../controllers/adminCatalogCourseController.js";
 import { getAdminCoursesOpenForRegistration } from "../controllers/adminOpenRegistrationCoursesController.js";
 import {
   deleteCourseBinItemHandler,
@@ -65,6 +69,7 @@ import {
   postAuthorizeNetTuitionChargeHandler,
 } from "../controllers/studentAuthorizePaymentController.js";
 import { getStudentAcademics } from "../controllers/studentAcademicsController.js";
+import { getStudentProgramProgress } from "../controllers/studentProgramProgressController.js";
 import {
   getAdminStudentCourseFeedback,
   getStudentCourseFeedback,
@@ -255,6 +260,11 @@ adminRouter.get(
   "/courses/open-for-registration",
   getAdminCoursesOpenForRegistration,
 );
+adminRouter.get("/course-categories", getAdminCourseCategories);
+adminRouter.patch(
+  "/catalog/courses/:sequenceNumber",
+  patchAdminCatalogCourse,
+);
 adminRouter.get(
   "/course-sections/enrollments",
   getAdminCourseSectionEnrollments,
@@ -379,6 +389,7 @@ apiRouter.post(
 );
 apiRouter.get("/students/:studentId/profile", getStudentProfile);
 apiRouter.get("/students/:studentId/academics", getStudentAcademics);
+apiRouter.get("/students/:studentId/program-progress", getStudentProgramProgress);
 apiRouter.get(
   "/students/:studentId/course-feedback",
   getStudentCourseFeedback,
