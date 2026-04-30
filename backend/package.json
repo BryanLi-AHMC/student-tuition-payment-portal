@@ -15,6 +15,7 @@
     "build": "tsc",
     "seed": "node legacy/seed/seed.js",
     "db:bootstrap-portal": "node scripts/applyPortalAccountBootstrap.mjs",
+    "db:query": "node scripts/db-query.mjs",
     "test:openai": "tsx scripts/testOpenAI.ts",
     "test:rag-answer": "tsx scripts/testRagAnswer.ts",
     "build:knowledge": "tsx scripts/buildKnowledgeBase.ts",

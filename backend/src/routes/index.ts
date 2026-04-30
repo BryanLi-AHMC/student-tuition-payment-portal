@@ -44,6 +44,10 @@ import {
   putAdminFinancePaymentByIdHandler,
   putFinanceQuarterSettings,
 } from "../controllers/adminFinanceController.js";
+import {
+  getAdminCourseCategories,
+  patchAdminCatalogCourse,
+} from "../controllers/adminCatalogCourseController.js";
 import { getAdminCoursesOpenForRegistration } from "../controllers/adminOpenRegistrationCoursesController.js";
 import {
   deleteCourseBinItemHandler,
@@ -254,6 +258,11 @@ adminRouter.get(
 adminRouter.get(
   "/courses/open-for-registration",
   getAdminCoursesOpenForRegistration,
+);
+adminRouter.get("/course-categories", getAdminCourseCategories);
+adminRouter.patch(
+  "/catalog/courses/:sequenceNumber",
+  patchAdminCatalogCourse,
 );
 adminRouter.get(
   "/course-sections/enrollments",

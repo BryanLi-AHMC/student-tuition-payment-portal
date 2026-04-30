@@ -5,6 +5,7 @@ import { ensurePortalCoursesForLegacyCatalog } from "./portalCourseRepository.js
 /** API output keys (fixed contract). */
 export const COURSE_LIST_KEYS = [
   "course_id",
+  "sequence_number",
   "code",
   "eng_name",
   "chi_name",
@@ -24,6 +25,10 @@ export type CourseListItem = Record<CourseListKey, string | number | boolean | n
 type ColumnSpec = { out: CourseListKey; candidates: readonly string[] };
 
 const COLUMN_SPECS: ColumnSpec[] = [
+  {
+    out: "sequence_number",
+    candidates: ["sequenceNumber", "sequence_number", "seq", "id"],
+  },
   { out: "code", candidates: ["code"] },
   { out: "eng_name", candidates: ["eng_name", "engName"] },
   { out: "chi_name", candidates: ["chi_name", "chiName"] },
