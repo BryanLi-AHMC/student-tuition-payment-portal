@@ -23,6 +23,27 @@ function buildCatalogByCode(): Map<string, CourseRecord> {
   return byCode;
 }
 
+/**
+ * Bucket math uses the static MAHM curriculum map when a code is listed there.
+ * Portal/catalog courses (e.g. AC300, BS101) not in that list still contribute to
+ * {@link sumActiveDegreeQuarterUnits}; without a fallback they would inflate the chart
+ * "in progress" total while showing 0 in didactic/lab/clinical breakdown rows.
+ * Unlisted quarter-credit courses are treated as **didactic** (not lab/clinical).
+ */
+function resolveProgressCatalogEntry(
+  codeNorm: string,
+  byCode: Map<string, CourseRecord>,
+): CourseRecord {
+  const listed = byCode.get(codeNorm);
+  if (listed != null) return listed;
+  return {
+    courseId: `unlisted:${codeNorm}`,
+    courseCode: codeNorm,
+    title: "",
+    type: "didactic",
+  };
+}
+
 function catalogRequirementTotals(): {
   didacticRequired: number;
   labRequired: number;
@@ -63,9 +84,6 @@ function sumCatalogEarnedFromTranscript(
   for (const row of transcript) {
     if (row.status !== "completed") continue;
     const code = normalizeCourseCode(row.courseCode);
-    const cat = byCode.get(code);
-    if (cat == null) continue;
-
     const credits = row.credits;
     const crOk = credits != null && Number.isFinite(credits) && credits > 0;
 
@@ -73,14 +91,24 @@ function sumCatalogEarnedFromTranscript(
       if (seenMarks.has(code)) continue;
       seenMarks.add(code);
       if (!crOk) continue;
+      const cat = resolveProgressCatalogEntry(code, byCode);
       if (cat.type === "didactic") didactic += credits;
       else if (cat.type === "lab") lab += credits;
       else if (cat.type === "clinical") clinicalHours += credits;
     } else if (row.source === "clinic") {
       if (seenClinic.has(code)) continue;
       seenClinic.add(code);
-      if (cat.type !== "clinical") continue;
+      const cat = byCode.get(code);
+      if (cat == null || cat.type !== "clinical") continue;
       if (crOk) clinicalHours += credits;
+    } else if (row.source === "portal") {
+      if (seenMarks.has(code)) continue;
+      seenMarks.add(code);
+      if (!crOk) continue;
+      const cat = resolveProgressCatalogEntry(code, byCode);
+      if (cat.type === "didactic") didactic += credits;
+      else if (cat.type === "lab") lab += credits;
+      else if (cat.type === "clinical") clinicalHours += credits;
     }
   }
 
@@ -136,8 +164,6 @@ function sumCatalogInProgressFromCourseRecords(
     if (r.status !== "active") continue;
     if (r.source === "clinic") continue;
     const code = normalizeCourseCode(r.courseCode);
-    const cat = byCode.get(code);
-    if (cat == null) continue;
     const cr = r.credits;
     if (cr == null || !Number.isFinite(cr) || cr <= 0) continue;
     const dedupe =
@@ -147,6 +173,7 @@ function sumCatalogInProgressFromCourseRecords(
     if (seen.has(dedupe)) continue;
     seen.add(dedupe);
 
+    const cat = resolveProgressCatalogEntry(code, byCode);
     if (cat.type === "didactic") didactic += cr;
     else if (cat.type === "lab") lab += cr;
     else if (cat.type === "clinical") clinicalHours += cr;
@@ -286,6 +313,7 @@ export async function getStudentProgramProgressPayload(
     ...evaluation.notes,
     "Didactic, lab, and clinical rows match portal catalog course codes on your unofficial transcript. Quarter-unit totals in the chart follow graduation credit rules (including transfer credits when recorded).",
     "In progress counts active marks and portal registrations with positive credits (not yet completed). Remaining is required minus completed and in progress for each bucket.",
+    "Courses registered in the portal but not listed in the static MAHM curriculum map count toward didactic in-progress and completed buckets (not lab or clinical) until mapped explicitly.",
   ];
 
   return {
